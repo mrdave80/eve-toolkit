@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; img-src 'self' https://images.evetech.net data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>EVE Toolkit</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="app">
+    <aside id="sidebar">
+      <div class="brand">
+        <svg viewBox="0 0 32 32" class="brand-mark" aria-hidden="true">
+          <circle cx="16" cy="16" r="13" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".35"/>
+          <path d="M16 3a13 13 0 0 1 12.6 9.8" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+          <circle cx="16" cy="16" r="4.2" fill="currentColor"/>
+        </svg>
+        <div>
+          <div class="brand-name">EVE Toolkit</div>
+          <div class="brand-sub" id="server-status">Tranquility: checking…</div>
+        </div>
+      </div>
+
+      <nav class="side-nav">
+        <button class="side-link" data-view="dashboard"><span class="ico">◈</span> All pilots</button>
+        <button class="side-link" data-view="trainingAll"><span class="ico">⏱</span> Training board</button>
+        <button class="side-link" data-view="industryAll"><span class="ico">⚒</span> Industry board</button>
+        <button class="side-link" data-view="planetsAll"><span class="ico">◍</span> Planets board</button>
+        <button class="side-link" data-view="tools"><span class="ico">⚙</span> Tools</button>
+        <button class="side-link" data-view="liveMap"><span class="ico">✦</span> Live map</button>
+        <button class="side-link" data-view="daily"><span class="ico">☀</span> Daily rewards</button>
+        <button class="side-link" data-view="wormholes"><span class="ico">◎</span> Wormhole mapper</button>
+        <button class="side-link" data-view="piPlanner"><span class="ico">⬡</span> PI planner</button>
+        <button class="side-link" data-view="corp"><span class="ico">⛨</span> Corporation</button>
+      </nav>
+
+      <div class="side-heading">Pilots</div>
+      <ul id="char-list"></ul>
+      <button id="add-char" class="btn btn-ghost add-btn">+ Add pilot</button>
+      <button class="btn btn-ghost add-btn" data-action="add-director" title="Logs in with extra corporation and fleet permissions">+ Add director / FC</button>
+
+      <button id="clip-badge" class="badge accent" hidden title="EVE Toolkit is reading copied Local lists and d-scans. Click to manage." style="margin:0 6px 8px;cursor:pointer">📋 Clipboard watch on</button>
+      <div class="side-foot">
+        <button class="side-link" data-view="settings"><span class="ico">⚙</span> Settings</button>
+        <button class="side-link" id="ov-toggle" title="Always-on-top window for over the EVE client. Ctrl+Shift+O"><span class="ico">⧉</span> Overlay</button>
+        <button class="side-link" data-view="about"><span class="ico">ⓘ</span> About &amp; support</button>
+      </div>
+    </aside>
+
+    <main id="main">
+      <header id="topbar">
+        <div id="crumb"></div>
+        <nav id="tabs"></nav>
+        <button id="search-btn" class="btn btn-ghost" title="Find a tool, pilot or item (Ctrl+K)">⌕ Search <span class="kbd">Ctrl K</span></button>
+        <button id="refresh" class="btn btn-ghost" title="Refresh (F5)">⟳ Refresh</button>
+      </header>
+      <nav id="subtabs"></nav>
+      <section id="content"></section>
+    </main>
+  </div>
+  <div id="toast" role="status" aria-live="polite"></div>
+  <script src="themes.js"></script>
+  <script src="views-about.js"></script>
+  <script src="views-extra.js"></script>
+  <script src="views-plan.js"></script>
+  <script src="views-corp.js"></script>
+  <script src="pi-data.js"></script>
+  <script src="views-pi.js"></script>
+  <script src="views-wh.js"></script>
+  <script src="views-tools.js"></script>
+  <script src="views-nav.js"></script>
+  <script src="views-intel.js"></script>
+  <script src="views-pilot.js"></script>
+  <script src="views-ingame.js"></script>
+  <script src="views-map.js"></script>
+  <script src="views-speech.js"></script>
+  <script src="views-finance.js"></script>
+  <script src="views-daily.js"></script>
+  <script src="views-farm.js"></script>
+  <script src="views-trade.js"></script>
+  <script src="views-items.js"></script>
+  <script src="search.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

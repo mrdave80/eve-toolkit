@@ -1,0 +1,59 @@
+{
+  "name": "eve-toolkit",
+  "productName": "EVE Toolkit",
+  "version": "1.8.8",
+  "description": "Desktop companion for EVE Online pilots: characters, skill queues, wallet, mail, contracts, clones, industry, market orders and assets.",
+  "main": "src/main.js",
+  "author": "Mr Frank (EVE Online)",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "dist:win": "electron-builder --win zip portable --x64",
+    "dist:win-installer": "electron-builder --win nsis --x64"
+  },
+  "build": {
+    "appId": "net.evetoolkit.desktop",
+    "productName": "EVE Toolkit",
+    "artifactName": "EVE-Toolkit-${version}-win-x64.${ext}",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "src/**/*",
+      "renderer/**/*",
+      "build/icon.png",
+      "package.json"
+    ],
+    "afterPack": "scripts/afterPack.js",
+    "win": {
+      "icon": "build/icon.ico",
+      "signAndEditExecutable": false
+    },
+    "portable": {
+      "artifactName": "EVE-Toolkit-${version}-portable.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  },
+  "devDependencies": {
+    "@resvg/resvg-js": "^2.6.2",
+    "electron": "38.8.6",
+    "electron-builder": "26.18.0",
+    "png-to-ico": "3.0.2",
+    "resedit": "3.1.0"
+  },
+  "dependencies": {
+    "yauzl": "^3.4.0"
+  },
+  "homepage": "https://github.com/mrdave80/eve-toolkit",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mrdave80/eve-toolkit.git"
+  },
+  "bugs": {
+    "url": "https://github.com/mrdave80/eve-toolkit/issues"
+  }
+}

@@ -1,0 +1,20 @@
+const { app, BrowserWindow, protocol } = require('electron'); const path = require('path'); const fs = require('fs');
+const out = path.join(__dirname, 'out', 'themes');
+app.whenReady().then(async () => {
+  protocol.handle('https', () => new Response('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 8 8"><rect width="8" height="8" fill="#678"/></svg>', { headers: { 'content-type': 'image/svg+xml' } }));
+  const win = new BrowserWindow({ width: 1320, height: 840, show: false, webPreferences: { preload: path.join(__dirname, 'mock-preload.js'), contextIsolation: true, sandbox: false } });
+  await win.loadFile(path.join(__dirname, '..', '..', 'renderer', 'index.html'));
+  win.webContents.on('console-message', (_e, l, m) => { if (l >= 2) console.log('CONSOLE', m); });
+  const js = s => win.webContents.executeJavaScript(s).catch(e => console.log('JSERR', e.message));
+  const wait = ms => new Promise(r => setTimeout(r, ms));
+  const snap = async n => { await wait(900); fs.writeFileSync(path.join(out, n + '.png'), (await win.webContents.capturePage()).toPNG()); };
+  await wait(2000);
+  await wait(1500); await js(`applyTheme('daylight'); go('wormholes')`); await snap('y-light-wh');
+  await js(`go('piPlanner')`); await snap('y-light-pi');
+  console.log('auto before', await js(`themeState.applied`));
+  await js(`go('settings')`); await wait(800);
+  await js(`document.getElementById('ap-auto').click()`); await wait(1500);
+  console.log('auto after', await js(`themeState.applied + ' zone=' + themeState.zone + ' | ' + (document.getElementById('ap-now')||{}).textContent`));
+  console.log('accent test', await js(`(async()=>{ const s=await saveAppearance({themeAccent:'#ff00aa'}); await refreshTheme(s); return getComputedStyle(document.documentElement).getPropertyValue('--accent') + ' / ' + getComputedStyle(document.documentElement).getPropertyValue('--on-accent'); })()`));
+  app.quit();
+});

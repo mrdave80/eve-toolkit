@@ -1,0 +1,192 @@
+const { contextBridge, ipcRenderer } = require('electron');
+
+const call = (ch, ...args) => ipcRenderer.invoke(ch, ...args);
+
+contextBridge.exposeInMainWorld('api', {
+  info: () => call('app:info'),
+  checkUpdate: () => call('app:checkUpdate'),
+  updateInfo: () => call('app:updateInfo'),
+  onUpdate: cb => ipcRenderer.on('app:update', (_e, d) => cb(d)),
+  getSettings: () => call('settings:get'),
+  setSettings: s => call('settings:set', s),
+  listCharacters: () => call('characters:list'),
+  addCharacter: (corp = false) => call('characters:add', corp),
+  removeCharacter: id => call('characters:remove', id),
+  reorderCharacters: ids => call('characters:reorder', ids),
+  status: () => call('esi:status'),
+  overview: id => call('esi:overview', id),
+  skillQueue: id => call('esi:skillqueue', id),
+  skills: id => call('esi:skills', id),
+  wallet: id => call('esi:wallet', id),
+  mail: id => call('esi:mail', id),
+  mailBody: (id, mailId) => call('esi:mailBody', id, mailId),
+  contracts: id => call('esi:contracts', id),
+  clones: id => call('esi:clones', id),
+  industry: id => call('esi:industry', id),
+  orders: id => call('esi:orders', id),
+  assets: id => call('esi:assets', id),
+  training: id => call('esi:training', id),
+  industryFull: id => call('esi:industryFull', id),
+  blueprints: id => call('esi:blueprints', id),
+  planets: id => call('esi:planets', id),
+  mining: id => call('esi:mining', id),
+  research: id => call('esi:research', id),
+  loyalty: id => call('esi:loyalty', id),
+  ordersFull: id => call('esi:ordersFull', id),
+  contractItems: (id, cid) => call('esi:contractItems', id, cid),
+  notifications: id => call('esi:notifications', id),
+  calendar: id => call('esi:calendar', id),
+  corporation: id => call('esi:corporation', id),
+  standings: id => call('esi:standings', id),
+  contacts: id => call('esi:contacts', id),
+  medals: id => call('esi:medals', id),
+  fatigue: id => call('esi:fatigue', id),
+  killmails: id => call('esi:killmails', id),
+  fittings: id => call('esi:fittings', id),
+  clearCache: () => call('esi:clearCache'),
+  openLink: url => call('shell:open', url),
+  corp: {
+    directors: () => call('corp:directors'),
+    overview: id => call('corp:overview', id),
+    members: id => call('corp:members', id),
+    structures: id => call('corp:structures', id),
+    moons: id => call('corp:moons', id),
+    wallets: (id, div) => call('corp:wallets', id, div),
+    contracts: id => call('corp:contracts', id),
+    orders: id => call('corp:orders', id),
+    industry: id => call('corp:industry', id),
+    assets: id => call('corp:assets', id),
+    killmails: id => call('corp:killmails', id),
+    killmailByLink: (link, id) => call('corp:killmailByLink', link, id),
+    structureNotifications: id => call('corp:structureNotifications', id),
+    lookupCharacter: name => call('corp:lookupCharacter', name)
+  },
+  ws: {
+    get: () => call('ws:get'),
+    upsert: (collection, item, notify) => call('ws:upsert', collection, item, notify),
+    remove: (collection, id) => call('ws:remove', collection, id),
+    setSrpRules: r => call('ws:setSrpRules', r),
+    exportFile: () => call('ws:export'),
+    importFiles: () => call('ws:import'),
+    removeAudit: id => call('ws:removeAudit', id)
+  },
+  exportAudit: id => call('audit:export', id),
+  fleet: {
+    status: () => call('fleet:status'),
+    check: fcId => call('fleet:check', fcId),
+    start: opts => call('fleet:start', opts),
+    stop: () => call('fleet:stop'),
+    onUpdate: cb => ipcRenderer.on('fleet:update', (_e, d) => cb(d))
+  },
+  discord: {
+    set: p => call('discord:set', p),
+    test: kind => call('discord:test', kind),
+    guild: () => call('discord:guild'),
+    link: (charId, userId) => call('discord:link', charId, userId),
+    sync: () => call('discord:sync')
+  },
+  market: {
+    hubs: () => call('market:hubs'),
+    prices: (ids, hub) => call('market:prices', ids, hub),
+    book: (id, hub) => call('market:book', id, hub),
+    history: (id, hub) => call('market:history', id, hub)
+  },
+  copy: text => call('clipboard:write', text),
+  plan: {
+    list: charId => call('plan:list', charId),
+    save: p => call('plan:save', p),
+    remove: id => call('plan:delete', id),
+    compute: p => call('plan:compute', p),
+    remap: p => call('plan:remap', p),
+    addSkill: (p, id, lvl) => call('plan:addSkill', p, id, lvl),
+    addType: (p, id) => call('plan:addType', p, id),
+    importText: (p, t) => call('plan:import', p, t),
+    exportText: p => call('plan:export', p),
+    skills: () => call('plan:skills')
+  },
+  ind: {
+    calc: o => call('ind:calc', o), invent: o => call('ind:invent', o), reprocess: (t, o) => call('ind:reprocess', t, o),
+    structures: () => call('ind:structures'), pilotSkills: id => call('ind:pilotSkills', id)
+  },
+  appraise: (text, hub) => call('appraise', text, hub),
+  items: { search: q => call('items:search', q), info: id => call('items:info', id) },
+  charValue: () => call('charvalue'),
+  bargains: { scan: o => call('bargains:scan', o) },
+  trade: { report: o => call('trade:report', o) },
+  moon: { value: (text, o) => call('moon:value', text, o) },
+  farm: { calc: () => call('farm:calc'), save: c => call('farm:save', c), insurance: names => call('farm:insurance', names) },
+  daily: {
+    status: () => call('daily:status'), done: (id, v) => call('daily:done', id, v), allDone: v => call('daily:allDone', v),
+    track: (id, v) => call('daily:track', id, v), save: c => call('daily:save', c), news: () => call('daily:news')
+  },
+  appraiseSetPrice: (typeId, price) => call('appraise:setPrice', typeId, price),
+  trade: { lp: (c, hub) => call('trade:lp', c, hub), arbitrage: (n, f, t, tax) => call('trade:arbitrage', n, f, t, tax), watchlist: () => call('trade:watchlist'), myOrders: () => call('trade:myOrders') },
+  nav: {
+    systemId: n => call('nav:systemId', n), route: (a, b, o) => call('nav:route', a, b, o), routeCheck: (p, o) => call('nav:routeCheck', p, o), jump: (a, b, o) => call('nav:jump', a, b, o),
+    range: (n, ly) => call('nav:range', n, ly), universe: () => call('nav:universe'), ships: () => call('nav:ships'), pilotLocations: () => call('nav:pilotLocations')
+  },
+  ui: { pilots: () => call('ui:pilots'), waypoints: (c, ids) => call('ui:waypoints', c, ids), open: (c, kind, id) => call('ui:open', c, kind, id), mail: (c, to, s, b) => call('ui:mail', c, to, s, b) },
+  overlay: { toggle: () => call('overlay:toggle'), cfg: () => call('overlay:cfg'), lock: v => call('overlay:lock', v), opacity: v => call('overlay:opacity', v), setRoute: r => call('overlay:setRoute', r), getRoute: () => call('overlay:getRoute'), stats: ids => call('overlay:stats', ids),
+    onRoute: cb => ipcRenderer.on('overlay:route', (_e, d) => cb(d)), onState: cb => ipcRenderer.on('overlay:state', (_e, d) => cb(d)) },
+  pve: { ratting: (ids, d) => call('pve:ratting', ids, d), abyss: () => call('pve:abyss'), abyssCfg: p => call('pve:abyssCfg', p), abyssLoot: (id, t) => call('pve:abyssLoot', id, t), abyssUpdate: (id, p) => call('pve:abyssUpdate', id, p), abyssAdd: p => call('pve:abyssAdd', p), abyssRemove: id => call('pve:abyssRemove', id), onAbyss: cb => { ipcRenderer.on('abyss:start', (_e, d) => cb('start', d)); ipcRenderer.on('abyss:end', (_e, d) => cb('end', d)); } },
+  diag: { report: () => call('diag:report'), copy: () => call('diag:copy'), openFolder: () => call('diag:openFolder'), log: (l, m) => call('diag:log', l, m) },
+  shame: { wall: o => call('shame:wall', o), onProgress: cb => ipcRenderer.on('shame:progress', (_e, d) => cb(d)) },
+  whRes: q => call('wh:residents', q),
+  hunt: { find: o => call('hunt:find', o), deep: (id, h) => call('hunt:deep', id, h) },
+  map: { region: (id, o) => call('map:region', id, o) },
+  bridges: { list: () => call('bridges:list'), parse: t => call('bridges:parse', t), save: (l, m) => call('bridges:save', l, m) },
+  couriers: { find: o => call('couriers:find', o), regions: () => call('couriers:regions') },
+  clip: { onLocal: cb => ipcRenderer.on('clip:local', (_e, d) => cb(d)), onDscan: cb => ipcRenderer.on('clip:dscan', (_e, d) => cb(d)) },
+  phone: { get: () => call('phone:get'), save: c => call('phone:save', c), test: c => call('phone:test', c) },
+  pilot: {
+    profile: (q, o) => call('pilot:profile', q, o), vet: (q, d) => call('pilot:vet', q, d), quickMany: p => call('pilot:quickMany', p), watch: (id, name, tag, note) => call('pilot:watch', id, name, tag, note),
+    watchlist: () => call('pilot:watchlist'), recent: () => call('pilot:recent'), onProgress: cb => ipcRenderer.on('pilot:progress', (_e, d) => cb(d))
+  },
+  intel: {
+    config: () => call('intel:config'), setConfig: c => call('intel:setConfig', c), pickFolder: () => call('intel:pickFolder'), reports: () => call('intel:reports'),
+    local: t => call('intel:local', t), zkill: ids => call('intel:zkill', ids), dscan: t => call('intel:dscan', t), resetCombat: () => call('intel:resetCombat'),
+    onReport: cb => ipcRenderer.on('intel:report', (_e, d) => cb(d)), onPilots: cb => ipcRenderer.on('intel:pilots', (_e, d) => cb(d)),
+    onStatus: cb => ipcRenderer.on('intel:status', (_e, d) => cb(d)), onCombat: cb => ipcRenderer.on('combat:update', (_e, d) => cb(d)),
+    onLocal: cb => ipcRenderer.on('intel:local', (_e, d) => cb(d)), onSpike: cb => ipcRenderer.on('intel:spike', (_e, d) => cb(d)), onSpikes: cb => ipcRenderer.on('intel:spikes', (_e, d) => cb(d)), checkSpikes: () => call('intel:checkSpikes')
+  },
+  fin: { snapshot: () => call('fin:snapshot'), history: () => call('fin:history'), income: (ids, days) => call('fin:income', ids, days) },
+  corpx: {
+    moonTax: (id, from, to, rate) => call('corp:moonTax', id, from, to, rate), checkInvoices: (id, div) => call('corp:checkInvoices', id, div),
+    buybackQuote: t => call('buyback:quote', t), buybackRules: () => call('buyback:rules'), setBuybackRules: r => call('buyback:setRules', r), buybackContracts: id => call('buyback:contracts', id),
+    setAlt: (c, m) => call('ws:setAlt', c, m), sync: () => call('ws:sync'), setSyncFolder: pick => call('ws:setSyncFolder', pick), syncNow: () => call('ws:syncNow'),
+    onSynced: cb => ipcRenderer.on('ws:synced', () => cb())
+  },
+  canFly: typeId => call('canfly', typeId),
+  doctrine: { parseEft: t => call('doc:parseEft', t), evaluate: (d, hub) => call('doc:evaluate', d, hub) },
+  sde: {
+    info: () => call('sde:info'),
+    update: force => call('sde:update', force),
+    importZip: () => call('sde:import'),
+    search: (q, opts) => call('sde:search', q, opts),
+    type: id => call('sde:type', id),
+    wormholeTypes: () => call('sde:wormholeTypes'),
+    onStatus: cb => ipcRenderer.on('sde:status', (_e, s) => cb(s))
+  },
+  wh: {
+    info: q => call('wh:info', q),
+    maps: () => call('wh:maps'),
+    op: (mapId, o) => call('wh:op', mapId, o),
+    system: id => call('wh:system', id),
+    activity: ids => call('wh:activity', ids),
+    routes: id => call('wh:routes', id),
+    track: (mapId, pilots) => call('wh:track', mapId, pilots),
+    untrack: () => call('wh:untrack'),
+    status: () => call('wh:status'),
+    onEvent: cb => ipcRenderer.on('wh:event', (_e, d) => cb(d))
+  },
+  pi: {
+    types: names => call('pi:types', names),
+    capacity: () => call('pi:capacity'),
+    current: () => call('pi:current'),
+    plans: () => call('pi:plans'),
+    savePlan: p => call('pi:savePlan', p),
+    deletePlan: id => call('pi:deletePlan', id)
+  },
+  skillInfo: (charId, typeId) => call('esi:skillInfo', charId, typeId),
+  onOverviewUpdate: cb => ipcRenderer.on('overview:update', (_e, data) => cb(data))
+});

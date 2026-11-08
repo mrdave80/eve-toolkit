@@ -1,0 +1,21 @@
+const { app, BrowserWindow, protocol } = require('electron'); const path = require('path'); const fs = require('fs');
+const out = path.join(__dirname, 'out', 'v17'); fs.mkdirSync(out, { recursive: true });
+const hue = s => [...s].reduce((a, c) => a + c.charCodeAt(0), 0) % 360;
+const svg = u => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="hsl(${hue(u)},30%,24%)"/><circle cx="50" cy="${u.includes('portrait') ? 40 : 50}" r="${u.includes('portrait') ? 17 : 22}" fill="hsl(${hue(u)},30%,55%)"/>${u.includes('portrait') ? '<path d="M18 100c2-24 15-36 32-36s30 12 32 36z" fill="#776"/>' : ''}</svg>`;
+app.whenReady().then(async () => {
+  protocol.handle('https', req => new Response(svg(req.url), { headers: { 'content-type': 'image/svg+xml' } }));
+  const win = new BrowserWindow({ width: 1360, height: 900, show: false, webPreferences: { preload: path.join(__dirname, 'mock-preload.js'), contextIsolation: true, sandbox: false } });
+  await win.loadFile(path.join(__dirname, '..', '..', 'renderer', 'index.html'));
+  win.webContents.on('console-message', (_e, l, m) => { if (l >= 2) console.log('CONSOLE', m); });
+  const js = s => win.webContents.executeJavaScript(s).catch(e => console.log('JSERR', e.message));
+  const wait = ms => new Promise(r => setTimeout(r, ms));
+  const snap = async n => { await wait(1000); fs.writeFileSync(path.join(out, n + '.png'), (await win.webContents.capturePage()).toPNG()); console.log('shot', n); };
+  await wait(5000);
+  await js(`state.toolsTab='t-courier'; go('tools')`); await wait(800); await js(`document.getElementById('cc-from').value='Jita'; document.getElementById('cc-go').click()`); await wait(800);
+  await js(`document.querySelectorAll('[data-cc-check]')[2].click()`); await wait(800); await snap('c1-courier');
+  await js(`openPilot('Ben Dover')`); await wait(1500); await js(`document.getElementById('pv-vet').click()`); await wait(900); await js(`document.getElementById('pv-vet-out').scrollIntoView()`); await snap('c2-spycheck');
+  await js(`updateClipBadge(true); state.toolsTab='t-local'; go('tools')`); await wait(700); await js(`document.getElementById('lc-clip').checked = true; document.getElementById('lc-go').click()`); await wait(700); await js(`document.getElementById('lc-zk').click()`); await snap('c3-clipboard');
+  await js(`go('settings')`); await wait(1200); await js(`document.getElementById('phone-panel').scrollIntoView()`); await snap('c4-phone-ingame');
+  await js(`state.toolsTab='t-route'; go('tools')`); await wait(700); await js(`document.getElementById('rt-go').click()`); await wait(1500); await js(`document.getElementById('rt-send').scrollIntoView({block:'center'})`); await snap('c5-route-send');
+  app.quit();
+});
