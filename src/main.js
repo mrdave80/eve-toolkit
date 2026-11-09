@@ -1,5 +1,5 @@
 // EVE Toolkit, copyright © 2026 Mr Frank. SPDX-License-Identifier: GPL-3.0-or-later
-const { app, BrowserWindow, ipcMain, Tray, Menu, Notification, shell, nativeImage, dialog, clipboard } = require('electron');
+const { app, BrowserWindow, ipcMain, Tray, Menu, Notification, shell, nativeImage, dialog, clipboard, screen } = require('electron');
 const fs = require('fs');
 const path = require('path');
 const store = require('./store');
@@ -29,6 +29,7 @@ const charvalue = require('./charvalue');
 const bargains = require('./bargains');
 const planets = require('./planets');
 const fitcheck = require('./fitcheck');
+const whshare = require('./whshare');
 const tradetools = require('./tradetools');
 const nav = require('./nav');
 const intel = require('./intel');
@@ -58,7 +59,13 @@ phone.setAwayCheck(() => !win || win.isDestroyed() || !win.isFocused() || !win.i
     if (now === old || fs.existsSync(path.join(now, 'companion-data.json')) || !fs.existsSync(path.join(old, 'companion-data.json'))) return;
     const skip = new Set(['Cache', 'Code Cache', 'GPUCache', 'DawnCache', 'DawnGraphiteCache', 'DawnWebGPUCache', 'Crashpad', 'blob_storage', 'logs']);
     fs.mkdirSync(now, { recursive: true });
-    for (const f of fs.readdirSync(old)) if (!skip.has(f)) fs.cpSync(path.join(old, f), path.join(now, f), { recursive: true, force: false, errorOnExist: false });
+    // Copy file by file so one locked or broken entry (Chromium's Singleton* links, a lockfile) doesn't stop the rest.
+    // The settings file goes last: its presence is what marks the copy as done.
+    const files = fs.readdirSync(old).filter(f => !skip.has(f) && !/^Singleton|^lockfile$|\.tmp$/i.test(f)).sort((a, b) => (a === 'companion-data.json') - (b === 'companion-data.json'));
+    for (const f of files) {
+      try { fs.cpSync(path.join(old, f), path.join(now, f), { recursive: true, force: false, errorOnExist: false }); }
+      catch (e) { console.error('Could not copy', f, e.message); }
+    }
     fs.writeFileSync(path.join(now, 'migrated-from-eve-companion.txt'), `Copied from ${old} on ${new Date().toISOString()}\nThe old folder can be deleted once everything works.\n`);
   } catch (e) { console.error('Data migration failed', e); }
 })();
@@ -85,10 +92,25 @@ let pollTimer = null;
 
 const ICON = path.join(__dirname, '..', 'build', 'icon.png');
 
+// Opens at 1920 x 1230 (half as big again as the old 1280 x 820), shrunk to fit the screen,
+// then remembers wherever the user moves or resizes it.
+function startBounds() {
+  const saved = store.get().settings.windowBounds;
+  const areas = screen.getAllDisplays().map(d => d.workArea);
+  if (saved && saved.width >= 960 && saved.height >= 600 && areas.some(a => saved.x + 80 >= a.x && saved.y >= a.y - 10 && saved.x + 80 <= a.x + a.width && saved.y + 40 <= a.y + a.height))
+    return { ...saved, maximized: !!saved.maximized };
+  const wa = screen.getPrimaryDisplay().workArea;
+  const width = Math.max(960, Math.min(1920, Math.round(wa.width * 0.92))), height = Math.max(600, Math.min(1230, Math.round(wa.height * 0.92)));
+  return { width, height, x: wa.x + Math.round((wa.width - width) / 2), y: wa.y + Math.round((wa.height - height) / 2) };
+}
+
 function createWindow() {
+  const b = startBounds();
   win = new BrowserWindow({
-    width: 1280,
-    height: 820,
+    width: b.width,
+    height: b.height,
+    x: b.x,
+    y: b.y,
     minWidth: 960,
     minHeight: 600,
     backgroundColor: store.get().settings.themeBg || '#0a0e13',
@@ -107,7 +129,19 @@ function createWindow() {
   });
   win.setMenuBarVisibility(false);
   win.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'));
-  win.once('ready-to-show', () => win.show());
+  win.once('ready-to-show', () => { if (b.maximized) win.maximize(); win.show(); });
+  let boundsTimer = null;
+  const keepBounds = () => {
+    clearTimeout(boundsTimer);
+    boundsTimer = setTimeout(() => {
+      if (!win || win.isDestroyed() || win.isMinimized()) return;
+      const max = win.isMaximized();
+      const nb = max ? (store.get().settings.windowBounds || win.getNormalBounds()) : win.getBounds();
+      store.get().settings.windowBounds = { x: nb.x, y: nb.y, width: nb.width, height: nb.height, maximized: max };
+      store.save();
+    }, 600);
+  };
+  win.on('resize', keepBounds); win.on('move', keepBounds); win.on('maximize', keepBounds); win.on('unmaximize', keepBounds);
   win.webContents.on('did-finish-load', () => { const z = store.get().settings.zoom; if (z && z !== 1) win.webContents.setZoomFactor(z); });
 
   // Links open in the default browser, never inside the app.
@@ -837,6 +871,27 @@ handle('wh:activity', async ids => {
   return out;
 });
 handle('wh:routes', id => wormhole.hubRoutes(id));
+handle('wh:export', async (mapId, target) => {
+  const data = whshare.exportMap(mapId, app.getVersion());
+  if (target === 'code') { const code = whshare.toCode(data); clipboard.writeText(code); return { copied: true, chars: code.length, systems: data.map.systems.length }; }
+  const safe = data.map.name.replace(/[^\w\- ]+/g, '').trim() || 'wormhole-map';
+  const r = await dialog.showSaveDialog(win, { title: 'Export wormhole map', defaultPath: path.join(app.getPath('documents'), `${safe}.evewh.json`), filters: [{ name: 'EVE Toolkit wormhole map', extensions: ['json'] }] });
+  if (r.canceled || !r.filePath) return { canceled: true };
+  fs.writeFileSync(r.filePath, JSON.stringify(data, null, 1));
+  return { file: r.filePath, systems: data.map.systems.length };
+});
+handle('wh:import', async (source, opts) => {
+  let text;
+  if (source === 'file') {
+    const r = await dialog.showOpenDialog(win, { title: 'Import wormhole map', properties: ['openFile'], filters: [{ name: 'EVE Toolkit wormhole map', extensions: ['json', 'txt'] }, { name: 'All files', extensions: ['*'] }] });
+    if (r.canceled || !r.filePaths[0]) return { canceled: true };
+    if (fs.statSync(r.filePaths[0]).size > 6 * 1024 * 1024) throw new Error('That file is too big to be a wormhole map.');
+    text = fs.readFileSync(r.filePaths[0], 'utf8');
+  } else if (source === 'clipboard') text = clipboard.readText();
+  else text = String(source || '');
+  const res = whshare.importMap(text, opts || {});
+  return { ...res, from: { name: res.from.name, exportedAt: res.from.exportedAt, app: res.from.app } };
+});
 handle('wh:track', (mapId, pilots) => wormhole.startTracking(mapId, pilots));
 handle('wh:untrack', () => wormhole.stopTracking());
 handle('wh:status', async () => {

@@ -170,6 +170,8 @@ contextBridge.exposeInMainWorld('api', {
   },
   wh: {
     info: q => call('wh:info', q),
+    exportMap: (mapId, target) => call('wh:export', mapId, target),
+    importMap: (source, opts) => call('wh:import', source, opts),
     maps: () => call('wh:maps'),
     op: (mapId, o) => call('wh:op', mapId, o),
     system: id => call('wh:system', id),

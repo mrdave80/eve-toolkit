@@ -1,5 +1,11 @@
 # Changelog
 
+## Next release
+
+- Wormhole mapper: share maps with ⇄ Share. Copy a map as text for Discord or EVE mail, or save it to a file, and import one as a new map or merged into yours.
+- Fit checker: Appraise opens in a popup instead of leaving the page.
+- The window opens half as big again (1920 × 1230, or as much as fits the screen) and remembers its size and position.
+
 ## 1.9.0
 
 - Fit checker: paste an EFT fit to see its slots, CPU, powergrid and calibration with each pilot's skills, who can fly it, what it costs and the hull's base stats, with Open in Pyfa. Doctrine fits have a Check button.

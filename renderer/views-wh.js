@@ -61,6 +61,7 @@ function drawWh() {
       <select id="wh-map" class="crumb-select">${whState.maps.map(x => html`<option value="${x.id}" ${raw(m && x.id === m.id ? 'selected' : '')}>${x.name} (${(x.systems || []).length})</option>`)}</select>
       <button class="btn btn-ghost" id="wh-newmap" title="New map">+ Map</button>
       <button class="btn btn-ghost" id="wh-rename">Rename</button>
+      <button class="btn btn-ghost" id="wh-share" title="Export this map, or import one someone shared">⇄ Share</button>
       <span class="wh-sep"></span>
       <input type="search" id="wh-add" placeholder="Add system by name (e.g. J123456, Jita)…" style="min-width:250px">
       <span class="wh-sep"></span>
@@ -355,6 +356,7 @@ function bindWhToolbar() {
   const m = curMap();
   $('#wh-map').onchange = e => { whState.mapId = e.target.value; whState.sel = null; drawWh(); refreshActivity(); };
   $('#wh-newmap').onclick = () => openModal('New map', field('Name', inputText('name', '', 'e.g. Scouting chain')), { submit: 'Create', onSubmit: async d => { const r = await whOp({ kind: 'createMap', name: d.name || 'Chain' }, null); if (r) { whState.mapId = r.id; drawWh(); } } });
+  $('#wh-share').onclick = () => whShareModal(m);
   $('#wh-rename').onclick = () => openModal('Rename map', field('Name', inputText('name', m.name)), { onSubmit: async d => { await whOp({ kind: 'renameMap', name: d.name || m.name }); drawWh(); } });
   $('#wh-add').onkeydown = async e => {
     if (e.key !== 'Enter' || !e.target.value.trim()) return;
@@ -409,4 +411,45 @@ function whInfoHtml(i, compact = false) {
     <span class="k">Effect</span><span>${i.effect ? html`<b>${i.effect}</b>${compact ? '' : html` <span class="dim">${i.effectSummary}</span>`}` : html`<span class="dim">None</span>`}</span>
     ${i.shattered ? html`<span class="k">Shattered</span><span>Yes · no planets, no citadels</span>` : ''}
   </div>`;
+}
+
+
+// Export a map to a file or a text code, or import one from another EVE Toolkit.
+function whShareModal(m) {
+  const others = whState.maps;
+  openModal('Share wormhole maps', html`
+    <h3 class="mh" style="margin-top:0">Send this map</h3>
+    <div class="muted" style="font-size:12.5px;margin-bottom:8px">Exports <b>${m ? m.name : 'this map'}</b> with its systems, connections, signatures, labels and notes. Pilot tracking isn't included.</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn btn-primary" id="whs-code" ${raw(m ? '' : 'disabled')}>Copy as text</button><button type="button" class="btn btn-ghost" id="whs-file" ${raw(m ? '' : 'disabled')}>Save to file…</button></div>
+    <div class="dim" style="font-size:12px;margin:6px 0 16px">Text is easiest for Discord or EVE mail: paste the whole thing, starting with EVETK-WH1:. A file is better for big chains.</div>
+    <h3 class="mh">Bring in a shared map</h3>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:8px">
+      <label class="check" style="margin:0"><input type="radio" name="whs-mode" value="new" checked> As a new map</label>
+      <label class="check" style="margin:0"><input type="radio" name="whs-mode" value="merge" ${raw(m ? '' : 'disabled')}> Merge into <select id="whs-target" class="crumb-select" style="margin-left:6px">${others.map(x => html`<option value="${x.id}" ${raw(m && x.id === m.id ? 'selected' : '')}>${x.name}</option>`)}</select></label></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn btn-primary" id="whs-paste">Paste from clipboard</button><button type="button" class="btn btn-ghost" id="whs-open">Open file…</button></div>
+    <div class="dim" style="font-size:12px;margin-top:6px">Merging adds systems, connections and signatures you don't have yet, and takes newer connection details (mass, end of life). Your own labels and notes are kept.</div>
+    <div id="whs-out" style="margin-top:12px"></div>`, {});
+  { const c = document.querySelector('#modal .modal-foot [data-close]'); if (c) c.textContent = 'Close'; }
+  const out = () => document.getElementById('whs-out');
+  const ex = async target => {
+    const r = await api.wh.exportMap(m.id, target);
+    if (!r.ok) { out().innerHTML = String(errorView(r)); return; }
+    if (r.data.canceled) return;
+    out().innerHTML = String(html`<div class="notice">${r.data.copied ? `Copied ${r.data.systems} systems as text (${fmtNum(r.data.chars)} characters). Paste it wherever your corp shares things.` : `Saved ${r.data.systems} systems to ${r.data.file}.`}</div>`);
+  };
+  const im = async source => {
+    const mode = document.querySelector('input[name="whs-mode"]:checked').value;
+    const r = await api.wh.importMap(source, { mode, targetId: $('#whs-target') ? $('#whs-target').value : null });
+    if (!r.ok) { out().innerHTML = String(errorView(r)); return; }
+    if (r.data.canceled) return;
+    const d = r.data;
+    const i = whState.maps.findIndex(x => x.id === d.map.id); if (i === -1) whState.maps.push(d.map); else whState.maps[i] = d.map;
+    whState.mapId = d.map.id; whState.sel = null;
+    closeModal(); drawWh(); refreshActivity();
+    toast(d.mode === 'merge' ? `Merged "${d.from.name}": ${d.added} new systems, ${d.addedConn} new connections, ${d.addedSigs} new signatures` : `Imported "${d.map.name}": ${d.systems} systems, ${d.connections} connections`);
+  };
+  $('#whs-code').onclick = () => ex('code');
+  $('#whs-file').onclick = () => ex('file');
+  $('#whs-paste').onclick = () => im('clipboard');
+  $('#whs-open').onclick = () => im('file');
 }

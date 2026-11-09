@@ -273,6 +273,17 @@ Search any item, ship or skill to see its stats, required skills, hub prices, wh
 
 Paste the Survey Scan Results window (select all, copy) for one moon or many. Each moon gets its best ore rating (R4 to R64), ISK per m³, value per extraction and per 30 days. Each ore is valued at the better of selling it raw or refining it at your yield (85% by default), at Jita sell or buy. The drill rate is 20,000 m³ an hour, so a 7-day extraction is about 3.4m m³.
 
+## Sharing wormhole maps (Wormhole mapper → ⇄ Share)
+
+Send a map to corp or alliance mates who also use EVE Toolkit:
+
+- **Copy as text** puts the whole map on the clipboard as a block starting with `EVETK-WH1:`, ready to paste into Discord or an EVE mail.
+- **Save to file** writes a `.evewh.json` file, better for big chains.
+
+Systems, connections, signatures, labels and notes are included. Pilot tracking isn't.
+
+To bring one in, use **Paste from clipboard** or **Open file**, either **as a new map** or **merged into** one of yours. Merging adds the systems, connections and signatures you don't have, takes newer connection details (mass, end of life), and keeps your own labels and notes.
+
 ## Wormhole system info (Wormhole mapper and Wormhole Residents)
 
 Selecting a J-space system in the mapper, or checking one in Wormhole Residents, shows its class, statics (with where each leads, lifetime and mass) and system effect with a short summary. Statics aren't in CCP's game data, so they come from the Pathfinder project's player-recorded list (MIT licence, bundled with the app).

@@ -331,7 +331,7 @@ const whMap = { id: 'm1', name: 'Home chain', homeId: 31000101, mapGates: false,
     { id: 'c6', from: 31000303, to: 31000505, type: 'K162', mass: 'stable', eol: false, size: 'L', createdAt: iso(now - 20 * H) }
   ] };
 api.wh = {
-  maps: async () => ({ ok: true, data: [whMap] }),
+  maps: async () => ({ ok: true, data: [whMap] }), exportMap: async () => ({ ok: true, data: { copied: true, chars: 1840, systems: 7 } }), importMap: async () => ({ ok: true, data: { canceled: true } }),
   info: async id => ({ ok: true, data: { id, name: 'J152701', cls: 'C3', region: 'C-R00012', effect: 'Wolf-Rayet', effectSummary: 'More armour HP, more small weapon damage and smaller signatures, but weaker shield resists.',
     statics: [{ code: 'H296', leadsTo: 'C5', lifeHours: 24, totalMass: 3e9, jumpMass: 1.35e9 }, { code: 'D845', leadsTo: 'HS', lifeHours: 24, totalMass: 5e9, jumpMass: 375e6 }], shattered: false, staticsKnown: true } }), op: async (m, o) => ({ ok: true, data: whMap }), system: async () => ({ ok: true, data: {} }),
   activity: async ids => ({ ok: true, data: { 31000404: { kills: { ship: 3, pod: 2, npc: 0 }, jumps: null }, 31000202: { kills: { ship: 0, pod: 0, npc: 212 }, jumps: null }, 30002053: { kills: { ship: 4, pod: 1, npc: 0 }, jumps: 1840 }, 30001234: { kills: { ship: 11, pod: 6, npc: 3 }, jumps: 620 } } }),

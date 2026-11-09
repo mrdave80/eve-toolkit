@@ -61,5 +61,30 @@ function drawFit() {
       </div></div>
     <div class="dim" style="font-size:12px;margin-top:4px">CPU and powergrid use CPU Management, Power Grid Management, Weapon Upgrades, Advanced Weapon Upgrades, Energy Grid Upgrades, Electronics Upgrades and Shield Upgrades, plus co-processors and similar modules. Ship bonuses that cut fitting costs (for example on logistics ships) aren't counted, so a fit can show as slightly over when it actually fits. For fitted EHP, DPS and capacitor, use Pyfa.</div>`);
   $('#ft-pyfa').onclick = async () => { await api.copy(d.eft); toast('Fit copied. In Pyfa, import it from the clipboard.'); };
-  $('#ft-appraise').onclick = () => { toolState.appraisal.text = d.eft; state.toolsTab = 't-appraisal'; go('tools'); setTimeout(() => { const b = document.getElementById('ap-go'); if (b) b.click(); }, 200); };
+  $('#ft-appraise').onclick = () => appraiseFitModal(d);
+}
+
+async function appraiseFitModal(d) {
+  openModal(`Appraisal: ${d.name}`, loadingView('Pricing the fit at Jita…'), { wide: true });
+  const r = await api.appraise(d.eft, 'Jita');
+  const body = document.querySelector('#modal .modal-body');
+  if (!body || !document.getElementById('modal')) return;
+  const foot = body.querySelector('.modal-foot');
+  const closeBtn = foot.querySelector('[data-close]'); if (closeBtn) closeBtn.textContent = 'Close';
+  const box = document.createElement('div');
+  if (!r.ok) box.innerHTML = String(errorView(r));
+  else {
+    const a = r.data, t = a.totals;
+    box.innerHTML = String(html`<div class="grid grid-4" style="margin-bottom:12px">${stat('Sell value', fmtCompact(t.sell) + ' ISK', fmtIsk(t.sell))}${stat('Buy value', fmtCompact(t.buy) + ' ISK', 'Split ' + fmtCompact(t.split))}${stat('Volume', fmtNum(Math.round(t.volume)) + ' m³')}${stat('Items', fmtNum(t.items), a.rows.length + ' types')}</div>
+      ${a.unknown.length ? html`<div class="notice">Not recognised: ${a.unknown.join(', ')}</div>` : ''}
+      <div class="table-wrap" style="max-height:52vh"><table><thead><tr><th>Item</th><th class="right">Qty</th><th class="right">Each (sell)</th><th class="right">Sell</th><th class="right">Buy</th></tr></thead><tbody>
+        ${a.rows.map(x => html`<tr><td>${icon(x.typeId, 18)}${x.name}${typeof priceBadge === 'function' ? priceBadge(x) : ''}</td><td class="right num">${fmtNum(x.qty)}</td><td class="right num muted">${fmtCompact(x.unitSell)}</td><td class="right num">${fmtCompact(x.sell)}</td><td class="right num muted">${fmtCompact(x.buy)}</td></tr>`)}</tbody></table></div>
+      <div class="dim" style="font-size:12px;margin-top:8px">Jita prices: sell is the lowest sell order, buy is the highest buy order.</div>`);
+    const copy = document.createElement('button');
+    copy.type = 'button'; copy.className = 'btn btn-ghost'; copy.textContent = 'Copy summary';
+    copy.onclick = () => api.copy(`${d.name} (${d.ship}): sell ${fmtIsk(t.sell)}, buy ${fmtIsk(t.buy)}, ${fmtNum(Math.round(t.volume))} m³`).then(() => toast('Copied'));
+    foot.prepend(copy);
+  }
+  body.querySelectorAll(':scope > .loading').forEach(x => x.remove());
+  body.insertBefore(box, foot);
 }
