@@ -396,3 +396,14 @@ npm run dist:win     # build the portable .exe and the zip into dist/
 
 ---
 EVE Online and the EVE logo are the registered trademarks of CCP hf. All rights are reserved worldwide. This application is not affiliated with or endorsed by CCP hf.
+
+## Licence
+
+Copyright © 2026 Mr Frank.
+
+EVE Toolkit is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version. It is distributed in the hope that it will be useful, but without any warranty; without even the implied warranty of merchantability or fitness for a particular purpose. See [LICENSE](LICENSE) for the full terms.
+
+In short: you can use, copy, change and share the app, but if you share a changed version you have to share its source under the same licence.
+
+The licence covers this project's own code. The bundled wormhole statics list (`src/data/wh-statics.json`) comes from the Pathfinder project under the MIT licence, kept in `src/data/wh-statics.LICENSE.txt`. EVE Online game data, artwork and names belong to CCP hf. and aren't covered by this licence; the app downloads game data from CCP at runtime.
+

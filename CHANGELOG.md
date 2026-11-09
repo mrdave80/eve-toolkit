@@ -1,5 +1,9 @@
 # Changelog
 
+## Next release
+
+- EVE Toolkit is now free software under the GNU GPL version 3 or later. The licence is included with the download and shown on the About page.
+
 ## 1.8.9
 
 - Nearby planets: find the closest systems with the planet types you need for PI, from any system or pilot, within a jump limit and the areas of space you choose. Needs a one-time game data update (Settings → Game data → Update).

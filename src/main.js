@@ -1,3 +1,4 @@
+// EVE Toolkit, copyright © 2026 Mr Frank. SPDX-License-Identifier: GPL-3.0-or-later
 const { app, BrowserWindow, ipcMain, Tray, Menu, Notification, shell, nativeImage, dialog, clipboard } = require('electron');
 const fs = require('fs');
 const path = require('path');

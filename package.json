@@ -5,7 +5,7 @@
   "description": "Desktop companion for EVE Online pilots: characters, skill queues, wallet, mail, contracts, clones, industry, market orders and assets.",
   "main": "src/main.js",
   "author": "Mr Frank (EVE Online)",
-  "license": "MIT",
+  "license": "GPL-3.0-or-later",
   "scripts": {
     "start": "electron .",
     "dist:win": "electron-builder --win zip portable --x64",
@@ -36,7 +36,13 @@
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true
-    }
+    },
+    "extraFiles": [
+      {
+        "from": "LICENSE",
+        "to": "LICENSE.txt"
+      }
+    ]
   },
   "devDependencies": {
     "@resvg/resvg-js": "^2.6.2",

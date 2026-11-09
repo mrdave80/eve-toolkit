@@ -107,6 +107,7 @@ async function renderAbout() {
 
     <div class="panel"><h3>Credits</h3>
       <div class="muted">Game data from CCP's ESI and static data export. Thera and Turnur connections from EVE-Scout. Kill statistics from zKillboard. Wormhole statics from the Pathfinder project (MIT licence). Built with Electron.</div>
+      <div class="muted" style="margin-top:8px">EVE Toolkit is free software under the <a href="#" data-link="https://www.gnu.org/licenses/gpl-3.0.html">GNU GPL version 3</a> or later. You can use, change and share it; if you share a changed version, share its source too. The source is on <a href="#" data-link="https://github.com/mrdave80/eve-toolkit">GitHub</a>. It comes with no warranty.</div>
     </div>
 
     <div class="panel"><h3>Made with AI</h3>
