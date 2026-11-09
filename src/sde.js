@@ -75,7 +75,7 @@ async function buildFromZip(file, build) {
 
   tick('types');
   await eachLine(zip, entries.types, t => {
-    out.types[t._key] = [en(t.name), t.groupID, t.portionSize || 1, t.packagedVolume ?? t.volume ?? 0, t.marketGroupID || 0, t.metaGroupID || 0, t.published ? 1 : 0, t.basePrice || 0];
+    out.types[t._key] = [en(t.name), t.groupID, t.portionSize || 1, t.packagedVolume ?? t.volume ?? 0, t.marketGroupID || 0, t.metaGroupID || 0, t.published ? 1 : 0, t.basePrice || 0, t.mass || 0, t.capacity || 0];
   });
   tick('groups');
   await eachLine(zip, entries.groups, g => { out.groups[g._key] = [en(g.name), g.categoryID, g.published ? 1 : 0]; });
@@ -84,8 +84,7 @@ async function buildFromZip(file, build) {
   tick('attributes');
   const full = { attrs: {}, units: {}, cats: {}, types: {} };
   if (entries.dogmaAttributes) await eachLine(zip, entries.dogmaAttributes, a => {
-    const name = en(a.displayName) || '';
-    if (a.published && name) full.attrs[a._key] = [name, a.unitID || 0, a.categoryID || 0, a.highIsGood ? 1 : 0];
+    full.attrs[a._key] = [en(a.displayName) || '', a.unitID || 0, a.categoryID || 0, a.highIsGood ? 1 : 0, a.published && en(a.displayName) ? 1 : 0, a.name || ''];
   });
   if (entries.dogmaUnits) await eachLine(zip, entries.dogmaUnits, u => { full.units[u._key] = en(u.displayName) || ''; });
   if (entries.dogmaAttributeCategories) await eachLine(zip, entries.dogmaAttributeCategories, c => { full.cats[c._key] = en(c.name) || ''; });
@@ -97,7 +96,7 @@ async function buildFromZip(file, build) {
     const fl = [];
     for (const a of d.dogmaAttributes || []) {
       if (KEEP_ATTRS.has(a.attributeID)) { keep[a.attributeID] = a.value; any = true; }
-      if (t && t[6] && full.attrs[a.attributeID]) fl.push([a.attributeID, a.value]);
+      if (t && t[6]) fl.push([a.attributeID, a.value]);
     }
     if (any) out.dogma[d._key] = keep;
     if (fl.length) full.types[d._key] = fl;
@@ -255,7 +254,7 @@ function info() {
 function fullAttrs(id) {
   if (!fullDb) { try { fullDb = JSON.parse(fs.readFileSync(fullFile(), 'utf8')); } catch { return null; } }
   const list = fullDb.types[id] || [];
-  return list.map(([a, v]) => { const m = fullDb.attrs[a] || ['', 0, 0, 0]; return { id: a, name: m[0], unit: fullDb.units[m[1]] || '', unitId: m[1], category: fullDb.cats[m[2]] || 'Other', highIsGood: !!m[3], value: v }; });
+  return list.map(([a, v]) => { const m = fullDb.attrs[a] || ['', 0, 0, 0, 0, '']; return { id: a, name: m[0], unit: fullDb.units[m[1]] || '', unitId: m[1], category: fullDb.cats[m[2]] || 'Other', highIsGood: !!m[3], published: m[4] === undefined ? true : !!m[4], key: m[5] || '', value: v }; });
 }
 /** Planets in a system by type, e.g. { Barren: 3, Gas: 2 }. null if the game data predates planet data. */
 function planetsIn(id) {
@@ -267,7 +266,11 @@ function planetsIn(id) {
 }
 function hasPlanets() { const d = need(); return !!(d.planets && Object.keys(d.planets).length); }
 function groupName(id) { const g = need().groups[id]; return g ? g[0] : null; }
-function hasFull() { return !!fullDb || fs.existsSync(fullFile()); }
+function hasFull() {
+  if (!fullDb) { try { fullDb = JSON.parse(fs.readFileSync(fullFile(), 'utf8')); } catch { return false; } }
+  const any = Object.values(fullDb.attrs || {})[0];
+  return !!any && any.length >= 5;   // files from 1.8.7/1.8.8 lack the full attribute list the fit checker needs
+}
 /** Blueprints that use this type as a material. */
 function usedIn(id) {
   const d = need(); const out = [];
@@ -285,7 +288,7 @@ function type(id) {
   const t = need().types[id];
   if (!t) return null;
   const g = db.groups[t[1]] || ['', 0];
-  return { id: Number(id), name: t[0], groupId: t[1], group: g[0], categoryId: g[1], category: db.categories[g[1]] || '', portionSize: t[2], volume: t[3], marketGroupId: t[4], metaGroupId: t[5], published: !!t[6], basePrice: t[7] };
+  return { id: Number(id), name: t[0], groupId: t[1], group: g[0], categoryId: g[1], category: db.categories[g[1]] || '', portionSize: t[2], volume: t[3], marketGroupId: t[4], metaGroupId: t[5], published: !!t[6], basePrice: t[7], mass: t[8] || 0, capacity: t[9] || 0 };
 }
 const typeIdByName = name => need().nameToType.get(String(name).trim().toLowerCase()) || null;
 const attrs = id => need().dogma[id] || {};

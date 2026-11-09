@@ -6,6 +6,7 @@ const TOOLS_GROUPS = [
   ['Industry', [['t-build', 'Build Calculator'], ['t-invent', 'Invention'], ['t-reprocess', 'Reprocessing'], ['t-moon', 'Moon Scan']]],
   ['Navigation', [['t-route', 'Route Planner'], ['t-courier', 'Courier Contracts'], ['t-hunt', 'Hunting & Ratting'], ['t-jump', 'Jump Planner'], ['t-universe', 'Universe']]],
   ['Intel', [['t-pilot', 'Pilot Intel'], ['t-whres', 'Wormhole Residents'], ['t-shame', 'Wall of Shame'], ['t-intel', 'Intel Watch'], ['t-local', 'Local & D-scan'], ['t-combat', 'Combat Log']]],
+  ['Fitting', [['t-fit', 'Fit Checker']]],
   ['Finance', [['t-networth', 'Net Worth'], ['t-income', 'Income'], ['t-pve', 'Ratting & Abyss'], ['t-farm', 'Skill Farm'], ['t-charval', 'Character Value'], ['t-insure', 'Insurance']]]
 ];
 const toolsGroupOf = tab => TOOLS_GROUPS.find(g => g[1].some(t => t[0] === tab)) || TOOLS_GROUPS[0];
@@ -39,6 +40,7 @@ async function renderTools(stillCurrent) {
     't-build': tBuild, 't-invent': tInvent, 't-reprocess': tReprocess,
     't-courier': () => tCourier(), 't-hunt': () => tHunt(), 't-route': () => (typeof tRoute === 'function' ? tRoute() : null), 't-jump': () => (typeof tJump === 'function' ? tJump() : null), 't-universe': () => (typeof tUniverse === 'function' ? tUniverse(stillCurrent) : null),
     't-pilot': tPilot, 't-whres': () => tWhRes(), 't-shame': () => tShame(), 't-intel': () => (typeof tIntel === 'function' ? tIntel() : null), 't-local': () => (typeof tLocal === 'function' ? tLocal() : null), 't-combat': () => (typeof tCombat === 'function' ? tCombat() : null),
+    't-fit': () => tFit(),
     't-items': () => tItems(), 't-bargain': () => tBargains(), 't-charval': () => tCharValue(stillCurrent),
     't-trade': () => tTrade(stillCurrent), 't-moon': () => tMoon(),
     't-farm': () => tFarm(stillCurrent), 't-insure': () => tInsure(stillCurrent),

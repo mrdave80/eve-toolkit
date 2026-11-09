@@ -3,7 +3,7 @@ const { app, BrowserWindow, protocol } = require('electron');
 const path = require('path');
 const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 8 8"><rect width="8" height="8" fill="#345"/></svg>';
 const TOOLS_EXTRA = 1; const CHAR = ['summary','corp','standings','contacts','medals','queue','training','skills','plan','industry','blueprints','planets','mining','research','wallet','orders','contracts','loyalty','mail','notifications','calendar','assets','clones','fittings','kills'];
-const TOOLS = ['t-pilot','t-whres','t-shame','t-market','t-appraisal','t-orders','t-arbitrage','t-lp','t-build','t-invent','t-reprocess','t-route','t-courier','t-hunt','t-jump','t-universe','t-intel','t-local','t-combat','t-networth','t-income','t-pve','t-farm','t-insure','t-trade','t-moon','t-items','t-bargain','t-charval'];
+const TOOLS = ['t-pilot','t-whres','t-shame','t-market','t-appraisal','t-orders','t-arbitrage','t-lp','t-build','t-invent','t-reprocess','t-route','t-courier','t-hunt','t-jump','t-universe','t-intel','t-local','t-combat','t-networth','t-income','t-pve','t-farm','t-insure','t-trade','t-moon','t-items','t-bargain','t-charval','t-fit'];
 const CORP = ['c-overview','c-members','c-compliance','c-audit','c-structures','c-moons','c-moontax','c-pos','c-wallets','c-contracts','c-orders','c-buyback','c-industry','c-assets','c-blueprints','c-doctrines','c-ops','c-fleet','c-fats','c-timers','c-kills','c-srp','c-hr','c-discord','c-share'];
 const EXTRA = {
   't-build': `toolState.build.productTypeId=2185; runBuild()`,

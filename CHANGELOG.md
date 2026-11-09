@@ -1,6 +1,10 @@
 # Changelog
 
-## Next release
+## 1.9.0
+
+- Fit checker: paste an EFT fit to see its slots, CPU, powergrid and calibration with each pilot's skills, who can fly it, what it costs and the hull's base stats, with Open in Pyfa. Doctrine fits have a Check button.
+- Five glass themes: Nebula Glass, Ice Field Glass, Drifter Glass, Solar Glass and Frosted Daylight.
+- After updating, go to Settings → Game data → Update once more so the fit checker and item database have every item attribute.
 
 - EVE Toolkit is now free software under the GNU GPL version 3 or later. The licence is included with the download and shown on the About page.
 

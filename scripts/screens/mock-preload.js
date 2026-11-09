@@ -84,7 +84,7 @@ const contracts = [
 ];
 const MOCK_SETTINGS = { onboardingDone: true, clientId: '3f1c0a9e2b7d4c51a8e6f0b2d9c4e7a1', callbackPort: 51515, notifications: true, minimizeToTray: true, refreshMinutes: 15, theme: process.env.MOCK_THEME || 'capsuleer' };
 const api = {
-  info: async () => ({ ok: true, data: { version: '1.8.9', os: 'Windows 11 Pro (10.0.26100)', electron: '38.8.6', userData: 'C:\\Users\\Capsuleer\\AppData\\Roaming\\EVE Toolkit', scopes: [] } }),
+  info: async () => ({ ok: true, data: { version: '1.9.0', os: 'Windows 11 Pro (10.0.26100)', electron: '38.8.6', userData: 'C:\\Users\\Capsuleer\\AppData\\Roaming\\EVE Toolkit', scopes: [] } }),
   getSettings: async () => ({ ok: true, data: { ...MOCK_SETTINGS } }),
   setSettings: async p => { Object.assign(MOCK_SETTINGS, p, p.themeAuto ? { themeAuto: { ...(MOCK_SETTINGS.themeAuto || {}), ...p.themeAuto } } : {}); return { ok: true, data: { ...MOCK_SETTINGS } }; },
   listCharacters: async () => ({ ok: true, data: chars }),
@@ -290,7 +290,7 @@ let fleetLive = { id: null, fcId: 2119000001, fcName: 'Richard Fitzwell', name: 
 api.fleet = { status: async () => ({ ok: true, data: fleetLive }), check: async () => ({ ok: true, data: {} }), start: async () => ({ ok: true }), stop: async () => ({ ok: true }), onUpdate: () => {} };
 api.discord = { set: async p => ({ ok: true, data: p }), test: async () => ({ ok: true, data: {} }), guild: async () => ({ ok: true, data: { name: 'x', roles: [] } }), link: async () => ({ ok: true, data: {} }), sync: async () => ({ ok: true, data: {} }) };
 api.exportAudit = async () => ({ ok: true });
-api.info = async () => ({ ok: true, data: { version: '1.8.9', os: 'Windows 11 Pro (10.0.26100)', electron: '38.8.6', userData: 'C:\\Users\\Capsuleer\\AppData\\Roaming\\EVE Toolkit', scopes: [], corpScopes: [] } });
+api.info = async () => ({ ok: true, data: { version: '1.9.0', os: 'Windows 11 Pro (10.0.26100)', electron: '38.8.6', userData: 'C:\\Users\\Capsuleer\\AppData\\Roaming\\EVE Toolkit', scopes: [], corpScopes: [] } });
 
 // ---------- PI + skill info mock ----------
 const tierPrice = [6, 450, 9000, 75000, 1300000];
@@ -506,7 +506,7 @@ api.shame = { onProgress: () => {}, wall: async o => ({ ok: true, data: { period
   feeders: [{ id: 1, name: 'Shady Harbour Capital', losses: 12, isk: 3.1e10 }, { id: 2, name: 'Gank Co', losses: 31, isk: 1.4e10 }, { id: 3, name: 'Hard Rock Excavations', losses: 9, isk: 5.2e9 }],
   categories: Object.entries(SHC).map(([id, [label, why]]) => ({ id, label, why, count: SHAME.filter(k => k.tags.some(t => t.id === id)).length })).filter(c => c.count) } }) };
 
-api.diag = { report: async () => ({ ok: true, data: 'EVE Toolkit 1.8.9\nSystem: Windows 11 Pro (10.0.26100), x64, 32 GB RAM\nElectron 38.8.6 · Chromium 140\nClient ID set: yes · Callback port 51515\nGame data: build 3419624\nPilots: 5 (0 need re-auth) · scopes per pilot: 41, 41, 41, 41, 41\nSettings: notifications=true minimizeToTray=true intelWatch=true clipboard=true spikeWatch=false phone=true speech=false uiScopes=false abyss=true theme=capsuleer zoom=1\nUptime: 42 min\n\nRecent log:\n2026-11-08T00:12:03Z INFO  [app] start 1.8.9 on win32 10.0.26100\n2026-11-08T00:31:44Z WARN  [esi] 502 GET /characters/2119000002/assets/: Bad gateway\n2026-11-08T00:40:12Z WARN  [zkill] 429 rate limited /stats/characterID/2119000201/' }), copy: async () => ({ ok: true, data: true }), openFolder: async () => ({ ok: true }), log: async () => ({ ok: true }) };
+api.diag = { report: async () => ({ ok: true, data: 'EVE Toolkit 1.9.0\nSystem: Windows 11 Pro (10.0.26100), x64, 32 GB RAM\nElectron 38.8.6 · Chromium 140\nClient ID set: yes · Callback port 51515\nGame data: build 3419624\nPilots: 5 (0 need re-auth) · scopes per pilot: 41, 41, 41, 41, 41\nSettings: notifications=true minimizeToTray=true intelWatch=true clipboard=true spikeWatch=false phone=true speech=false uiScopes=false abyss=true theme=capsuleer zoom=1\nUptime: 42 min\n\nRecent log:\n2026-11-08T00:12:03Z INFO  [app] start 1.9.0 on win32 10.0.26100\n2026-11-08T00:31:44Z WARN  [esi] 502 GET /characters/2119000002/assets/: Bad gateway\n2026-11-08T00:40:12Z WARN  [zkill] 429 rate limited /stats/characterID/2119000201/' }), copy: async () => ({ ok: true, data: true }), openFolder: async () => ({ ok: true }), log: async () => ({ ok: true }) };
 (() => {
   const nextReset = (() => { const d = new Date(now); const r = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 11); return r > now ? r : r + D; })();
   const pilots = [[2119000001, 'Richard Fitzwell', true, 7], [2119000002, 'Mike Hunt', true, 6], [2119000003, 'Hugh Jayness', false, 3], [2119000004, 'Wayne Kerr', true, 8], [2119000005, 'Jack Mehoff', false, 1]];
@@ -543,6 +543,23 @@ api.diag = { report: async () => ({ ok: true, data: 'EVE Toolkit 1.8.9\nSystem: 
       moon('8QT-H4 I - Moon 2', 'Delve', -0.3, 'R4', [prod(45492, 'Bitumens', 'R4', 0.6, 71), prod(45491, 'Zeolites', 'R4', 0.4, 63)])
     ] };
     api.moon = { value: async () => ({ ok: true, data: moonData }) };
+    const sl = (id, name, price, chargeId, charge) => ({ id, name, price, chargeId: chargeId || null, charge: charge || null, offline: false });
+    const fitRes = (cpu, cpuOut, pg, pgOut) => ({ cpu, cpuOut, pg, pgOut, cal: 300, calOut: 400, ok: cpu <= cpuOut && pg <= pgOut });
+    api.fit = { check: async () => ({ ok: true, data: { ship: 'Ishtar', shipTypeId: 12005, name: 'Sentry Ishtar', eft: '[Ishtar, Sentry Ishtar]', unknown: [], hasFull: true, requirements: 21,
+      slots: {
+        high: [sl(4405, 'Drone Link Augmentor II', 4.1e6), sl(4405, 'Drone Link Augmentor II', 4.1e6), { empty: true }, { empty: true }],
+        med: [sl(35658, '50MN Y-T8 Compact Microwarpdrive', 1.9e6), sl(2281, 'Multispectrum Shield Hardener II', 6.2e6), sl(3841, 'Large Shield Extender II', 4.4e6), sl(3841, 'Large Shield Extender II', 4.4e6), sl(4421, 'Omnidirectional Tracking Link II', 3.3e6, 32014, 'Optimal Range Script')],
+        low: [sl(2048, 'Damage Control II', 1.1e6), sl(4405, 'Drone Damage Amplifier II', 1.6e6), sl(4405, 'Drone Damage Amplifier II', 1.6e6), sl(4405, 'Drone Damage Amplifier II', 1.6e6)],
+        rig: [sl(31790, 'Medium Core Defense Field Extender I', 1.1e6), sl(31790, 'Medium Core Defense Field Extender I', 1.1e6), sl(31798, 'Medium Anti-EM Screen Reinforcer I', 0.9e6)], sub: [] },
+      drones: [{ id: 28211, name: 'Garde II', qty: 4 }, { id: 2185, name: 'Hammerhead II', qty: 5 }], cargo: [{ id: 28668, name: 'Nanite Repair Paste', qty: 50 }],
+      slotCheck: { high: { used: 2, max: 4 }, med: { used: 5, max: 5 }, low: { used: 4, max: 4 }, rig: { used: 3, max: 3 }, turrets: { used: 0, max: 0 }, launchers: { used: 0, max: 0 }, problems: [] },
+      allV: fitRes(370.1, 412.5, 1061, 1124),
+      pilots: [{ id: 2119000001, name: 'Richard Fitzwell', canFly: true, minutes: 0, fitting: fitRes(370.1, 412.5, 1061, 1124) },
+        { id: 2119000002, name: 'Mike Hunt', canFly: false, minutes: 27 * 1440, missing: [{ name: 'Heavy Assault Cruisers', level: 1 }], fitting: fitRes(389.6, 385, 1104, 1080) },
+        { id: 2119000004, name: 'Wayne Kerr', canFly: true, minutes: 0, fitting: fitRes(370.1, 412.5, 1061, 1124) },
+        { id: 2119000005, name: 'Jack Mehoff', canFly: false, minutes: 64 * 1440, missing: [{ name: 'Gallente Cruiser', level: 5 }], fitting: fitRes(389.6, 357.5, 1104, 1036) }],
+      hull: { hp: { shield: 2150, armor: 1950, hull: 2250 }, resists: { shield: [0, 0.2, 0.4, 0.5], armor: [0.5, 0.35, 0.25, 0.1], hull: [0.33, 0.33, 0.33, 0.33] }, ehp: 9470, velocity: 210, align: 8.1, cargo: 420, droneBay: 375, bandwidth: 125, sig: 155, lockRange: 60000, scanRes: 250, maxLocked: 7, cap: 1750, capRecharge: 494 },
+      cost: { hull: 268e6, total: 312e6, fittings: 44e6 } } }) };
     api.pi.nearby = async o => {
       const types = o.types || ['Barren', 'Temperate'];
       const sys = [['1DQ1-A', 0, -0.4, { Barren: 2, Gas: 3, Ice: 1, Lava: 1, Storm: 1 }], ['8QT-H4', 1, -0.4, { Barren: 3, Temperate: 1, Gas: 2, Oceanic: 1 }], ['T5ZI-S', 2, -0.2, { Temperate: 2, Barren: 1, Plasma: 1, Gas: 4 }],

@@ -43,6 +43,21 @@ const THEMES = [
     c: { bg: '#0e0d0a', 'bg-2': '#13120d', panel: '#1a1811', 'panel-2': '#211f16', line: '#353223', 'line-2': '#47422e', text: '#ece6d6', muted: '#a69f88', dim: '#77715d',
       accent: '#f2a93b', 'accent-2': '#ffd27a', 'on-accent': '#2a1902', gold: '#ffe07a', red: '#f26a5a', green: '#9bd46a', blue: '#7ab6d6', purple: '#c09ae0', orange: '#ff8f3d', canvas: '#11100c', node: '#1f1d15' } },
 
+  { id: 'glass-nebula', name: 'Nebula Glass', tags: ['Glass', 'Any space'], blurb: 'Frosted panels over a teal and violet nebula.', glass: 'radial-gradient(1100px 760px at 88% -8%, rgba(45,212,191,.30), transparent 62%), radial-gradient(900px 700px at -5% 105%, rgba(168,85,247,.30), transparent 60%), radial-gradient(700px 520px at 45% 55%, rgba(59,130,246,.14), transparent 70%)',
+    c: { bg: '#060a12', 'bg-2': 'rgba(8,12,20,.55)', panel: 'rgba(20,28,42,.52)', 'panel-2': 'rgba(32,44,62,.58)', line: 'rgba(255,255,255,.08)', 'line-2': 'rgba(255,255,255,.15)', text: '#e6eef7', muted: '#9aabc0', dim: '#6b7d93', accent: '#5eead4', 'accent-2': '#a7f3e8', 'on-accent': '#03201c', gold: '#f2c35a', red: '#ff6b7a', green: '#6ee7a8', blue: '#7cb8ff', purple: '#c4a1ff', orange: '#ffa35c', canvas: 'rgba(8,12,20,.45)', node: 'rgba(30,42,62,.75)' } },
+
+  { id: 'glass-ice', name: 'Ice Field Glass', tags: ['Glass', 'Highsec', 'Trading'], blurb: 'Cold blue glass, like a station window onto an ice belt.', glass: 'radial-gradient(1000px 700px at 80% 0%, rgba(125,211,252,.30), transparent 60%), radial-gradient(900px 700px at 0% 100%, rgba(59,130,246,.26), transparent 62%), radial-gradient(600px 400px at 50% 40%, rgba(226,232,240,.08), transparent 70%)',
+    c: { bg: '#070b14', 'bg-2': 'rgba(8,12,20,.55)', panel: 'rgba(20,28,42,.52)', 'panel-2': 'rgba(32,44,62,.58)', line: 'rgba(255,255,255,.08)', 'line-2': 'rgba(255,255,255,.15)', text: '#e6eef7', muted: '#9aabc0', dim: '#6b7d93', accent: '#7cc4ff', 'accent-2': '#c3e4ff', 'on-accent': '#04162a', gold: '#f2c35a', red: '#ff6b7a', green: '#6ee7a8', blue: '#7cb8ff', purple: '#c4a1ff', orange: '#ffa35c', canvas: 'rgba(8,12,20,.45)', node: 'rgba(30,42,62,.75)' } },
+
+  { id: 'glass-drifter', name: 'Drifter Glass', tags: ['Glass', 'Wormholes', 'PvP'], blurb: 'Dark violet glass with a faint Drifter glow. Made for J-space.', glass: 'radial-gradient(1000px 700px at 90% 10%, rgba(192,132,252,.30), transparent 60%), radial-gradient(800px 640px at 5% 95%, rgba(236,72,153,.20), transparent 62%), radial-gradient(500px 380px at 55% 50%, rgba(99,102,241,.14), transparent 70%)',
+    c: { bg: '#08060f', 'bg-2': 'rgba(8,12,20,.55)', panel: 'rgba(26,18,40,.55)', 'panel-2': 'rgba(40,28,60,.6)', line: 'rgba(255,255,255,.08)', 'line-2': 'rgba(255,255,255,.15)', text: '#e6eef7', muted: '#9aabc0', dim: '#6b7d93', accent: '#c084fc', 'accent-2': '#e9d5ff', 'on-accent': '#1d0636', gold: '#f2c35a', red: '#ff6b7a', green: '#6ee7a8', blue: '#7cb8ff', purple: '#c4a1ff', orange: '#ffa35c', canvas: 'rgba(8,12,20,.45)', node: 'rgba(30,42,62,.75)' } },
+
+  { id: 'glass-solar', name: 'Solar Glass', tags: ['Glass', 'Mining', 'Industry'], blurb: 'Smoked amber glass lit by a nearby sun. Warm and easy on the eyes.', glass: 'radial-gradient(1000px 720px at 85% -5%, rgba(251,191,36,.28), transparent 60%), radial-gradient(900px 700px at 0% 100%, rgba(239,68,68,.20), transparent 62%), radial-gradient(600px 420px at 50% 50%, rgba(249,115,22,.10), transparent 70%)',
+    c: { bg: '#0d0905', 'bg-2': 'rgba(8,12,20,.55)', panel: 'rgba(36,26,14,.55)', 'panel-2': 'rgba(52,38,20,.6)', line: 'rgba(255,255,255,.08)', 'line-2': 'rgba(255,255,255,.15)', text: '#f4ead8', muted: '#b8a586', dim: '#857560', accent: '#fbbf24', 'accent-2': '#fde68a', 'on-accent': '#2a1a02', gold: '#f2c35a', red: '#ff6b7a', green: '#6ee7a8', blue: '#7cb8ff', purple: '#c4a1ff', orange: '#ffa35c', canvas: 'rgba(8,12,20,.45)', node: 'rgba(30,42,62,.75)' } },
+
+  { id: 'glass-daylight', name: 'Frosted Daylight', tags: ['Glass', 'Light mode'], blurb: 'Light frosted glass over soft colour, for bright rooms.', glass: 'radial-gradient(1000px 720px at 85% -5%, rgba(45,212,191,.35), transparent 60%), radial-gradient(900px 700px at 0% 100%, rgba(129,140,248,.35), transparent 62%), radial-gradient(700px 500px at 50% 50%, rgba(244,114,182,.18), transparent 70%)',
+    c: { bg: '#e8eef5', 'bg-2': 'rgba(255,255,255,.55)', panel: 'rgba(255,255,255,.62)', 'panel-2': 'rgba(255,255,255,.78)', line: 'rgba(15,23,42,.10)', 'line-2': 'rgba(15,23,42,.18)', text: '#111c2b', muted: '#4b5d73', dim: '#7a8aa0', accent: '#0d9488', 'accent-2': '#2dd4bf', 'on-accent': '#ffffff', gold: '#a16207', red: '#c0263a', green: '#15803d', blue: '#1d4ed8', purple: '#6d28d9', orange: '#c2410c', canvas: 'rgba(255,255,255,.45)', node: 'rgba(255,255,255,.85)' } },
+
   { id: 'daylight', name: 'Station Lights', tags: ['Light mode', 'Any space'], blurb: 'A bright theme for daytime use or well-lit rooms.',
     c: { bg: '#eef2f6', 'bg-2': '#e3e9ef', panel: '#ffffff', 'panel-2': '#f5f8fb', line: '#d5dde6', 'line-2': '#bfcbd8', text: '#17222e', muted: '#52657b', dim: '#7c8da1',
       accent: '#0f8f86', 'accent-2': '#38b6ab', 'on-accent': '#ffffff', gold: '#a86f05', red: '#c53030', green: '#2f855a', blue: '#2b6cb0', purple: '#6b46c1', orange: '#c05621', canvas: '#e9eef3', node: '#ffffff' } }
@@ -62,6 +77,8 @@ function applyTheme(id, accent) {
     root.setProperty('--accent-2', `color-mix(in srgb, ${accent} 60%, white)`);
     root.setProperty('--on-accent', luminance(accent) > 0.45 ? '#0b0b0b' : '#ffffff');
   }
+  if (t.glass) { root.setProperty('--glass-bg', t.glass); document.documentElement.dataset.glass = t.id === 'glass-daylight' ? 'light' : 'dark'; }
+  else { root.removeProperty('--glass-bg'); delete document.documentElement.dataset.glass; }
   document.documentElement.dataset.theme = t.id;
   themeState.applied = t.id;
   return t;
@@ -107,9 +124,9 @@ async function refreshTheme(settings) {
 
 function themePreview(t) {
   const c = t.c;
-  return raw(`<div class="tp" style="background:${c.bg}">
+  return raw(`<div class="tp" style="background:${t.glass ? t.glass + ', ' : ''}${c.bg}">
     <div class="ts" style="background:${c['bg-2']};border-right:1px solid ${c.line}"><i style="background:${c.accent}"></i><i style="background:${c.muted}"></i><i style="background:${c.dim}"></i><i style="background:${c.dim}"></i></div>
-    <div class="tm"><div class="tpanel" style="background:${c.panel};border:1px solid ${c.line}"><i style="background:${c.text};width:60%"></i><i style="background:${c.muted};width:85%"></i>
+    <div class="tm"><div class="tpanel" style="background:${c.panel};border:1px solid ${c.line}${t.glass ? ';backdrop-filter:blur(6px)' : ''}"><i style="background:${c.text};width:60%"></i><i style="background:${c.muted};width:85%"></i>
       <div style="display:flex;gap:4px;margin-top:auto"><i style="background:${c.accent};width:34%"></i><i style="background:${c.green};width:14%"></i><i style="background:${c.red};width:14%"></i><i style="background:${c.gold};width:14%"></i></div></div></div></div>`);
 }
 

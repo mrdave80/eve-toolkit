@@ -109,6 +109,7 @@ contextBridge.exposeInMainWorld('api', {
     structures: () => call('ind:structures'), pilotSkills: id => call('ind:pilotSkills', id)
   },
   appraise: (text, hub) => call('appraise', text, hub),
+  fit: { check: text => call('fit:check', text) },
   items: { search: q => call('items:search', q), info: id => call('items:info', id) },
   charValue: () => call('charvalue'),
   bargains: { scan: o => call('bargains:scan', o) },

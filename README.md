@@ -104,7 +104,7 @@ Several tools need CCP's official static data export: blueprints, skill requirem
 
 Pick the planet types you need and where you are (type a system or click a pilot), and the closest systems with those planets come first. Choose **Any of these** or **All in one system**, set a jump limit, pick highsec, lowsec, nullsec or Pochven, and optionally use your alliance jump bridges. "Use my plan's types" fills in the planet types your current PI plan needs. Each result shows the jump count, how many of each chosen type it has, its other planets, and links to plan a route or open it on Dotlan.
 
-Planet data needs a one-time game data refresh after updating to 1.8.9: Settings → Game data → Update.
+Planet data needs a one-time game data refresh after updating to 1.9.0: Settings → Game data → Update.
 
 ## Corp / alliance mode
 
@@ -249,13 +249,25 @@ Real profit from your market trading. Each sale is matched to the oldest buys of
 
 ESI only shares about 30 days of transactions, so the app keeps its own record on your PC and adds to it every six hours. Sales with no matching buy in that record (bought before tracking started, looted, built) are listed separately and left out of profit.
 
+## Fit checker (Tools → Fitting → Fit Checker)
+
+Paste a fit in EFT format (the in-game "Copy to clipboard" or Pyfa's EFT export) to see:
+
+- The slot layout with every module, charge, drone and cargo item, and what it all costs at Jita.
+- CPU, powergrid and calibration used against what the ship has with all skills at V, and the same for each of your pilots with their real skills. Too many modules for the slots or hardpoints is flagged.
+- Which pilots can fly it, and how long the rest need to train.
+- The hull's own stats before modules and skills: HP, resists, speed, align time, cargo, drone bay, signature, lock range and capacitor.
+- **Open in Pyfa** copies the fit so Pyfa can import it from the clipboard. Fitted EHP, DPS and capacitor stability are left to Pyfa on purpose.
+
+Fitting uses CPU Management, Power Grid Management, Weapon Upgrades, Advanced Weapon Upgrades, Energy Grid Upgrades, Electronics Upgrades and Shield Upgrades, plus co-processors and similar modules. Ship bonuses that cut fitting costs aren't counted, so a fit can show as slightly over when it actually fits. Doctrine fits on the Corporation → Doctrines page have a **Check** button that opens them here.
+
 ## Contract bargains (Tools → Market → Contract Bargains)
 
 Scans public item-exchange contracts in a region for anything priced well under what its items sell for in Jita. Set a minimum profit and discount, a maximum price and highsec only. Contract contents never change, so the app keeps them on your PC: the first scan of a busy region reads up to 400 new contracts (adjustable) and each later scan only reads new ones. Blueprint copies are valued at zero. Contracts more than 70% under value, or that ask for items in return, are marked "check carefully" because those are common scams.
 
 ## Item database (Tools → Market → Item Database)
 
-Search any item, ship or skill to see its stats, required skills, hub prices, what it's built from (with material cost), what it reprocesses into and what it's used to build. "Who can use it?" checks your pilots' skills. Item stats need a one-time game data refresh after updating to 1.8.9: Settings → Game data → Update.
+Search any item, ship or skill to see its stats, required skills, hub prices, what it's built from (with material cost), what it reprocesses into and what it's used to build. "Who can use it?" checks your pilots' skills. Item stats need a one-time game data refresh after updating to 1.9.0: Settings → Game data → Update.
 
 ## Moon scan (Tools → Industry → Moon Scan)
 
@@ -325,7 +337,7 @@ To set it up, add the scopes `esi-ui.write_waypoint.v1` and `esi-ui.open_window.
 
 ## Themes (Settings → Appearance)
 
-Eleven themes, applied instantly:
+Sixteen themes, applied instantly:
 
 | Theme | Suits |
 |---|---|
@@ -340,6 +352,13 @@ Eleven themes, applied instantly:
 | Abyssal Crimson | PvP, Abyss, Pochven |
 | Ore Hauler | Mining, industry, PI |
 | Station Lights | Light mode |
+| Nebula Glass | Glass, any space |
+| Ice Field Glass | Glass, highsec, trading |
+| Drifter Glass | Glass, wormholes, PvP |
+| Solar Glass | Glass, mining, industry |
+| Frosted Daylight | Glass, light mode |
+
+The glass themes use frosted, see-through panels over a soft glow. On older or low-power PCs they can use a little more graphics power than the solid themes.
 
 You can also set a custom highlight colour (your corp colours, say) and a text size. **Match the theme to where I'm flying** switches theme automatically for highsec, lowsec, nullsec, wormhole space and Pochven, based on your pilot's location. It checks every 2 minutes.
 

@@ -36,7 +36,7 @@ async function info(typeId, hub = 'Jita') {
   const t = sde.type(id);
   if (!t) throw new Error('Unknown item.');
   const full = sde.fullAttrs(id);
-  const attrs = full ? full.filter(a => !HIDE.has(a.id) && a.name).map(a => ({ ...a, ...fmtValue(a) })) : null;
+  const attrs = full ? full.filter(a => !HIDE.has(a.id) && a.name && a.published).map(a => ({ ...a, ...fmtValue(a) })) : null;
   const groups = {};
   if (attrs) for (const a of attrs) (groups[a.category] = groups[a.category] || []).push({ name: a.name, text: a.text, typeId: a.typeId || null });
   const reqs = sde.requirements(id).map(r => ({ id: r.id, name: (sde.type(r.id) || {}).name, level: r.level }));
@@ -63,7 +63,7 @@ async function info(typeId, hub = 'Jita') {
   if (build) { const mp = await market.prices(build.materials.map(m => m.id), hub); matCost = build.materials.reduce((n, m) => n + m.qty * ((mp[m.id] || {}).sell ?? (mp[m.id] || {}).avg ?? 0), 0) / (build.perRun || 1); }
   return {
     id, name: t.name, group: t.group, category: t.category, meta: META[t.metaGroupId] || null, volume: t.volume, portion: t.portionSize, basePrice: t.basePrice,
-    published: t.published, onMarket: !!t.marketGroupId, attrs: groups, hasStats: !!full, requirements: reqs, build, matCost, reprocess, usedIn: used, prices
+    published: t.published, onMarket: !!t.marketGroupId, attrs: groups, hasStats: !!full && sde.hasFull(), requirements: reqs, build, matCost, reprocess, usedIn: used, prices
   };
 }
 

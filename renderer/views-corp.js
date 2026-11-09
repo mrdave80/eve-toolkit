@@ -551,7 +551,7 @@ async function cDoctrines() {
       ${ev.fits.map(f => html`<tr><td><img src="${IMG}/types/${f.shipTypeId}/render?size=64" width="34" height="34" style="vertical-align:-11px;margin-right:10px;border-radius:4px" alt=""><b>${f.name}</b> <span class="dim">${f.ship}</span></td>
         <td class="right num">${fmtCompact(f.cost)}<div class="dim">hull ${fmtCompact(f.hullCost)}</div></td><td class="right num">${f.requirements}</td>
         <td class="right num">${f.pilots.filter(p => p.canFly).length}</td>
-        <td class="right nowrap"><button class="btn btn-ghost pl-mini" data-fit-copy="${f.id}">Copy EFT</button><button class="btn btn-ghost pl-mini" data-fit-view="${f.id}">Items</button><button class="btn btn-ghost pl-mini" data-fit-del="${f.id}">✕</button></td></tr>`)}</tbody></table>` : emptyBox('Paste an EFT fit to add it to this doctrine.')}</div>
+        <td class="right nowrap"><button class="btn btn-ghost pl-mini" data-fit-check="${f.id}" title="Slots, CPU and powergrid with each pilot's skills">Check</button><button class="btn btn-ghost pl-mini" data-fit-copy="${f.id}">Copy EFT</button><button class="btn btn-ghost pl-mini" data-fit-view="${f.id}">Items</button><button class="btn btn-ghost pl-mini" data-fit-del="${f.id}">✕</button></td></tr>`)}</tbody></table>` : emptyBox('Paste an EFT fit to add it to this doctrine.')}</div>
     <div class="panel" style="padding:0;margin-top:16px"><div style="padding:14px 18px 0"><h3>Pilot readiness</h3></div>${ev.pilots.length ? html`<table><thead><tr><th>Pilot</th><th>Best fit</th><th>Status</th><th>Missing</th><th class="right">Time to fly</th></tr></thead><tbody>
       ${ev.pilots.map(p => html`<tr><td>${charImg(p.id, 20)}${p.name}${p.fromAudit ? raw(' <span class="badge">audit</span>') : ''}</td><td class="muted">${p.fit}</td>
         <td>${p.canFly ? raw('<span class="badge green">Ready</span>') : p.minutes < 7 * 1440 ? raw('<span class="badge gold">Close</span>') : raw('<span class="badge red">Not ready</span>')}</td>
@@ -596,6 +596,7 @@ document.addEventListener('click', async e => {
   if (q('[data-doc-rename]')) return doctrineModal(doc());
   if ((el = q('[data-doc-del]'))) { if (el.dataset.c !== '1') { el.dataset.c = '1'; el.textContent = 'Click again'; return; } await ws('remove', 'doctrines', docState.sel); docState.sel = null; await loadWs(); return cDoctrines(); }
   if ((el = q('[data-fit-del]'))) { const d = doc(); d.fits = d.fits.filter(f => f.id !== el.dataset.fitDel); await saveDoctrine(d); return cDoctrines(); }
+  if ((el = q('[data-fit-check]'))) { const f = doc().fits.find(x => x.id === el.dataset.fitCheck); fitState.text = f.eft; fitState.data = null; fitState.pending = true; state.toolsTab = 't-fit'; go('tools'); return; }
   if ((el = q('[data-fit-copy]'))) { const f = doc().fits.find(x => x.id === el.dataset.fitCopy); await api.copy(f.eft); return toast('EFT copied. In game: Fitting → Import from clipboard'); }
   if ((el = q('[data-fit-view]'))) {
     const f = doc().fits.find(x => x.id === el.dataset.fitView);

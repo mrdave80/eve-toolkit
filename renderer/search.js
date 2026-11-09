@@ -6,7 +6,7 @@ const SEARCH_EXTRA = {
   't-route': 'route gate camp gank dotlan safe autopilot', 't-courier': 'courier hauling contracts', 't-hunt': 'hunting ratting safe pvp targets', 't-jump': 'jump capital fatigue range jf',
   't-universe': 'sov incursion thera turnur faction warfare', 't-pilot': 'pilot intel zkill evewho threat grade', 't-whres': 'wormhole residents eviction who lives j-space', 't-shame': 'wall of shame fails bad fits oof',
   't-intel': 'intel channel watch alerts', 't-local': 'local dscan d-scan clipboard', 't-combat': 'combat log dps damage', 't-networth': 'net worth assets wallet history', 't-income': 'income journal isk',
-  't-pve': 'ratting abyss filament isk per hour ess bounty', 't-farm': 'skill farm extractor injector plex mct omega', 't-charval': 'character bazaar sell value skillboard', 't-insure': 'insurance platinum payout'
+  't-pve': 'ratting abyss filament isk per hour ess bounty', 't-farm': 'skill farm extractor injector plex mct omega', 't-charval': 'character bazaar sell value skillboard', 't-insure': 'insurance platinum payout', 't-fit': 'fit fitting pyfa eft cpu powergrid calibration slots doctrine'
 };
 const VIEW_ENTRIES = [
   ['dashboard', 'All pilots', 'home overview'], ['trainingAll', 'Training board', 'skill queue'], ['industryAll', 'Industry board', 'jobs slots'], ['planetsAll', 'Planets board', 'pi extractors colonies'],
