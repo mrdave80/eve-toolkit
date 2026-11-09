@@ -20,8 +20,8 @@ function tFit() {
   if (fitState.pending) { fitState.pending = false; $('#ft-go').click(); }
 }
 
-function drawFit() {
-  const d = fitState.data;
+function drawFit(box = $('#ft-out'), d = fitState.data) {
+  if (!box || !d) return;
   const sc = d.slotCheck;
   const bar = (used, max, label, unit) => { const pct = max ? Math.min(100, used / max * 100) : (used ? 100 : 0); const over = used > max + 0.01;
     return html`<div style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;font-size:12.5px"><span class="muted">${label}</span><span class="num ${over ? 'neg' : ''}">${fmtNum(Math.round(used * 10) / 10)} / ${fmtNum(Math.round(max * 10) / 10)} ${unit}</span></div>
@@ -31,7 +31,7 @@ function drawFit() {
   const v = d.allV;
   const pct = x => (x === null ? '—' : Math.round(x * 100) + '%');
   const h = d.hull;
-  $('#ft-out').innerHTML = String(html`<div class="panel"><div style="display:flex;gap:14px;align-items:center">
+  box.innerHTML = String(html`<div class="panel"><div style="display:flex;gap:14px;align-items:center">
       <img src="https://images.evetech.net/types/${d.shipTypeId}/render?size=128" width="72" height="72" style="border-radius:8px;border:1px solid var(--line-2)" alt="">
       <div style="flex:1"><div style="font-size:20px;font-weight:600">${d.name}</div><div class="muted">${d.ship} · ${fmtCompact(d.cost.total)} ISK <span class="dim">(hull ${fmtCompact(d.cost.hull)}, fittings ${fmtCompact(d.cost.fittings)})</span></div></div>
       <div style="display:flex;flex-direction:column;gap:6px"><button class="btn btn-primary" id="ft-pyfa">Open in Pyfa</button><button class="btn btn-ghost" id="ft-appraise">Appraise</button></div></div>
@@ -60,8 +60,8 @@ function drawFit() {
           <div class="dim" style="font-size:11.5px;margin-top:6px">Resists in EM · thermal · kinetic · explosive order.</div></div>
       </div></div>
     <div class="dim" style="font-size:12px;margin-top:4px">CPU and powergrid use CPU Management, Power Grid Management, Weapon Upgrades, Advanced Weapon Upgrades, Energy Grid Upgrades, Electronics Upgrades and Shield Upgrades, plus co-processors and similar modules. Ship bonuses that cut fitting costs (for example on logistics ships) aren't counted, so a fit can show as slightly over when it actually fits. For fitted EHP, DPS and capacitor, use Pyfa.</div>`);
-  $('#ft-pyfa').onclick = async () => { await api.copy(d.eft); toast('Fit copied. In Pyfa, import it from the clipboard.'); };
-  $('#ft-appraise').onclick = () => appraiseFitModal(d);
+  box.querySelector('#ft-pyfa').onclick = async () => { await api.copy(d.eft); toast('Fit copied. In Pyfa, import it from the clipboard.'); };
+  box.querySelector('#ft-appraise').onclick = () => appraiseFitModal(d);
 }
 
 async function appraiseFitModal(d) {

@@ -77,7 +77,7 @@ function killRows(list, loss) {
   return html`<table><thead><tr><th>When</th><th>${loss ? 'Lost' : 'Flying'}</th>${loss ? '' : raw('<th>Victim</th>')}<th>System</th><th class="right">Pilots</th><th class="right">Value</th><th></th></tr></thead><tbody>${list.map(k => html`<tr>
     <td class="dim nowrap">${timeAgo(k.time)}</td><td>${k.ship ? icon(k.ship, 18) : ''}${k.shipName || '?'}${k.concord ? raw(' <span class="badge red">CONCORD</span>') : ''}${k.cyno ? raw(' <span class="badge red">cyno fitted</span>') : ''}</td>
     ${loss ? '' : html`<td>${k.victimShip ? icon(k.victimShip, 18) : ''}${k.victimShipName || '?'}</td>`}
-    <td>${k.system || ''} ${k.zone ? html`<span class="dim">${ZONE_LABEL[k.zone]}</span>` : ''}</td><td class="right num">${k.solo ? raw('<span class="badge">solo</span>') : k.attackers}</td>
+    <td>${k.system ? html`<a href="#" data-system="${k.system}">${k.system}</a>` : ''} ${k.zone ? html`<span class="dim">${ZONE_LABEL[k.zone]}</span>` : ''}</td><td class="right num">${k.solo ? raw('<span class="badge">solo</span>') : k.attackers}</td>
     <td class="right num">${k.value ? fmtCompact(k.value) : ''}</td><td><a href="#" data-link="https://zkillboard.com/kill/${k.id}/">zKill ↗</a></td></tr>`)}</tbody></table>`;
 }
 
@@ -180,8 +180,8 @@ async function runWhRes() {
   if (!r.ok) { box.innerHTML = String(errorView(r)); return; }
   whResState.result = r.data; drawWhRes();
 }
-function drawWhRes() {
-  const d = whResState.result, box = $('#wr-out'); if (!box || !d) return;
+function drawWhRes(box = $('#wr-out'), d = whResState.result) {
+  if (!box || !d) return;
   const max = Math.max(1, ...d.heat), peak = d.heat.indexOf(Math.max(...d.heat));
   const roleTone = { 'Likely resident': 'red', 'Possibly evicted': 'gold', 'Regular hunter': 'gold', 'Dies here often': '', 'Eviction or roam': '', Visitor: '' };
   box.innerHTML = String(html`<div class="panel"><div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center">

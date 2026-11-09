@@ -155,7 +155,8 @@ function drawMapSide() {
       ${s.ext ? html`<button class="btn btn-ghost" style="padding:3px 9px;font-size:12px" data-mp-act="region">Open ${s.region}</button>` : ''}</div>`);
   box.querySelectorAll('[data-mp-act]').forEach(b => b.onclick = () => {
     const a = b.dataset.mpAct;
-    if (a === 'from' || a === 'to') { navState[a] = s.name; state.toolsTab = 't-route'; go('tools'); }
+    if (a === 'from') openRouteCard(s.name, navState.to);
+    else if (a === 'to') openRouteCard(navState.from, s.name);
     else if (a === 'hunt') { huntState.from = s.name; state.toolsTab = 't-hunt'; go('tools'); }
     else if (a === 'dest') setDestination(s.id);
     else if (a === 'region') { mapState.regionId = s.regionId; mapState.sel = s.id; mapState.view = null; loadMap(); }

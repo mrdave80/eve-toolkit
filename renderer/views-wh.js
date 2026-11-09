@@ -258,7 +258,7 @@ function drawSide() {
   $('#wh-label').onchange = e => whOp({ kind: 'updateSystem', id: s.id, patch: { label: e.target.value } }).then(drawCanvas);
   $('#wh-notes').onchange = e => whOp({ kind: 'updateSystem', id: s.id, patch: { notes: e.target.value } });
   $('#wh-home').onclick = async () => { await whOp({ kind: 'setHome', id: s.id }); drawCanvas(); drawSide(); };
-  $('#wh-res').onclick = () => { whResState.q = s.name; state.toolsTab = 't-whres'; go('tools'); setTimeout(() => runWhRes(), 50); };
+  $('#wh-res').onclick = () => openWhResCard(s.name);
   $('#wh-rmsys').onclick = async () => { await whOp({ kind: 'removeSystem', id: s.id }); whState.sel = null; drawCanvas(); drawSide(); drawChainList(); };
   $('#wh-link').onclick = () => openModal(`Connect ${s.name} to…`, html`${field('System name', inputText('name', '', 'e.g. J123456 or a k-space system'))}
     <div class="grid grid-2">${field('Wormhole type', inputText('type', '', 'e.g. K162'))}${field('Size', select('size', Object.entries(SIZE_LABEL), 'L'))}</div>`, {

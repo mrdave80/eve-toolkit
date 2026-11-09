@@ -78,13 +78,13 @@ async function report(o = {}) {
   let unmatchedQty = 0, unmatchedIsk = 0;
   for (const t of all) {
     const key = (pooled ? '' : t.charId + ':') + t.typeId;
-    if (t.buy) { (lots.get(key) || lots.set(key, []).get(key)).push({ qty: t.qty, price: t.price, time: t.time }); continue; }
+    if (t.buy) { (lots.get(key) || lots.set(key, []).get(key)).push({ qty: t.qty, price: t.price, time: t.time, charId: t.charId }); continue; }
     // sale: take from the oldest lots
-    let need = t.qty, cost = 0, matched = 0, held = 0;
+    let need = t.qty, cost = 0, matched = 0, held = 0; const used = [];
     const q = lots.get(key) || [];
     while (need > 0 && q.length) {
       const lot = q[0]; const n = Math.min(need, lot.qty);
-      cost += n * lot.price; matched += n; held += n * (t.time - lot.time);
+      cost += n * lot.price; matched += n; held += n * (t.time - lot.time); used.push({ qty: n, price: lot.price, time: lot.time, charId: lot.charId });
       lot.qty -= n; need -= n; if (!lot.qty) q.shift();
     }
     if (t.time < since) continue;
@@ -93,6 +93,9 @@ async function report(o = {}) {
     const profit = revenue - cost - tax;
     if (need > 0) { unmatchedQty += need; unmatchedIsk += need * t.price; }
     const it = items.get(t.typeId) || { typeId: t.typeId, sold: 0, revenue: 0, cost: 0, tax: 0, profit: 0, trades: 0, unmatched: 0, heldMs: 0, bought: 0, spent: 0 };
+    if (!it.matches) { it.matches = []; it.byPilot = {}; }
+    it.matches.push({ time: t.time, charId: t.charId, qty: t.qty, matched, price: t.price, lots: used.slice(0, 4), moreLots: Math.max(0, used.length - 4), cost, tax, profit });
+    const bp = it.byPilot[t.charId] || (it.byPilot[t.charId] = { sold: 0, revenue: 0, profit: 0 }); bp.sold += matched; bp.revenue += revenue; bp.profit += profit;
     it.sold += matched; it.revenue += revenue; it.cost += cost; it.tax += tax; it.profit += profit; it.trades++; it.unmatched += need; it.heldMs += held;
     items.set(t.typeId, it);
     if (matched) {
@@ -107,7 +110,10 @@ async function report(o = {}) {
   for (const [key, q] of lots) { const typeId = Number(String(key).split(':').pop()); for (const l of q) { stockIsk += l.qty * l.price; stock.set(typeId, (stock.get(typeId) || 0) + l.qty); } }
 
   const name = id => (sde.ready() && (sde.type(id) || {}).name) || ('Type ' + id);
-  const rows = [...items.values()].map(it => ({ ...it, name: name(it.typeId), margin: it.revenue ? it.profit / it.revenue : null, avgHoldDays: it.sold ? it.heldMs / it.sold / DAY : null, stock: stock.get(it.typeId) || 0 }));
+  const cname = id => ((d.characters || []).find(c => c.id === id) || {}).name || String(id);
+  const rows = [...items.values()].map(it => ({ ...it,
+    matches: (it.matches || []).slice(-30).reverse().map(m => ({ ...m, time: new Date(m.time).toISOString(), seller: cname(m.charId), lots: m.lots.map(l => ({ ...l, time: new Date(l.time).toISOString(), buyer: cname(l.charId) })) })),
+    pilots: Object.entries(it.byPilot || {}).map(([id, v]) => ({ id: Number(id), name: cname(Number(id)), ...v })).sort((a, b) => b.profit - a.profit), byPilot: undefined, name: name(it.typeId), margin: it.revenue ? it.profit / it.revenue : null, avgHoldDays: it.sold ? it.heldMs / it.sold / DAY : null, stock: stock.get(it.typeId) || 0 }));
   const sold = rows.filter(r => r.sold > 0);
   const gross = sold.reduce((n, r) => n + r.profit, 0);
   const matchedTax = sold.reduce((n, r) => n + r.tax, 0);

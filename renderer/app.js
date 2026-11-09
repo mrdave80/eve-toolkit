@@ -334,20 +334,29 @@ async function renderWelcome() {
   };
 }
 
+const settingsOpen = (() => { try { return JSON.parse(localStorage.getItem('settingsOpen') || '{}'); } catch { return {}; } })();
+function settingsFold(key, title, hint, body, forceOpen) {
+  const open = forceOpen || settingsOpen[key];
+  return html`<details class="sgroup sfold" data-sfold="${key}" ${raw(open ? 'open' : '')}><summary><span class="gname">${title}</span><span class="dim" style="font-size:12px">${hint}</span></summary><div class="sfold-body">${body}</div></details>`;
+}
+function openSettingsSection(key) { const d = document.querySelector(`[data-sfold="${key}"]`); if (d) { d.open = true; d.scrollIntoView(); } }
+
 async function renderSettings() {
   const [info, s] = await Promise.all([api.info(), api.getSettings()]);
   state.settings = s.data;
   const st = s.data;
+  const nPilots = state.characters.length, reauth = state.characters.filter(c => c.needsReauth).length;
   setContent(html`
     <div style="max-width:980px">
-      <div class="panel" id="appearance-panel"></div>
-      <div class="panel"><h3>EVE SSO application</h3>
+      <div class="dim" style="font-size:12px;margin:-4px 0 10px;display:flex;gap:10px"><span>Click a section to open it.</span><a href="#" id="s-openall">Open all</a><a href="#" id="s-closeall">Close all</a></div>
+      ${settingsFold('appearance', 'Appearance', 'Theme, glass effects and theme schedule', raw(`<div class="panel" id="appearance-panel"></div>`))}
+      ${settingsFold('sso', 'EVE SSO application', st.clientId ? 'Client ID set' : 'Not set up yet: needed before adding pilots', html`<div class="panel"><h3>EVE SSO application</h3>
         <div class="field"><label for="s-client">Client ID</label><input id="s-client" type="text" value="${st.clientId}" spellcheck="false"></div>
         <div class="field"><label for="s-port">Callback port</label><input id="s-port" type="number" min="1024" max="65535" value="${st.callbackPort}" style="max-width:140px">
           <div class="dim" style="margin-top:5px;font-size:12px">Callback URL registered with CCP must be exactly <code>http://localhost:${st.callbackPort}/callback</code></div></div>
         <details><summary class="muted" style="cursor:pointer">How to register an application</summary><div style="margin-top:10px">${setupSteps(st.callbackPort)}</div></details>
-      </div>
-      <div class="panel"><h3>Behaviour</h3>
+      </div>`, !st.clientId)}
+      ${settingsFold('behaviour', 'Notifications and behaviour', 'Windows notifications, alerts, tray and check interval', html`<div class="panel"><h3>Behaviour</h3>
         <label class="check"><input type="checkbox" id="s-notif" ${raw(st.notifications ? 'checked' : '')}> Windows notifications when a skill queue is empty, paused or has under 24 hours left</label>
  <label class="check"><input type="checkbox" id="s-ind" ${raw(st.notifyIndustry !== false ? 'checked' : '')}> Notify when industry jobs finish or all manufacturing slots are idle</label>
         <label class="check"><input type="checkbox" id="s-pi" ${raw(st.notifyPlanets !== false ? 'checked' : '')}> Notify when planetary extractors are about to stop</label>
@@ -356,22 +365,19 @@ async function renderSettings() {
         <div class="field"><label for="s-incj">Incursion alert range (jumps from any pilot)</label><input id="s-incj" type="number" min="1" max="30" value="${st.incursionJumps || 10}" style="max-width:140px"></div>
         <label class="check"><input type="checkbox" id="s-tray" ${raw(st.minimizeToTray ? 'checked' : '')}> Keep running in the system tray when the window is closed</label>
         <div class="field"><label for="s-refresh">Background check interval (minutes)</label><input id="s-refresh" type="number" min="5" max="240" value="${st.refreshMinutes}" style="max-width:140px"></div>
-      </div>
-      <button class="btn btn-primary" id="s-save">Save settings</button>
-
-      <div class="panel" style="margin-top:20px"><h3>Updates</h3>
+      </div>`)}
+      <button class="btn btn-primary" id="s-save" style="margin:4px 0 12px">Save settings</button>
+      ${settingsFold('updates', 'Updates', `This is version ${info.ok ? info.data.version : ''}`, html`<div class="panel"><h3>Updates</h3>
         <div class="muted" style="margin-bottom:10px">The app checks <a href="#" data-link="https://github.com/mrdave80/eve-toolkit/releases">GitHub releases</a> twice a day and shows a banner when there's a newer version.</div>
         <details style="margin-bottom:10px"><summary class="dim" style="cursor:pointer;font-size:12px">Use a different update feed</summary>
         <div class="field" style="margin-top:8px"><label for="s-upd">Update feed URL</label><input id="s-upd" type="text" value="${st.updateUrl || ''}" placeholder="Leave empty for GitHub releases" spellcheck="false" style="max-width:none"></div>
         <div class="dim" style="font-size:12px">A JSON file like <code>{"version":"1.9.0","url":"https://…","notes":"…"}</code>, or another GitHub releases API address.</div></details>
-        <button class="btn btn-ghost" id="s-updcheck">Check now</button> <span class="muted">This is version ${info.ok ? info.data.version : ''}.</span></div>
-
-      <div class="panel" style="margin-top:20px" id="speech-panel"></div>
-      <div class="panel" style="margin-top:20px" id="phone-panel"></div>
-      <div class="panel" style="margin-top:20px" id="ingame-panel"></div>
-      <div class="panel" style="margin-top:20px"><h3>Game data</h3><div id="sde-panel">${loadingView('Checking…')}</div></div>
-
-      <div class="panel" style="margin-top:20px"><h3>Pilots</h3>
+        <button class="btn btn-ghost" id="s-updcheck">Check now</button> <span class="muted">This is version ${info.ok ? info.data.version : ''}.</span></div>`)}
+      ${settingsFold('speech', 'Spoken alerts', 'Read alerts aloud', raw('<div class="panel" id="speech-panel"></div>'))}
+      ${settingsFold('phone', 'Phone alerts', 'Send alerts to your phone', raw('<div class="panel" id="phone-panel"></div>'))}
+      ${settingsFold('ingame', 'In-game control', 'Set destinations and open info windows in the game', raw('<div class="panel" id="ingame-panel"></div>'))}
+      ${settingsFold('sde', 'Game data', 'Item, system and planet data from CCP', raw(`<div class="panel"><h3>Game data</h3><div id="sde-panel">${loadingView('Checking…')}</div></div>`))}
+      ${settingsFold('pilots', 'Pilots', `${nPilots} pilot${nPilots === 1 ? '' : 's'}${reauth ? ` · ${reauth} need${reauth === 1 ? 's' : ''} re-authorising` : ''}`, html`<div class="panel"><h3>Pilots</h3>
         ${state.characters.length ? html`<table><tbody>${state.characters.map(c => html`<tr>
           <td style="width:44px"><img src="${portrait(c.id, 32)}" width="32" height="32" style="border-radius:4px" alt=""></td>
           <td>${c.name} ${c.needsReauth ? raw('<span class="badge gold">Needs re-auth</span>') : ''}
@@ -379,7 +385,7 @@ async function renderSettings() {
           <td class="right"><button class="btn btn-ghost" data-reauth="${c.id}">Re-authorise</button>
             <button class="btn btn-danger" data-remove="${c.id}">Remove</button></td></tr>`)}</tbody></table>`
           : html`<div class="muted">No pilots added.</div>`}
-      </div>
+      </div>`, !!reauth)}
 
       <div class="foot-note">
         EVE Toolkit ${info.ok ? info.data.version : ''} · Data folder: <code>${info.ok ? info.data.userData : ''}</code><br>
@@ -391,6 +397,9 @@ async function renderSettings() {
       </div>
     </div>`);
 
+  document.querySelectorAll('[data-sfold]').forEach(d => d.addEventListener('toggle', () => { settingsOpen[d.dataset.sfold] = d.open; try { localStorage.setItem('settingsOpen', JSON.stringify(settingsOpen)); } catch {} }));
+  $('#s-openall').onclick = e => { e.preventDefault(); document.querySelectorAll('[data-sfold]').forEach(d => { d.open = true; }); };
+  $('#s-closeall').onclick = e => { e.preventDefault(); document.querySelectorAll('[data-sfold]').forEach(d => { d.open = false; }); };
   drawAppearance();
   drawSpeechPanel();
   drawPhonePanel();
@@ -889,7 +898,11 @@ setInterval(() => {
 document.addEventListener('click', e => {
   const t = e.target;
   const pl = t.closest('[data-pilot]');
-  if (pl) { e.preventDefault(); openPilot(pl.dataset.pilot); return; }
+  if (pl) { e.preventDefault(); openPilotCard(pl.dataset.pilot); return; }
+  const sy = t.closest('[data-system]');
+  if (sy) { e.preventDefault(); openSystemCard(sy.dataset.system); return; }
+  const it = t.closest('[data-tid]');
+  if (it && (it.tagName !== 'IMG' || !it.parentElement.closest('a,button,label,.clickable,[data-it],[data-pv],[data-goitem],.char-item,[data-open],[data-ttab],[data-tab],.side-link,#search-pal,[data-ttype]'))) { e.preventDefault(); openItemCard(it.dataset.tid); return; }
   const link = t.closest('[data-link]');
   if (link) { e.preventDefault(); api.openLink(link.dataset.link); return; }
   const side = t.closest('.side-link');

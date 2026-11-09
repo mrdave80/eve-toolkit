@@ -42,7 +42,7 @@ async function tRoute() {
       <div id="rt-safety"></div>
       <div class="route-strip">${d.path.map(p => html`<span class="rs" style="background:${SEC_COLOR(p.security)}" title="${p.name} ${p.security.toFixed(1)}${p.kills ? ' · ' + p.kills + ' kills' : ''}"></span>`)}</div>
       <div class="panel" style="padding:0"><table><thead><tr><th>#</th><th>System</th><th>Sec</th><th>Region</th><th>Via</th><th class="right">Kills (1h)</th><th class="right">NPC</th></tr></thead><tbody>
-        ${d.path.map((p, i) => html`<tr class="${p.kills >= 5 ? 'hot' : ''}" data-rt-row="${p.id}"><td class="dim">${i}</td><td><b>${p.name}</b> <span class="rt-flag"></span></td><td>${secBadge(p.security)}</td><td class="muted">${p.region}</td>
+        ${d.path.map((p, i) => html`<tr class="${p.kills >= 5 ? 'hot' : ''}" data-rt-row="${p.id}"><td class="dim">${i}</td><td><b><a href="#" data-system="${p.id}" style="color:inherit">${p.name}</a></b> <span class="rt-flag"></span></td><td>${secBadge(p.security)}</td><td class="muted">${p.region}</td>
           <td>${p.via === 'wormhole' ? html`<span class="badge accent">${p.viaLabel}</span>` : p.via === 'thera' ? html`<span class="badge" style="color:var(--purple);border-color:var(--purple)">${p.viaLabel}</span>` : p.via === 'bridge' ? html`<span class="badge gold">${p.viaLabel}</span>` : p.via ? raw('<span class="dim">gate</span>') : ''}</td>
           <td class="right num ${p.kills >= 5 ? 'neg' : p.kills ? 'gold' : 'dim'}">${p.kills || ''}</td><td class="right num dim">${p.npc || ''}</td></tr>`)}</tbody></table></div>
       <div class="toolbar" style="margin-top:10px"><button class="btn btn-primary" id="rt-send">⌁ Send route to EVE</button><button class="btn btn-ghost" id="rt-dest">Set destination only</button><button class="btn btn-ghost" id="rt-copy">Copy system list</button></div>`);
@@ -144,7 +144,7 @@ function drawRouteSafety(d, s) {
       <div style="display:flex;gap:6px">${bad.length ? html`<button class="btn btn-primary" id="rt-avoid-bad">Avoid ${bad.length} system${bad.length === 1 ? '' : 's'} and re-route</button>` : ''}<button class="btn btn-ghost" id="rt-recheck">⟳ Re-check</button></div></div>
     <div class="dim" style="font-size:12px;margin:4px 0 10px">${s.hours === 1 ? `Checked the ${s.checked} system${s.checked === 1 ? '' : 's'} with kills in the last hour` : `Checked ${s.checked} systems over the last ${s.hours} hours`} using zKillboard. Camps can start after you check, so re-check before you undock.</div>
     ${s.reports.length ? s.reports.map(r => html`<div style="border-top:1px solid var(--line);padding:10px 0">
-      <div style="display:flex;gap:8px;align-items:baseline;flex-wrap:wrap"><b>${r.system}</b> ${r.security !== null && r.security !== undefined ? secBadge(r.security) : ''} <span class="dim">jump ${r.index}</span>
+      <div style="display:flex;gap:8px;align-items:baseline;flex-wrap:wrap"><b><a href="#" data-system="${r.system}" style="color:inherit">${r.system}</a></b> ${r.security !== null && r.security !== undefined ? secBadge(r.security) : ''} <span class="dim">jump ${r.index}</span>
         ${r.groups && r.groups.length ? html`<span class="muted" style="font-size:12px">by ${r.groups.map(g => `${g.name} (${g.kills})`).join(', ')}</span>` : ''}</div>
       ${r.error ? html`<div class="dim">${r.error}</div>` : ''}
       ${r.hazards.map(z => html`<div style="margin-top:6px"><span class="badge ${z.severity === 'danger' ? 'red' : z.severity === 'warn' ? 'gold' : ''}">${HAZ_ICON[z.type] || '⚠'} ${z.title}</span>${z.onRoute ? raw(' <span class="badge red">on your route</span>') : ''}
@@ -292,7 +292,7 @@ function drawHunt() {
   const h = huntState, d = h.result, box = $('#hn-out'); if (!box || !d) return;
   box.innerHTML = String(html`<div class="muted" style="margin-bottom:10px">${d.rows.length} of ${d.checked} systems within ${d.jumps} jumps of ${d.from} · CCP stats from ${new Date(d.updated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
     ${d.rows.length ? html`<div class="panel" style="padding:0"><div class="table-wrap" style="max-height:74vh"><table><thead><tr><th>System</th><th class="right">Jumps</th><th class="right">NPC kills</th><th class="right">Ships / pods</th><th class="right">Traffic</th><th>Sov</th><th style="width:22%">Why</th><th></th></tr></thead><tbody>
-      ${d.rows.slice(0, 40).map(r => html`<tr><td><b>${r.name}</b> ${secBadge(r.security)}${r.gates === 1 ? raw(' <span class="badge">dead end</span>') : ''}<div class="dim" style="font-size:11.5px">${r.region}</div>
+      ${d.rows.slice(0, 40).map(r => html`<tr><td><b><a href="#" data-system="${r.id}" style="color:inherit">${r.name}</a></b> ${secBadge(r.security)}${r.gates === 1 ? raw(' <span class="badge">dead end</span>') : ''}<div class="dim" style="font-size:11.5px">${r.region}</div>
           <div class="bar" style="margin-top:4px;max-width:120px"><i style="width:${r.pct}%"></i></div></td>
         <td class="right num">${r.jumps}</td><td class="right num ${r.npc ? 'pos' : 'dim'}">${r.npc}</td><td class="right num ${r.ship + r.pod ? 'neg' : 'dim'}">${r.ship} / ${r.pod}</td><td class="right num">${r.traffic}</td>
         <td class="muted" style="font-size:12px">${r.sovName || ''}</td><td class="muted" style="font-size:11.5px">${r.why.join(' · ')}</td>
@@ -302,7 +302,7 @@ function drawHunt() {
     e.preventDefault(); const id = a.dataset.hnDeep; const cell = $('#hn-deep-' + id); cell.textContent = 'checking…';
     const r = await api.hunt.deep(Number(id), 3); h.deep[id] = r.ok ? r.data : { error: r.error }; cell.innerHTML = String(deepBadge(h.deep[id]));
   });
-  box.querySelectorAll('[data-hn-route]').forEach(a => a.onclick = e => { e.preventDefault(); navState.from = h.from; navState.to = a.dataset.hnRoute; state.toolsTab = 't-route'; go('tools'); });
+  box.querySelectorAll('[data-hn-route]').forEach(a => a.onclick = e => { e.preventDefault(); openRouteCard(h.from, a.dataset.hnRoute); });
   box.querySelectorAll('[data-hn-map]').forEach(a => a.onclick = e => { e.preventDefault(); const r = d.rows.find(x => x.id === Number(a.dataset.hnMap)); mapState.regionId = r.regionId; mapState.sel = r.id; mapState.view = null; go('liveMap'); });
 }
 const deepBadge = x => x.error ? html`<span class="dim" title="${x.error}">failed</span>` : x.kills ? html`<span class="badge red" title="${fmtCompact(x.value)} ISK destroyed">${x.kills} kill${x.kills > 1 ? 's' : ''} / 3h</span>` : raw('<span class="badge green">quiet 3h</span>');

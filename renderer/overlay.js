@@ -1,4 +1,5 @@
 'use strict';
+window.__overlay = true;
 window.addEventListener('error', e => { try { api.diag.log('error', `overlay: ${e.message} @ ${(e.filename || '').split('/').pop()}:${e.lineno}`); } catch {} });
 /* Overlay window: compact live view over the EVE client. */
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -66,7 +67,11 @@ function render() {
 
 (async function boot() {
   const [s, c, rep, rt] = await Promise.all([api.getSettings(), api.overlay.cfg(), api.intel.reports(), api.overlay.getRoute()]);
-  if (s.ok) { S.settings = s.data; applyTheme(s.data.theme, s.data.themeAccent); }
+  const th = await api.overlay.getTheme();
+  if (th.ok && th.data) applyTheme(th.data.id, th.data.accent);
+  else if (s.ok) applyTheme(s.data.theme, s.data.themeAccent);
+  if (s.ok) S.settings = s.data;
+  api.overlay.onTheme(t => { if (t && t.id) applyTheme(t.id, t.accent); });
   if (c.ok) { S.locked = c.data.locked; S.opacity = c.data.opacity; }
   if (rep.ok) { S.reports = rep.data.reports || []; S.spikes = rep.data.spikes || []; S.local = rep.data.local || []; }
   if (rt.ok) S.route = rt.data;

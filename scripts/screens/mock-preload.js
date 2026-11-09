@@ -485,7 +485,7 @@ api.pve = { onAbyss: () => {},
   abyssCfg: async p => ({ ok: true, data: p }), abyssLoot: async () => ({ ok: true, data: { lootValue: 8.4e7 } }), abyssUpdate: async () => ({ ok: true, data: {} }), abyssAdd: async () => ({ ok: true, data: {} }), abyssRemove: async () => ({ ok: true, data: true }) };
 api.overlay = { toggle: async () => ({ ok: true, data: true }), cfg: async () => ({ ok: true, data: { locked: false, opacity: 0.92, open: false } }), lock: async v => ({ ok: true, data: { locked: v } }), opacity: async () => ({ ok: true }), setRoute: async () => ({ ok: true }),
   getRoute: async () => ({ ok: true, data: { from: '1DQ1-A', to: 'Y-2ANO', path: [['1DQ1-A', -0.38], ['8QT-H4', -0.15, null, 'bridge'], ['K-6K16', -0.35], ['Y-2ANO', -0.55, { severity: 'danger', title: 'camp' }]].map(([name, security, hazard, via], i) => ({ id: 30004759 + [0, 1, 4, 5][i], name, security, hazard: hazard || null, via: via || (i ? 'gate' : null) })) } }),
-  stats: async ids => ({ ok: true, data: Object.fromEntries(ids.map(id => { const m = MAPS.find(x => x.id === id) || {}; return [id, { ship: m.ship || 0, pod: m.pod || 0, npc: m.npc || 0, jumps: m.jumps || 0 }]; })) }), onRoute: () => {}, onState: () => {} };
+  stats: async ids => ({ ok: true, data: Object.fromEntries(ids.map(id => { const m = MAPS.find(x => x.id === id) || {}; return [id, { ship: m.ship || 0, pod: m.pod || 0, npc: m.npc || 0, jumps: m.jumps || 0 }]; })) }), onRoute: () => {}, onState: () => {}, theme: async () => ({ ok: true }), getTheme: async () => ({ ok: true, data: null }), onTheme: () => {} };
 api.bridges = { list: async () => ({ ok: true, data: [{ a: 1, b: 2, aName: '1DQ1-A', bName: '4-07MU' }, { a: 3, b: 4, aName: 'Y-2ANO', bName: 'KBAK-I' }] }), parse: async t => ({ ok: true, data: { bridges: [], skipped: [] } }), save: async l => ({ ok: true, data: l }) };
 api.intel.onSpike = () => {};
 
@@ -586,6 +586,11 @@ api.diag = { report: async () => ({ ok: true, data: 'EVE Toolkit 1.9.0\nSystem: 
           g('Navigation', [['Maximum Velocity', '190 m/sec'], ['Inertia Modifier', '0.43 x'], ['Warp Speed', '3 AU/s']])
         ]) } })
     };
+    api.systemCard = async q => ({ ok: true, data: String(q).startsWith('J') ? { id: 31000101, name: 'J152701', security: -1, region: 'C-R00012', regionId: 11000012, constellation: 'C-C00121', wspace: true, pochven: false, kills: { ship: 2, pod: 1, npc: 41 }, jumps: 0, sov: null,
+        wh: { id: 31000101, name: 'J152701', cls: 'C3', region: 'C-R00012', effect: 'Wolf-Rayet', effectSummary: 'More armour HP, more small weapon damage, less shield resists', statics: [{ code: 'D845', leadsTo: 'HS', lifeHours: 24, totalMass: 5e9, jumpMass: 375e6 }], shattered: false, staticsKnown: true },
+        planets: { Barren: 3, Gas: 2, Lava: 1, Temperate: 1 }, gates: [] }
+      : { id: 30004759, name: '1DQ1-A', security: -0.38, region: 'Delve', regionId: 10000060, constellation: '1P-VL2', wspace: false, pochven: false, kills: { ship: 7, pod: 4, npc: 112 }, jumps: 1840, sov: { id: 1354830081, name: 'Goonswarm Federation' }, wh: null,
+        planets: { Barren: 2, Gas: 3, Ice: 1, Lava: 1, Storm: 1 }, gates: [{ id: 30004760, name: '8QT-H4', security: -0.42, region: 'Delve' }, { id: 30004761, name: 'NOL-M9', security: -0.55, region: 'Delve' }, { id: 30004762, name: 'T5ZI-S', security: -0.21, region: 'Delve' }, { id: 30004763, name: 'Y-2ANO', security: -0.33, region: 'Delve' }] } });
     const bi = (id, name, qty) => ({ id, name, qty });
     api.bargains = { scan: async () => ({ ok: true, data: { regionId: 10000002, total: 18240, read: 6420, newlyRead: 400, unread: 11820, failed: 0, rows: [
       { id: 1, items: [bi(12005, 'Ishtar', 1), bi(2185, 'Hammerhead II', 10)], itemCount: 2, price: 190e6, wantCost: 0, sellVal: 280e6, buyVal: 266e6, profitSell: 90e6, profitBuy: 76e6, pct: 0.32, system: 'Perimeter', security: 0.95, volume: 10050, suspicious: false, bpcs: 0, title: 'Ishtar + drones, moving out' },

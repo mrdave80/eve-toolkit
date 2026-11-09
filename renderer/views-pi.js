@@ -514,12 +514,12 @@ function drawNearby() {
       ${near.map(([t, n]) => html`<div class="stat"><div class="label" style="display:flex;align-items:center;gap:6px">${raw(planetIcon(t))}Nearest ${t}</div><div class="value">${n ? n.name : '—'}</div><div class="hint">${n ? (n.jumps === 0 ? 'In ' + d.from : n.jumps + ' jump' + (n.jumps === 1 ? '' : 's') + ' from ' + d.from) : 'None within ' + d.jumps + ' jumps'}</div></div>`)}
     </div>
     <div class="panel" style="padding:0">${d.rows.length ? html`<table><thead><tr><th>System</th><th class="right">Jumps</th><th>Region</th>${d.types.map(t => html`<th class="right">${t}</th>`)}<th>Other planets</th><th></th></tr></thead><tbody>
-      ${d.rows.map(r => html`<tr><td><b>${r.name}</b> <span style="color:${raw(secColor(r.security))}">${(Math.round(r.security * 10) / 10).toFixed(1)}</span></td>
+      ${d.rows.map(r => html`<tr><td><b><a href="#" data-system="${r.name}" style="color:inherit">${r.name}</a></b> <span style="color:${raw(secColor(r.security))}">${(Math.round(r.security * 10) / 10).toFixed(1)}</span></td>
         <td class="right num">${r.jumps}</td><td class="muted">${r.region}</td>
         ${d.types.map(t => html`<td class="right num ${r.counts[t] ? '' : 'dim'}">${r.counts[t] || '—'}</td>`)}
         <td class="dim" style="font-size:12px">${Object.entries(r.planets).filter(([k]) => !d.types.includes(k) && PI.PLANETS[k]).map(([k, v]) => `${k} ${v}`).join(' · ') || '—'}</td>
         <td style="white-space:nowrap"><a href="#" data-np-route="${r.name}" style="font-size:12px">Route</a> · <a href="#" data-link="https://evemaps.dotlan.net/system/${r.name.replace(/ /g, '_')}" style="font-size:12px">Dotlan ↗</a></td></tr>`)}
     </tbody></table>` : emptyBox(`No systems with ${d.all ? 'all of ' : ''}those planet types within ${d.jumps} jumps. Try more jumps or more areas of space.`)}</div>
     <div class="dim" style="font-size:12px;margin-top:8px">Searched ${fmtNum(d.searched)} systems within ${d.jumps} jumps of ${d.from}${d.more ? `, showing the closest 120 of ${d.rows.length + d.more}` : ''}. Planets in lowsec and nullsec give more resources than highsec, and wormholes the most. Planet counts come from CCP's game data.</div>`);
-  document.querySelectorAll('[data-np-route]').forEach(a => a.onclick = e => { e.preventDefault(); navState.from = nearState.data.from; navState.to = a.dataset.npRoute; state.toolsTab = 't-route'; go('tools'); let n = 0; const t = setInterval(() => { const b = document.getElementById('rt-go'); if (b || ++n > 20) { clearInterval(t); if (b) b.click(); } }, 100); });
+  document.querySelectorAll('[data-np-route]').forEach(a => a.onclick = e => { e.preventDefault(); openRouteCard(nearState.data.from, a.dataset.npRoute); });
 }

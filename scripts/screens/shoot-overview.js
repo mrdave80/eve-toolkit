@@ -49,8 +49,8 @@ const SHOTS = [
   ['34-corp-srp', `state.corpTab='c-srp'; corpState.directors=null; go('corp')`],
   ['35-corp-hr', `state.corpTab='c-hr'; corpState.directors=null; go('corp')`],
   ['36-corp-discord', `state.corpTab='c-discord'; corpState.directors=null; go('corp')`],
-  ['37-settings', `go('settings')`],
-  ['38-settings-phone', `go('settings')`, `document.getElementById('phone-panel').scrollIntoView()`],
+  ['37-settings', `try{localStorage.removeItem('settingsOpen')}catch{}; go('settings')`],
+  ['38-settings-phone', `go('settings')`, `openSettingsSection('phone')`],
   ['39-about', `go('about')`],
   ['40-fats', `state.corpTab='c-fats'; corpState.directors=null; go('corp')`],
   ['41-mining', `go('char', { charId: ${R}, tab: 'mining' })`],
@@ -69,6 +69,13 @@ const SHOTS = [
   ['65-wh-share', `go('wormholes')`, `document.getElementById('wh-share').click()`, `document.getElementById('whs-code').click()`],
   ['66-fit-appraise', `fitState.text='[Ishtar, Sentry Ishtar]'; fitState.data=null; state.toolsTab='t-fit'; go('tools')`, `document.getElementById('ft-go').click()`, `document.getElementById('ft-appraise').click()`],
   ['67-sde-prompt', `go('dashboard'); __mock.sdeCheck({ state: 'incomplete', build: 3419624 }); sdePromptState.asked = false; checkGameDataOnStart()`],
+  ['70-pop-pilot', `go('dashboard')`, `openPilotCard('Ben Dover')`],
+  ['71-pop-item', `closeModal(); go('dashboard')`, `openItemCard(12005)`],
+  ['72-pop-system', `closeModal()`, `openSystemCard('1DQ1-A')`],
+  ['73-pop-route', `closeModal()`, `openRouteCard('Jita', 'Tama')`],
+  ['74-pop-whres', `closeModal()`, `openWhResCard('J123450')`],
+  ['75-pop-fit', `closeModal()`, `openFitCard('[Ishtar, Sentry Ishtar]')`],
+  ['76-pop-wsystem', `closeModal()`, `openSystemCard('J152701')`],
   ['57-whinfo', `go('wormholes')`, `whState.sel = { type: 'sys', id: 31000101 }; drawCanvas(); drawSide()`],
   ['42-livemap', `go('liveMap')`, `mapState.sel = 30004765; mapState.heat = 'ship'; drawMap()`],
   ['43-livemap-sov', `mapState.heat = 'sov'; mapState.sel = null; drawMap()`],
@@ -77,7 +84,7 @@ const SHOTS = [
   ['46-whres', `state.toolsTab='t-whres'; go('tools')`, `document.getElementById('wr-q').value='J123450'; document.getElementById('wr-go').click()`],
   ['47-pve', `state.toolsTab='t-pve'; go('tools')`],
   ['48-shame', `state.toolsTab='t-shame'; go('tools')`, `document.getElementById('sh-go').click()`],
-  ['49-speech', `go('settings')`, `document.getElementById('speech-panel').scrollIntoView()`],
+  ['49-speech', `go('settings')`, `openSettingsSection('speech')`],
   ['50-route-bridges', `state.toolsTab='t-route'; go('tools')`, `document.querySelector('[name="rt-jb"]').checked=true; document.getElementById('rt-jbm').click()`, `void 0`]
 ];
 const THEMES = ['capsuleer', 'concord', 'amarr', 'caldari', 'gallente', 'minmatar', 'nullsec', 'wormhole', 'abyssal', 'industrialist', 'daylight'];

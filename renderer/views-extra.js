@@ -33,7 +33,7 @@ function standingSpan(v) {
   return html`<span class="standing ${cls}">${(v > 0 ? '+' : '') + Number(v).toFixed(2)}</span>`;
 }
 
-const icon = (typeId, size = 20) => html`<img src="${typeIcon(typeId)}" width="${size}" height="${size}" style="vertical-align:-5px;margin-right:6px" alt="" loading="lazy">`;
+const icon = (typeId, size = 20) => html`<img src="${typeIcon(typeId)}" width="${size}" height="${size}" style="vertical-align:-5px;margin-right:6px" alt="" loading="lazy" data-tid="${typeId}">`;
 const stat = (label, value, hint, cls = '') => html`<div class="stat"><div class="label">${label}</div><div class="value ${cls}">${value}</div>${hint ? html`<div class="hint">${hint}</div>` : ''}</div>`;
 const emptyBox = msg => html`<div class="empty" style="padding:30px">${msg}</div>`;
 const fmtM3 = n => fmtNum(n);

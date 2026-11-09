@@ -533,3 +533,39 @@ html[data-glass] th { backdrop-filter: blur(18px); }
 html[data-glass] .ccard-train { background: transparent; border-top-color: var(--line); }
 html[data-glass] #search-pal .sp-box { background: var(--panel-2); }
 html[data-glass="light"] ::-webkit-scrollbar-thumb { border-color: transparent; }
+
+/* Clickable item icons open the item card */
+img[data-tid] { cursor: pointer; }
+img[data-tid]:hover { filter: brightness(1.25); }
+
+/* Settings sections fold away */
+details.sfold > summary { align-items: baseline; gap: 12px; padding: 12px 16px; }
+details.sfold > summary .gname { font-weight: 600; }
+details.sfold > summary .dim { margin-left: auto; text-align: right; }
+.sfold-body { padding: 0 16px 6px; }
+.sfold-body > .panel, html[data-glass] .sfold-body > .panel { border: 0; background: transparent; box-shadow: none; padding: 4px 0 12px; margin: 0; backdrop-filter: none; }
+.sfold-body > .panel > h3:first-child { display: none; }
+
+/* Liquid glass: heavier blur and saturation, curved specular rim, bright top edge */
+html[data-liquid] .panel, html[data-liquid] .stat, html[data-liquid] .ccard, html[data-liquid] .modal, html[data-liquid] details.sgroup,
+html[data-liquid] .mail-list, html[data-liquid] .mail-view, html[data-liquid] .srch-list, html[data-liquid] #search-pal .sp-box, html[data-liquid] #toast {
+  backdrop-filter: blur(28px) saturate(190%) brightness(1.06);
+  border-color: rgba(255, 255, 255, .16);
+  border-radius: 16px;
+  background-image: linear-gradient(155deg, rgba(255, 255, 255, .13) 0%, rgba(255, 255, 255, .03) 38%, rgba(255, 255, 255, 0) 60%, rgba(255, 255, 255, .05) 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .35), inset 1px 0 0 rgba(255, 255, 255, .10), inset 0 -1px 0 rgba(255, 255, 255, .06),
+    inset 0 0 22px rgba(255, 255, 255, .04), 0 14px 40px rgba(0, 0, 0, .35);
+}
+html[data-liquid] #sidebar { backdrop-filter: blur(30px) saturate(190%); box-shadow: inset -1px 0 0 rgba(255, 255, 255, .12); }
+html[data-liquid] .btn { border-radius: 999px; backdrop-filter: blur(12px) saturate(170%); }
+html[data-liquid] .btn-ghost { background: rgba(255, 255, 255, .06); border-color: rgba(255, 255, 255, .16); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .22); }
+html[data-liquid] .btn-primary { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .45), 0 6px 18px color-mix(in srgb, var(--accent) 35%, transparent); }
+html[data-liquid] .badge { border-radius: 999px; }
+html[data-liquid] .side-link.active, html[data-liquid] .side-link:hover { border-radius: 12px; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .18); }
+html[data-liquid] input[type=text], html[data-liquid] input[type=number], html[data-liquid] input[type=search], html[data-liquid] select, html[data-liquid] textarea { border-radius: 10px; }
+html[data-liquid][data-glass="light"] .panel, html[data-liquid][data-glass="light"] .stat, html[data-liquid][data-glass="light"] .ccard, html[data-liquid][data-glass="light"] .modal, html[data-liquid][data-glass="light"] details.sgroup {
+  border-color: rgba(255, 255, 255, .8);
+  background-image: linear-gradient(155deg, rgba(255, 255, 255, .7) 0%, rgba(255, 255, 255, .2) 40%, rgba(255, 255, 255, 0) 65%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .95), inset 0 -1px 0 rgba(15, 23, 42, .05), 0 10px 30px rgba(15, 23, 42, .10);
+}
+html[data-liquid][data-glass="light"] .btn-ghost { background: rgba(255, 255, 255, .45); border-color: rgba(255, 255, 255, .9); }

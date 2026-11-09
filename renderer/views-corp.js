@@ -596,7 +596,7 @@ document.addEventListener('click', async e => {
   if (q('[data-doc-rename]')) return doctrineModal(doc());
   if ((el = q('[data-doc-del]'))) { if (el.dataset.c !== '1') { el.dataset.c = '1'; el.textContent = 'Click again'; return; } await ws('remove', 'doctrines', docState.sel); docState.sel = null; await loadWs(); return cDoctrines(); }
   if ((el = q('[data-fit-del]'))) { const d = doc(); d.fits = d.fits.filter(f => f.id !== el.dataset.fitDel); await saveDoctrine(d); return cDoctrines(); }
-  if ((el = q('[data-fit-check]'))) { const f = doc().fits.find(x => x.id === el.dataset.fitCheck); fitState.text = f.eft; fitState.data = null; fitState.pending = true; state.toolsTab = 't-fit'; go('tools'); return; }
+  if ((el = q('[data-fit-check]'))) { const f = doc().fits.find(x => x.id === el.dataset.fitCheck); openFitCard(f.eft); return; }
   if ((el = q('[data-fit-copy]'))) { const f = doc().fits.find(x => x.id === el.dataset.fitCopy); await api.copy(f.eft); return toast('EFT copied. In game: Fitting → Import from clipboard'); }
   if ((el = q('[data-fit-view]'))) {
     const f = doc().fits.find(x => x.id === el.dataset.fitView);
