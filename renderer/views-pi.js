@@ -459,3 +459,67 @@ function bindPi() {
   const del = $('#pi-del');
   if (del) del.onclick = async () => { const r = await api.pi.deletePlan(p.id); if (r.ok) piState.plans = r.data; piState.plan = PI_DEFAULT_PLAN(); toast('Plan deleted'); redraw(); };
 }
+
+// ================= Nearby planets =================
+
+const nearState = { from: '', types: ['Barren', 'Temperate'], all: false, jumps: 10, zones: ['hs', 'ls', 'ns'], bridges: false, pilots: null, data: null };
+const NEAR_ZONES = [['hs', 'Highsec'], ['ls', 'Lowsec'], ['ns', 'Nullsec'], ['pochven', 'Pochven']];
+const planetIcon = t => `<svg width="16" height="16" viewBox="-11 -11 22 22" style="flex:none">${planetSvg(t, 6)}</svg>`;
+const secColor = s => { const v = Math.round(s * 10) / 10; return v >= 0.5 ? 'var(--green)' : v > 0 ? 'var(--gold)' : 'var(--red)'; };
+
+async function renderNearbyPlanets(stillCurrent) {
+  const s = nearState;
+  if (!s.pilots) { const r = await api.nav.pilotLocations(); s.pilots = r.ok ? r.data.filter(p => p.system && !(Number(p.whClass) >= 1 && Number(p.whClass) <= 6)) : []; if (stillCurrent && !stillCurrent()) return; if (!s.from && s.pilots[0]) s.from = s.pilots[0].system; }
+  const planTypes = piState.lastRes ? Object.keys(piState.lastRes.planets || {}) : [];
+  const inBox = 'background:var(--bg-2);border:1px solid var(--line-2);color:var(--text);border-radius:6px;padding:6px 10px;font:inherit;color-scheme:dark';
+  setContent(html`<div class="panel">
+      <div class="toolbar" style="flex-wrap:wrap;gap:12px;margin:0">
+        <label>From <input id="np-from" type="text" value="${s.from}" placeholder="System name" spellcheck="false" style="${inBox};width:150px"></label>
+        ${s.pilots.length ? html`<span class="dim" style="font-size:12px">or a pilot:</span>${s.pilots.map(p => html`<button class="btn btn-ghost" style="padding:3px 9px;font-size:12px" data-np-pilot="${p.system}" title="${p.name} is in ${p.system}">${p.name.split(' ')[0]} · ${p.system}</button>`)}` : ''}
+      </div>
+      <div style="margin-top:12px"><div class="dim" style="font-size:12px;margin-bottom:6px">Planet types</div>
+        <div class="pi-chips">${Object.keys(PI.PLANETS).map(pt => html`<button class="badge ${s.types.includes(pt) ? 'accent' : ''}" data-np-type="${pt}" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px">${raw(planetIcon(pt))}${pt}</button>`)}
+          ${planTypes.length ? html`<button class="btn btn-ghost" style="padding:3px 9px;font-size:12px;margin-left:6px" id="np-plan" title="${planTypes.join(', ')}">Use my plan's types</button>` : ''}</div></div>
+      <div class="toolbar" style="flex-wrap:wrap;gap:14px;margin:12px 0 0">
+        <label class="check" style="margin:0"><input type="radio" name="np-mode" value="any" ${raw(!s.all ? 'checked' : '')}> Any of these</label>
+        <label class="check" style="margin:0"><input type="radio" name="np-mode" value="all" ${raw(s.all ? 'checked' : '')}> All in one system</label>
+        <label>Within <input id="np-jumps" type="number" min="0" max="30" value="${s.jumps}" style="${inBox};width:70px"> jumps</label>
+        ${NEAR_ZONES.map(([k, l]) => html`<label class="check" style="margin:0"><input type="checkbox" data-np-zone="${k}" ${raw(s.zones.includes(k) ? 'checked' : '')}> ${l}</label>`)}
+        <label class="check" style="margin:0"><input type="checkbox" id="np-bridges" ${raw(s.bridges ? 'checked' : '')}> Use jump bridges</label>
+        <button class="btn btn-primary" id="np-go">Find planets</button></div>
+    </div>
+    <div id="np-out">${s.data ? '' : emptyBox('Pick the planet types you need and where you are. The closest systems with them come first.')}</div>`);
+  if (s.data) drawNearby();
+  const read = () => {
+    s.from = $('#np-from').value.trim(); s.jumps = Number($('#np-jumps').value) || 0; s.all = document.querySelector('input[name="np-mode"]:checked').value === 'all';
+    s.zones = [...document.querySelectorAll('[data-np-zone]')].filter(x => x.checked).map(x => x.dataset.npZone); s.bridges = $('#np-bridges').checked;
+  };
+  document.querySelectorAll('[data-np-type]').forEach(b => b.onclick = () => { read(); const t = b.dataset.npType; s.types = s.types.includes(t) ? s.types.filter(x => x !== t) : [...s.types, t]; renderNearbyPlanets(); });
+  document.querySelectorAll('[data-np-pilot]').forEach(b => b.onclick = () => { $('#np-from').value = b.dataset.npPilot; read(); find(); });
+  const plan = $('#np-plan'); if (plan) plan.onclick = () => { read(); s.types = planTypes.slice(); s.all = false; renderNearbyPlanets(); };
+  $('#np-from').onkeydown = e => { if (e.key === 'Enter') { read(); find(); } };
+  $('#np-go').onclick = () => { read(); find(); };
+  async function find() {
+    $('#np-out').innerHTML = String(loadingView('Searching nearby systems…'));
+    const r = await api.pi.nearby({ from: s.from, types: s.types, all: s.all, jumps: s.jumps, zones: s.zones, bridges: s.bridges });
+    if (!r.ok) { $('#np-out').innerHTML = String(errorView(r)); return; }
+    s.data = r.data; drawNearby();
+  }
+}
+
+function drawNearby() {
+  const d = nearState.data;
+  const near = Object.entries(d.nearest);
+  $('#np-out').innerHTML = String(html`<div class="grid grid-${Math.min(4, Math.max(2, near.length))}" style="margin:14px 0">
+      ${near.map(([t, n]) => html`<div class="stat"><div class="label" style="display:flex;align-items:center;gap:6px">${raw(planetIcon(t))}Nearest ${t}</div><div class="value">${n ? n.name : '—'}</div><div class="hint">${n ? (n.jumps === 0 ? 'In ' + d.from : n.jumps + ' jump' + (n.jumps === 1 ? '' : 's') + ' from ' + d.from) : 'None within ' + d.jumps + ' jumps'}</div></div>`)}
+    </div>
+    <div class="panel" style="padding:0">${d.rows.length ? html`<table><thead><tr><th>System</th><th class="right">Jumps</th><th>Region</th>${d.types.map(t => html`<th class="right">${t}</th>`)}<th>Other planets</th><th></th></tr></thead><tbody>
+      ${d.rows.map(r => html`<tr><td><b>${r.name}</b> <span style="color:${raw(secColor(r.security))}">${(Math.round(r.security * 10) / 10).toFixed(1)}</span></td>
+        <td class="right num">${r.jumps}</td><td class="muted">${r.region}</td>
+        ${d.types.map(t => html`<td class="right num ${r.counts[t] ? '' : 'dim'}">${r.counts[t] || '—'}</td>`)}
+        <td class="dim" style="font-size:12px">${Object.entries(r.planets).filter(([k]) => !d.types.includes(k) && PI.PLANETS[k]).map(([k, v]) => `${k} ${v}`).join(' · ') || '—'}</td>
+        <td style="white-space:nowrap"><a href="#" data-np-route="${r.name}" style="font-size:12px">Route</a> · <a href="#" data-link="https://evemaps.dotlan.net/system/${r.name.replace(/ /g, '_')}" style="font-size:12px">Dotlan ↗</a></td></tr>`)}
+    </tbody></table>` : emptyBox(`No systems with ${d.all ? 'all of ' : ''}those planet types within ${d.jumps} jumps. Try more jumps or more areas of space.`)}</div>
+    <div class="dim" style="font-size:12px;margin-top:8px">Searched ${fmtNum(d.searched)} systems within ${d.jumps} jumps of ${d.from}${d.more ? `, showing the closest 120 of ${d.rows.length + d.more}` : ''}. Planets in lowsec and nullsec give more resources than highsec, and wormholes the most. Planet counts come from CCP's game data.</div>`);
+  document.querySelectorAll('[data-np-route]').forEach(a => a.onclick = e => { e.preventDefault(); navState.from = nearState.data.from; navState.to = a.dataset.npRoute; state.toolsTab = 't-route'; go('tools'); let n = 0; const t = setInterval(() => { const b = document.getElementById('rt-go'); if (b || ++n > 20) { clearInterval(t); if (b) b.click(); } }, 100); });
+}

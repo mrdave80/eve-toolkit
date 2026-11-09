@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.8.9
+
+- Nearby planets: find the closest systems with the planet types you need for PI, from any system or pilot, within a jump limit and the areas of space you choose. Needs a one-time game data update (Settings → Game data → Update).
+
 ## 1.8.8
 
 - Search: press Ctrl+K (or click Search) to find any tool, page, pilot, item or wormhole.

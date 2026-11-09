@@ -168,6 +168,10 @@ function renderTopbar() {
     tabs.innerHTML = CORP_GROUPS.map(([name, items]) =>
       `<button class="tab ${g[0] === name ? 'active' : ''}" data-ctab="${items[0][0]}" data-cgroup="${name}">${name}</button>`).join('');
     sub.innerHTML = g[1].length > 1 ? g[1].map(([k, label]) => `<button class="tab ${state.corpTab === k ? 'active' : ''}" data-ctab="${k}">${label}</button>`).join('') : '';
+  } else if (state.view === 'piPlanner') {
+    crumb.textContent = 'Planetary interaction';
+    tabs.innerHTML = '';
+    sub.innerHTML = [['plan', 'Chain planner'], ['near', 'Nearby planets']].map(([k, l]) => `<button class="tab ${(state.piTab || 'plan') === k ? 'active' : ''}" data-pitab="${k}">${l}</button>`).join('');
   } else {
     crumb.textContent = { wormholes: 'Wormhole mapper', liveMap: 'Live map', daily: 'Daily rewards and EVE news', piPlanner: 'Planetary interaction planner', corp: 'Corporation', settings: 'Settings', about: 'About & support', dashboard: 'All pilots', trainingAll: 'Training board', industryAll: 'Industry board', planetsAll: 'Planets board' }[state.view] || '';
     tabs.innerHTML = '';
@@ -203,7 +207,7 @@ async function render(force = false) {
     if (state.view === 'industryAll') return await renderIndustryAll(stillCurrent);
     if (state.view === 'planetsAll') return await renderPlanetsAll(stillCurrent);
     if (state.view === 'corp') return await renderCorp(stillCurrent);
-    if (state.view === 'piPlanner') return await renderPiPlanner(stillCurrent);
+    if (state.view === 'piPlanner') return state.piTab === 'near' ? await renderNearbyPlanets(stillCurrent) : await renderPiPlanner(stillCurrent);
     if (state.view === 'wormholes') return await renderWormholes(stillCurrent);
     if (state.view === 'liveMap') return await renderLiveMap(stillCurrent);
     if (state.view === 'daily') return await renderDaily(stillCurrent);
@@ -894,6 +898,8 @@ document.addEventListener('click', e => {
   if (ch) { go('char', { charId: Number(ch.dataset.id), tab: state.view === 'char' ? state.tab : 'summary' }); return; }
   const card = t.closest('[data-open]');
   if (card) { go('char', { charId: Number(card.dataset.open), tab: 'summary' }); return; }
+  const pitab = t.closest('[data-pitab]');
+  if (pitab) { state.piTab = pitab.dataset.pitab; renderTopbar(); render(); return; }
   const ttab = t.closest('[data-ttab]');
   if (ttab) {
     let k = ttab.dataset.ttab;

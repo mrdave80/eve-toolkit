@@ -84,7 +84,7 @@ const contracts = [
 ];
 const MOCK_SETTINGS = { onboardingDone: true, clientId: '3f1c0a9e2b7d4c51a8e6f0b2d9c4e7a1', callbackPort: 51515, notifications: true, minimizeToTray: true, refreshMinutes: 15, theme: process.env.MOCK_THEME || 'capsuleer' };
 const api = {
-  info: async () => ({ ok: true, data: { version: '1.8.8', os: 'Windows 11 Pro (10.0.26100)', electron: '38.8.6', userData: 'C:\\Users\\Capsuleer\\AppData\\Roaming\\EVE Toolkit', scopes: [] } }),
+  info: async () => ({ ok: true, data: { version: '1.8.9', os: 'Windows 11 Pro (10.0.26100)', electron: '38.8.6', userData: 'C:\\Users\\Capsuleer\\AppData\\Roaming\\EVE Toolkit', scopes: [] } }),
   getSettings: async () => ({ ok: true, data: { ...MOCK_SETTINGS } }),
   setSettings: async p => { Object.assign(MOCK_SETTINGS, p, p.themeAuto ? { themeAuto: { ...(MOCK_SETTINGS.themeAuto || {}), ...p.themeAuto } } : {}); return { ok: true, data: { ...MOCK_SETTINGS } }; },
   listCharacters: async () => ({ ok: true, data: chars }),
@@ -290,7 +290,7 @@ let fleetLive = { id: null, fcId: 2119000001, fcName: 'Richard Fitzwell', name: 
 api.fleet = { status: async () => ({ ok: true, data: fleetLive }), check: async () => ({ ok: true, data: {} }), start: async () => ({ ok: true }), stop: async () => ({ ok: true }), onUpdate: () => {} };
 api.discord = { set: async p => ({ ok: true, data: p }), test: async () => ({ ok: true, data: {} }), guild: async () => ({ ok: true, data: { name: 'x', roles: [] } }), link: async () => ({ ok: true, data: {} }), sync: async () => ({ ok: true, data: {} }) };
 api.exportAudit = async () => ({ ok: true });
-api.info = async () => ({ ok: true, data: { version: '1.8.8', os: 'Windows 11 Pro (10.0.26100)', electron: '38.8.6', userData: 'C:\\Users\\Capsuleer\\AppData\\Roaming\\EVE Toolkit', scopes: [], corpScopes: [] } });
+api.info = async () => ({ ok: true, data: { version: '1.8.9', os: 'Windows 11 Pro (10.0.26100)', electron: '38.8.6', userData: 'C:\\Users\\Capsuleer\\AppData\\Roaming\\EVE Toolkit', scopes: [], corpScopes: [] } });
 
 // ---------- PI + skill info mock ----------
 const tierPrice = [6, 450, 9000, 75000, 1300000];
@@ -506,7 +506,7 @@ api.shame = { onProgress: () => {}, wall: async o => ({ ok: true, data: { period
   feeders: [{ id: 1, name: 'Shady Harbour Capital', losses: 12, isk: 3.1e10 }, { id: 2, name: 'Gank Co', losses: 31, isk: 1.4e10 }, { id: 3, name: 'Hard Rock Excavations', losses: 9, isk: 5.2e9 }],
   categories: Object.entries(SHC).map(([id, [label, why]]) => ({ id, label, why, count: SHAME.filter(k => k.tags.some(t => t.id === id)).length })).filter(c => c.count) } }) };
 
-api.diag = { report: async () => ({ ok: true, data: 'EVE Toolkit 1.8.8\nSystem: Windows 11 Pro (10.0.26100), x64, 32 GB RAM\nElectron 38.8.6 · Chromium 140\nClient ID set: yes · Callback port 51515\nGame data: build 3419624\nPilots: 5 (0 need re-auth) · scopes per pilot: 41, 41, 41, 41, 41\nSettings: notifications=true minimizeToTray=true intelWatch=true clipboard=true spikeWatch=false phone=true speech=false uiScopes=false abyss=true theme=capsuleer zoom=1\nUptime: 42 min\n\nRecent log:\n2026-11-08T00:12:03Z INFO  [app] start 1.8.8 on win32 10.0.26100\n2026-11-08T00:31:44Z WARN  [esi] 502 GET /characters/2119000002/assets/: Bad gateway\n2026-11-08T00:40:12Z WARN  [zkill] 429 rate limited /stats/characterID/2119000201/' }), copy: async () => ({ ok: true, data: true }), openFolder: async () => ({ ok: true }), log: async () => ({ ok: true }) };
+api.diag = { report: async () => ({ ok: true, data: 'EVE Toolkit 1.8.9\nSystem: Windows 11 Pro (10.0.26100), x64, 32 GB RAM\nElectron 38.8.6 · Chromium 140\nClient ID set: yes · Callback port 51515\nGame data: build 3419624\nPilots: 5 (0 need re-auth) · scopes per pilot: 41, 41, 41, 41, 41\nSettings: notifications=true minimizeToTray=true intelWatch=true clipboard=true spikeWatch=false phone=true speech=false uiScopes=false abyss=true theme=capsuleer zoom=1\nUptime: 42 min\n\nRecent log:\n2026-11-08T00:12:03Z INFO  [app] start 1.8.9 on win32 10.0.26100\n2026-11-08T00:31:44Z WARN  [esi] 502 GET /characters/2119000002/assets/: Bad gateway\n2026-11-08T00:40:12Z WARN  [zkill] 429 rate limited /stats/characterID/2119000201/' }), copy: async () => ({ ok: true, data: true }), openFolder: async () => ({ ok: true }), log: async () => ({ ok: true }) };
 (() => {
   const nextReset = (() => { const d = new Date(now); const r = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 11); return r > now ? r : r + D; })();
   const pilots = [[2119000001, 'Richard Fitzwell', true, 7], [2119000002, 'Mike Hunt', true, 6], [2119000003, 'Hugh Jayness', false, 3], [2119000004, 'Wayne Kerr', true, 8], [2119000005, 'Jack Mehoff', false, 1]];
@@ -543,6 +543,16 @@ api.diag = { report: async () => ({ ok: true, data: 'EVE Toolkit 1.8.8\nSystem: 
       moon('8QT-H4 I - Moon 2', 'Delve', -0.3, 'R4', [prod(45492, 'Bitumens', 'R4', 0.6, 71), prod(45491, 'Zeolites', 'R4', 0.4, 63)])
     ] };
     api.moon = { value: async () => ({ ok: true, data: moonData }) };
+    api.pi.nearby = async o => {
+      const types = o.types || ['Barren', 'Temperate'];
+      const sys = [['1DQ1-A', 0, -0.4, { Barren: 2, Gas: 3, Ice: 1, Lava: 1, Storm: 1 }], ['8QT-H4', 1, -0.4, { Barren: 3, Temperate: 1, Gas: 2, Oceanic: 1 }], ['T5ZI-S', 2, -0.2, { Temperate: 2, Barren: 1, Plasma: 1, Gas: 4 }],
+        ['Q-02UL', 2, -0.3, { Lava: 2, Storm: 1, Gas: 2 }], ['K-6K16', 3, -0.3, { Barren: 1, Temperate: 1, Ice: 1, Gas: 3 }], ['NOL-M9', 3, -0.6, { Plasma: 2, Barren: 2, Storm: 1 }], ['PR-8CN', 4, -0.5, { Temperate: 3, Oceanic: 1, Gas: 2 }],
+        ['MJXW-P', 4, -0.4, { Barren: 4, Lava: 1 }], ['KBAK-I', 5, -0.7, { Temperate: 1, Barren: 1, Ice: 2 }], ['YZ9-F6', 5, -0.3, { Gas: 5, Storm: 2 }], ['GY6A-L', 6, -0.2, { Temperate: 2, Barren: 2, Plasma: 1 }]];
+      const rows = sys.map(([name, jumps, security, planets], i) => { const counts = Object.fromEntries(types.map(t => [t, planets[t] || 0])); return { id: 30004759 + i, name, jumps, security, region: 'Delve', counts, planets, matching: Object.values(counts).reduce((a, b) => a + b, 0), typesMatched: Object.values(counts).filter(Boolean).length }; })
+        .filter(r => o.all ? r.typesMatched === types.length : r.typesMatched > 0);
+      const nearest = Object.fromEntries(types.map(t => { const r = rows.find(x => x.counts[t]); return [t, r ? { name: r.name, jumps: r.jumps } : null]; }));
+      return { ok: true, data: { from: '1DQ1-A', types, all: !!o.all, jumps: o.jumps || 10, searched: 214, nearest, rows, more: 0 } };
+    };
     const g = (cat, rows) => [cat, rows.map(([name, text, typeId]) => ({ name, text, typeId: typeId || null }))];
     api.items = {
       search: async () => ({ ok: true, data: [[12005, 'Ishtar', 'Heavy Assault Cruiser'], [17843, 'Vexor Navy Issue', 'Cruiser'], [627, 'Vexor', 'Cruiser'], [12011, 'Eagle', 'Heavy Assault Cruiser'], [29990, 'Loki', 'Strategic Cruiser']].map(([id, name, group]) => ({ id, name, group })) }),

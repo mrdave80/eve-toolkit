@@ -26,6 +26,7 @@ const moonscan = require('./moonscan');
 const items = require('./items');
 const charvalue = require('./charvalue');
 const bargains = require('./bargains');
+const planets = require('./planets');
 const tradetools = require('./tradetools');
 const nav = require('./nav');
 const intel = require('./intel');
@@ -796,6 +797,7 @@ handle('items:search', q => items.search(String(q || '')));
 handle('items:info', id => items.info(Number(id)));
 handle('charvalue', () => charvalue.value());
 handle('bargains:scan', o => bargains.scan(o || {}));
+handle('pi:nearby', o => planets.nearby(o || {}));
 handle('moon:value', (text, o) => moonscan.value(String(text || ''), o || {}));
 // Keep the trade ledger growing past ESI's 30 days even when the page isn't opened.
 setInterval(() => { const d = store.get(); if (app.isReady() && d.settings.clientId && d.characters.length) trade.sync(d.characters.filter(c => !c.needsReauth).map(c => c.id)).catch(() => {}); }, 6 * 3600000);

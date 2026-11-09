@@ -41,6 +41,7 @@ app.whenReady().then(async () => {
     console.log((r && r.length ? 'BAD ' : 'ok  ') + label + (r && r.length ? '  ' + JSON.stringify(r) : ''));
   };
   await wait(2000);
+  await js(`state.piTab='near'; go('piPlanner')`); await check('piNear'); await js(`state.piTab='plan'`);
   for (const v of ['dashboard','trainingAll','industryAll','planetsAll','piPlanner','wormholes','liveMap','daily','settings','about']) { await js(`go('${v}')`); await check(v); }
   // PI planner with a target so the BOM table renders
   await js(`go('piPlanner')`); await wait(800);

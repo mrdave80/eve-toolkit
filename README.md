@@ -100,6 +100,12 @@ Several tools need CCP's official static data export: blueprints, skill requirem
 - Economics per day: output value, bought inputs, export tax and transfer tax, net per planet and per month, and value at each tier.
 - **Show my colonies** highlights what your pilots already extract and produce. Plans can be saved.
 
+## Nearby planets (PI planner → Nearby planets)
+
+Pick the planet types you need and where you are (type a system or click a pilot), and the closest systems with those planets come first. Choose **Any of these** or **All in one system**, set a jump limit, pick highsec, lowsec, nullsec or Pochven, and optionally use your alliance jump bridges. "Use my plan's types" fills in the planet types your current PI plan needs. Each result shows the jump count, how many of each chosen type it has, its other planets, and links to plan a route or open it on Dotlan.
+
+Planet data needs a one-time game data refresh after updating to 1.8.9: Settings → Game data → Update.
+
 ## Corp / alliance mode
 
 Corp mode works much like AllianceAuth, but runs from this app with no server to host.
@@ -249,7 +255,7 @@ Scans public item-exchange contracts in a region for anything priced well under 
 
 ## Item database (Tools → Market → Item Database)
 
-Search any item, ship or skill to see its stats, required skills, hub prices, what it's built from (with material cost), what it reprocesses into and what it's used to build. "Who can use it?" checks your pilots' skills. Item stats need a one-time game data refresh after updating to 1.8.8: Settings → Game data → Update.
+Search any item, ship or skill to see its stats, required skills, hub prices, what it's built from (with material cost), what it reprocesses into and what it's used to build. "Who can use it?" checks your pilots' skills. Item stats need a one-time game data refresh after updating to 1.8.9: Settings → Game data → Update.
 
 ## Moon scan (Tools → Industry → Moon Scan)
 

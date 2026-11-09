@@ -180,6 +180,7 @@ contextBridge.exposeInMainWorld('api', {
     onEvent: cb => ipcRenderer.on('wh:event', (_e, d) => cb(d))
   },
   pi: {
+    nearby: o => call('pi:nearby', o),
     types: names => call('pi:types', names),
     capacity: () => call('pi:capacity'),
     current: () => call('pi:current'),

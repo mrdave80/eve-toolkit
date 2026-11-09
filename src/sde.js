@@ -19,7 +19,7 @@ const KEEP_ATTRS = new Set([
   633, 422, 1692                                                    // meta level, tech level, meta group
 ]);
 const REQ = [[182, 277], [183, 278], [184, 279], [1285, 1286], [1289, 1287], [1290, 1288]];
-const FILES = ['types', 'groups', 'categories', 'dogmaAttributes', 'typeDogma', 'blueprints', 'typeMaterials', 'mapSolarSystems', 'mapRegions', 'mapConstellations', 'mapStargates', 'mapSecondarySuns', 'marketGroups'];
+const FILES = ['types', 'groups', 'categories', 'dogmaAttributes', 'typeDogma', 'blueprints', 'typeMaterials', 'mapSolarSystems', 'mapRegions', 'mapConstellations', 'mapStargates', 'mapSecondarySuns', 'mapPlanets', 'marketGroups'];
 
 let db = null;          // loaded database
 let fullDb = null;      // item database attributes, loaded on first use
@@ -68,7 +68,7 @@ async function buildFromZip(file, build) {
   const out = {
     build, builtAt: new Date().toISOString(),
     types: {}, groups: {}, categories: {}, dogma: {}, blueprints: {}, products: {}, materials: {},
-    systems: {}, regions: {}, constellations: {}, gates: {}, suns: {}, marketGroups: {}
+    systems: {}, regions: {}, constellations: {}, gates: {}, suns: {}, planets: {}, marketGroups: {}
   };
   let step = 0;
   const tick = name => setStatus({ state: 'building', progress: Math.round((++step / FILES.length) * 100), message: `Reading ${name}…` });
@@ -140,6 +140,12 @@ async function buildFromZip(file, build) {
   });
   tick('secondary suns');
   if (entries.mapSecondarySuns) await eachLine(zip, entries.mapSecondarySuns, s => { out.suns[s.solarSystemID] = s.typeID; });
+  tick('planets');
+  if (entries.mapPlanets) await eachLine(zip, entries.mapPlanets, pl => {
+    if (!pl.solarSystemID || !pl.typeID) return;
+    const m = out.planets[pl.solarSystemID] = out.planets[pl.solarSystemID] || {};
+    m[pl.typeID] = (m[pl.typeID] || 0) + 1;
+  });
   tick('market groups');
   if (entries.marketGroups) await eachLine(zip, entries.marketGroups, g => { out.marketGroups[g._key] = [en(g.name), g.parentGroupID || 0]; });
   zip.close();
@@ -184,7 +190,7 @@ async function update({ force = false } = {}) {
   try {
     setStatus({ state: 'checking', progress: 0, message: 'Checking for the latest game data…' });
     const { build } = await latestBuild();
-    if (!force && db && db.build === build && hasFull()) { setStatus({ state: 'ready', message: 'Game data is up to date.' }); return info(); }
+    if (!force && db && db.build === build && hasFull() && db.planets && Object.keys(db.planets).length) { setStatus({ state: 'ready', message: 'Game data is up to date.' }); return info(); }
     const file = await download(build);
     setStatus({ state: 'building', progress: 0, message: 'Building local database…' });
     const out = await buildFromZip(file, build);
@@ -251,6 +257,15 @@ function fullAttrs(id) {
   const list = fullDb.types[id] || [];
   return list.map(([a, v]) => { const m = fullDb.attrs[a] || ['', 0, 0, 0]; return { id: a, name: m[0], unit: fullDb.units[m[1]] || '', unitId: m[1], category: fullDb.cats[m[2]] || 'Other', highIsGood: !!m[3], value: v }; });
 }
+/** Planets in a system by type, e.g. { Barren: 3, Gas: 2 }. null if the game data predates planet data. */
+function planetsIn(id) {
+  const d = need(); if (!d.planets || !Object.keys(d.planets).length) return null;
+  const m = d.planets[id]; if (!m) return {};
+  const out = {};
+  for (const [t, n] of Object.entries(m)) { const name = ((d.types[t] || [''])[0].match(/\(([^)]+)\)/) || [])[1] || (d.types[t] || [''])[0]; out[name] = (out[name] || 0) + n; }
+  return out;
+}
+function hasPlanets() { const d = need(); return !!(d.planets && Object.keys(d.planets).length); }
 function groupName(id) { const g = need().groups[id]; return g ? g[0] : null; }
 function hasFull() { return !!fullDb || fs.existsSync(fullFile()); }
 /** Blueprints that use this type as a material. */
@@ -360,7 +375,7 @@ function wormholeTypes() {
 
 module.exports = {
   load, update, importZip, info, ready, setListener: fn => { onStatus = fn; },
-  type, typeIdByName, attrs, fullAttrs, hasFull, usedIn, groupName, requirements, allRequirements, skillMeta, search, skillsByGroup,
+  type, typeIdByName, attrs, fullAttrs, hasFull, usedIn, groupName, planetsIn, hasPlanets, requirements, allRequirements, skillMeta, search, skillsByGroup,
   blueprintFor, blueprint, inventedFrom, wormholeTypes, reprocess, system, systemIdByName, gates, allSystems,
   _buildFromZip: buildFromZip, _install: install
 };

@@ -64,6 +64,7 @@ const SHOTS = [
   ['60-charvalue', `state.toolsTab='t-charval'; go('tools')`],
   ['61-start', `state.settings.onboardingDone = false; state.settings.usedSearch = false; go('dashboard')`],
   ['62-search', `state.settings.onboardingDone = true; go('dashboard')`, `openSearch(); const i = document.getElementById('sp-q'); i.value = 'moon'; i.dispatchEvent(new Event('input'))`],
+  ['63-nearby-planets', `state.piTab='near'; nearState.data=null; nearState.pilots=null; nearState.types=['Barren','Temperate']; go('piPlanner')`, `document.getElementById('np-go').click()`],
   ['57-whinfo', `go('wormholes')`, `whState.sel = { type: 'sys', id: 31000101 }; drawCanvas(); drawSide()`],
   ['42-livemap', `go('liveMap')`, `mapState.sel = 30004765; mapState.heat = 'ship'; drawMap()`],
   ['43-livemap-sov', `mapState.heat = 'sov'; mapState.sel = null; drawMap()`],
