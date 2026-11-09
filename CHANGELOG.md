@@ -6,6 +6,12 @@
 - Wormhole mapper: share maps with ⇄ Share. Copy a map as text for Discord or EVE mail, or save it to a file, and import one as a new map or merged into yours.
 - Fit checker: Appraise opens in a popup instead of leaving the page.
 - The window opens half as big again (1920 × 1230, or as much as fits the screen) and remembers its size and position.
+- Quick-look popups: click a pilot, item icon or system name to see a card over the page. Pilot cards show the threat grade and recent activity; item cards show hub prices, stats and who can use it; system cards show kills, sov, planets, gates and wormhole info.
+- Route links on the live map, hunting list and Nearby planets, "Who lives here?" in the wormhole mapper and doctrine fit Check now open as popups.
+- Rows that open for more detail (marked ▸): Trade Profit sales matched to buys and the split by pilot, every item in a contract bargain, why a loss is on the Wall of Shame with its fit, kills in a route system, missing skills in the fit checker, courier routes system by system, ratting bounty ticks, Abyss loot, and the ships, pilots and ISK on Pilot Intel kills and losses.
+- Settings are folded into sections.
+- Five new themes: Gunmetal Glass, Gunmetal Ember, Liquid Glass, Liquid Gunmetal and Liquid Daylight.
+- The overlay now follows the app's theme, including location-based switching.
 
 ## 1.9.0
 

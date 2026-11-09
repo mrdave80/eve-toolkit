@@ -903,6 +903,8 @@ document.addEventListener('click', e => {
   if (sy) { e.preventDefault(); openSystemCard(sy.dataset.system); return; }
   const it = t.closest('[data-tid]');
   if (it && (it.tagName !== 'IMG' || !it.parentElement.closest('a,button,label,.clickable,[data-it],[data-pv],[data-goitem],.char-item,[data-open],[data-ttab],[data-tab],.side-link,#search-pal,[data-ttype]'))) { e.preventDefault(); openItemCard(it.dataset.tid); return; }
+  const xr = t.closest('tr.xrow');
+  if (xr && !t.closest('a,button,input,select,textarea,label')) { toggleX(xr); return; }
   const link = t.closest('[data-link]');
   if (link) { e.preventDefault(); api.openLink(link.dataset.link); return; }
   const side = t.closest('.side-link');

@@ -43,12 +43,24 @@ function drawTrade() {
     <div class="panel" style="padding:0"><div style="padding:12px 16px;display:flex;gap:10px;align-items:center"><h3 style="margin:0;flex:1">Items</h3>
       <select id="tr-sort" class="crumb-select">${[['profit', 'Best profit'], ['worst', 'Worst profit'], ['margin', 'Best margin'], ['revenue', 'Most sales'], ['spent', 'Most bought']].map(([k, l]) => html`<option value="${k}" ${raw(k === tradeState.sort ? 'selected' : '')}>${l}</option>`)}</select></div>
       ${items.length ? html`<div class="table-wrap" style="max-height:55vh"><table><thead><tr><th>Item</th><th class="right">Sold</th><th class="right">Sales</th><th class="right">Cost</th><th class="right">Tax</th><th class="right">Profit</th><th class="right">Margin</th><th class="right">Avg hold</th><th class="right">Bought</th><th class="right">In stock</th></tr></thead><tbody>
-        ${items.map(i => html`<tr><td>${icon(i.typeId, 18)}${i.name}</td><td class="right num">${fmtNum(i.sold)}</td><td class="right num">${fmtCompact(i.revenue)}</td><td class="right num muted">${fmtCompact(i.cost)}</td><td class="right num muted">${fmtCompact(i.tax)}</td>
+        ${items.map(i => xRow('tr' + i.typeId, html`<td>${icon(i.typeId, 18)}${i.name}</td><td class="right num">${fmtNum(i.sold)}</td><td class="right num">${fmtCompact(i.revenue)}</td><td class="right num muted">${fmtCompact(i.cost)}</td><td class="right num muted">${fmtCompact(i.tax)}</td>
           <td class="right num ${i.profit >= 0 ? 'pos' : 'neg'}">${i.sold ? fmtCompact(i.profit) : '—'}</td><td class="right num">${i.margin !== null ? (i.margin * 100).toFixed(1) + '%' : '—'}</td>
-          <td class="right num dim">${i.avgHoldDays !== null ? i.avgHoldDays.toFixed(1) + 'd' : '—'}</td><td class="right num muted">${i.bought ? fmtNum(i.bought) : '—'}</td><td class="right num">${i.stock ? fmtNum(i.stock) : '—'}</td></tr>`)}</tbody></table></div>`
+          <td class="right num dim">${i.avgHoldDays !== null ? i.avgHoldDays.toFixed(1) + 'd' : '—'}</td><td class="right num muted">${i.bought ? fmtNum(i.bought) : '—'}</td><td class="right num">${i.stock ? fmtNum(i.stock) : '—'}</td>`, tradeDetail(i), 10))}</tbody></table></div>`
       : emptyBox('No market buys or sales in this period.')}</div>
     <div class="dim" style="font-size:12px;margin-top:8px">Each sale is matched to the oldest buys of the same item (first in, first out). Sales tax is taken from your wallet journal for each sale; broker fees can't be tied to an item, so they come off the total. ESI only shares about 30 days of transactions, so the app keeps its own record on this PC${d.ledgerFrom ? ', going back to ' + fmtDay(d.ledgerFrom) : ''} and adds to it every six hours.</div>`);
   $('#tr-sort').onchange = e => { tradeState.sort = e.target.value; drawTrade(); };
+}
+
+function tradeDetail(i) {
+  const m = i.matches || [];
+  if (!m.length) return html`<div class="dim">No sales matched in this period${i.bought ? `; ${fmtNum(i.bought)} bought for ${fmtCompact(i.spent)} ISK` : ''}.</div>`;
+  const ago = t => fmtDuration(Date.now() - Date.parse(t), true) + ' ago';
+  return html`${(i.pilots || []).length > 1 ? html`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px"><span class="dim" style="font-size:12px">By pilot:</span>${i.pilots.map(p => html`<span class="badge ${p.profit >= 0 ? 'green' : 'red'}">${p.name} · ${fmtNum(p.sold)} sold · ${fmtCompact(p.profit)}</span>`)}</div>` : ''}
+    <table><thead><tr><th>Sold</th><th>By</th><th class="right">Qty</th><th class="right">Price</th><th>Matched to buys</th><th class="right">Tax</th><th class="right">Profit</th></tr></thead><tbody>
+    ${m.map(x => html`<tr><td class="nowrap dim">${ago(x.time)}</td><td>${x.seller}</td><td class="right num">${fmtNum(x.matched)}${x.matched < x.qty ? html`<span class="dim" title="No earlier buy found for the rest"> of ${fmtNum(x.qty)}</span>` : ''}</td><td class="right num">${fmtCompact(x.price)}</td>
+      <td style="font-size:12px">${x.lots.length ? x.lots.map(l => html`<div>${fmtNum(l.qty)} @ ${fmtCompact(l.price)} <span class="dim">· ${l.buyer !== x.seller ? l.buyer + ' · ' : ''}${fmtDuration(Date.parse(x.time) - Date.parse(l.time), true)} earlier</span></div>`) : html`<span class="dim">no buy on record</span>`}${x.moreLots ? html`<div class="dim">and ${x.moreLots} more</div>` : ''}</td>
+      <td class="right num muted">${x.tax ? fmtCompact(x.tax) : '—'}</td><td class="right num ${x.profit >= 0 ? 'pos' : 'neg'}">${x.matched ? fmtCompact(x.profit) : '—'}</td></tr>`)}</tbody></table>
+    ${m.length >= 30 ? html`<div class="dim" style="font-size:12px;margin-top:4px">Showing the latest 30 sales.</div>` : ''}`;
 }
 
 // ================= Moon scan value =================

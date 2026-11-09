@@ -569,3 +569,14 @@ html[data-liquid][data-glass="light"] .panel, html[data-liquid][data-glass="ligh
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, .95), inset 0 -1px 0 rgba(15, 23, 42, .05), 0 10px 30px rgba(15, 23, 42, .10);
 }
 html[data-liquid][data-glass="light"] .btn-ghost { background: rgba(255, 255, 255, .45); border-color: rgba(255, 255, 255, .9); }
+
+/* Expandable rows */
+tr.xrow { cursor: pointer; }
+tr.xrow > td:first-child { position: relative; padding-left: 24px; }
+tr.xrow > td:first-child::before { content: '▸'; color: var(--dim); position: absolute; left: 8px; top: 10px; line-height: 18px; transition: transform .15s; }
+tr.xrow.open > td:first-child::before { transform: rotate(90deg); }
+tr.xrow:hover > td { background: color-mix(in srgb, var(--accent) 5%, transparent); }
+tr.xrow.open > td { border-bottom-color: transparent; background: color-mix(in srgb, var(--accent) 6%, transparent); }
+tr.xdetail > td { background: color-mix(in srgb, var(--bg-2) 60%, transparent); padding: 10px 14px 14px 28px; }
+tr.xdetail table { font-size: 12.5px; }
+tr.xdetail table th, tr.xdetail table td { padding: 4px 8px; }

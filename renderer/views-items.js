@@ -65,6 +65,15 @@ function drawItem() {
 
 // ================= Contract bargains =================
 
+function bargainDetail(x) {
+  const all = x.all || x.items;
+  return html`<div class="grid" style="grid-template-columns:${raw(x.want && x.want.length ? '2fr 1fr' : '1fr')};gap:16px;align-items:start">
+    <div><div class="dim" style="font-size:12px;margin-bottom:4px">You get ${fmtNum(all.length)} item${all.length === 1 ? '' : 's'}</div><table><thead><tr><th>Item</th><th class="right">Qty</th><th class="right">Jita sell</th><th class="right">Jita buy</th></tr></thead><tbody>
+      ${all.map(i => html`<tr><td>${icon(i.id, 16)}${i.name}${i.bpc ? html` <span class="badge">BPC${i.runs ? ' · ' + i.runs + ' runs' : ''}</span>` : ''}</td><td class="right num">${fmtNum(i.qty)}</td><td class="right num">${i.bpc || (i.sell === undefined && i.value === undefined) ? '—' : fmtCompact(i.sell ?? i.value)}</td><td class="right num muted">${i.bpc || i.buy === undefined ? '—' : fmtCompact(i.buy)}</td></tr>`)}</tbody></table></div>
+    ${x.want && x.want.length ? html`<div><div class="dim" style="font-size:12px;margin-bottom:4px">They also want</div><table><tbody>${x.want.map(i => html`<tr><td>${icon(i.id, 16)}${i.name}</td><td class="right num">${fmtNum(i.qty)}</td><td class="right num neg">${fmtCompact(i.sell)}</td></tr>`)}</tbody></table></div>` : ''}</div>
+    <div style="margin-top:8px;display:flex;gap:6px"><button class="btn btn-ghost" style="padding:2px 9px;font-size:12px" data-bg-copy="${x.id}">Copy item list</button>${x.issuerId ? html`<button class="btn btn-ghost" style="padding:2px 9px;font-size:12px" data-pilot="${x.issuerId}">Who's selling?</button>` : ''}</div>`;
+}
+
 const bargainState = { regionId: 10000002, minProfit: 20e6, minPct: 15, maxPrice: '', maxNew: 400, highsecOnly: false, data: null };
 
 async function tBargains() {
@@ -94,13 +103,14 @@ function drawBargains() {
   const d = bargainState.data;
   $('#bg-out').innerHTML = String(html`<div class="dim" style="margin:6px 0 10px;font-size:12.5px">${fmtNum(d.total)} item contracts in range · ${fmtNum(d.read)} read${d.newlyRead ? ` (${fmtNum(d.newlyRead)} new this scan)` : ''}${d.unread ? ` · ${fmtNum(d.unread)} not read yet, scan again to read more` : ''}${d.failed ? ` · ${d.failed} failed` : ''}</div>
     <div class="panel" style="padding:0">${d.rows.length ? html`<table><thead><tr><th>Contract</th><th>Where</th><th class="right">Price</th><th class="right">Jita sell value</th><th class="right">Profit</th><th class="right">If sold to buy orders</th><th></th></tr></thead><tbody>
-      ${d.rows.map(x => html`<tr><td>${x.items.map(i => html`<div>${icon(i.id, 16)}${i.qty > 1 ? fmtNum(i.qty) + ' × ' : ''}${i.name}</div>`)}${x.itemCount > x.items.length ? html`<div class="dim" style="font-size:11.5px">+ ${x.itemCount - x.items.length} more</div>` : ''}${x.title ? html`<div class="dim" style="font-size:11.5px">"${x.title}"</div>` : ''}</td>
+      ${d.rows.map(x => xRow('bg' + x.id, html`<td>${x.items.map(i => html`<div>${icon(i.id, 16)}${i.qty > 1 ? fmtNum(i.qty) + ' × ' : ''}${i.name}</div>`)}${x.itemCount > x.items.length ? html`<div class="dim" style="font-size:11.5px">+ ${x.itemCount - x.items.length} more</div>` : ''}${x.title ? html`<div class="dim" style="font-size:11.5px">"${x.title}"</div>` : ''}</td>
         <td>${x.system || '—'}${x.security !== null && x.security !== undefined ? html` <span class="dim">${(Math.round(x.security * 10) / 10).toFixed(1)}</span>` : ''}<div class="dim" style="font-size:11.5px">${fmtNum(x.volume)} m³</div></td>
         <td class="right num">${fmtCompact(x.price)}${x.wantCost ? html`<div class="dim" style="font-size:11.5px">+ ${fmtCompact(x.wantCost)} in items</div>` : ''}</td><td class="right num">${fmtCompact(x.sellVal)}</td>
         <td class="right num pos">${fmtCompact(x.profitSell)}<div class="dim" style="font-size:11.5px">${Math.round(x.pct * 100)}% under</div></td><td class="right num ${x.profitBuy >= 0 ? '' : 'neg'}">${fmtCompact(x.profitBuy)}</td>
-        <td>${x.suspicious ? html`<span class="badge gold" title="${x.wants ? 'Asks for items in return; check them carefully' : 'More than 70% under value: check every item name and that nothing is a blueprint copy'}">check carefully</span>` : ''}${x.bpcs ? html` <span class="badge" title="Includes blueprint copies, valued at zero">${x.bpcs} BPC</span>` : ''}</td></tr>`)}
+        <td>${x.suspicious ? html`<span class="badge gold" title="${x.wants ? 'Asks for items in return; check them carefully' : 'More than 70% under value: check every item name and that nothing is a blueprint copy'}">check carefully</span>` : ''}${x.bpcs ? html` <span class="badge" title="Includes blueprint copies, valued at zero">${x.bpcs} BPC</span>` : ''}</td>`, bargainDetail(x), 7))}
     </tbody></table>` : emptyBox('No bargains found with these settings. Lower the minimum profit or discount, or scan again to read more contracts.')}</div>
     <div class="dim" style="font-size:12px;margin-top:8px">Values use the lowest Jita sell order, with blueprint copies at zero. Find a contract in game with the contract search, filtered to the same region. Always open the contract and check each item before you accept: lookalike names and asking for items in return are common scams.</div>`);
+  document.querySelectorAll('[data-bg-copy]').forEach(b => b.onclick = async () => { const x = d.rows.find(r => String(r.id) === b.dataset.bgCopy); await api.copy((x.all || x.items).map(i => `${i.name}\t${i.qty}`).join('\n')); toast('Item list copied. Paste it into Appraisal to check prices.'); });
 }
 
 // ================= Character value =================

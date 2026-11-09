@@ -83,11 +83,35 @@ function analyse(km, zkb) {
   if (!tags.length) return null;
   const score = Math.round(tags.reduce((n, t) => n + CATS[t].pts, 0) * (1 + Math.log10(Math.max(1e6, value) / 1e6) / 2));
   const fb = (km.attackers || []).find(x => x.final_blow) || {};
+  const nm = id => (T(id) || {}).name || String(id);
+  const tankNames = set => { const re = set === SHIELD_TANK ? /Shield/ : /Armor|Trimark|Nanobot/; return [...new Set(items.filter(i => inRange(i.flag, LOW) || inRange(i.flag, MED) || inRange(i.flag, RIG)).map(i => T(i.item_type_id)).filter(Boolean)
+    .filter(t => set.has(t.group) || (/^Rig/.test(t.group) && re.test(t.name))).map(t => t.name))]; };
+  const isk = n => n >= 1e9 ? (n / 1e9).toFixed(2) + 'b' : (n / 1e6).toFixed(0) + 'm';
+  const att = players.length === 1 ? T(players[0].ship_type_id) : null;
+  const EVID = {
+    naked: () => `0 of ${slots} high, mid and low slots fitted`,
+    halfFit: () => `${fitted.length} of ${slots} high, mid and low slots fitted`,
+    noTank: () => 'No shield, armour or hull tank modules or rigs fitted',
+    mixedTank: () => `Shield: ${tankNames(SHIELD_TANK).join(', ') || 'shield rigs'} · Armour: ${tankNames(ARMOR_TANK).join(', ') || 'armour rigs'}`,
+    rainbow: () => `Weapon types: ${[...weaponGroups].join(', ')}`,
+    bling: () => `${bling} faction, deadspace or officer modules, lost to a single pilot`,
+    autopilot: () => `${isk(cargoValue)} ISK in cargo, caught by ${players.length} pilots${hs ? ' in highsec' : ''}`,
+    rats: () => `${isk(value)} ISK lost to NPCs`,
+    selfDestruct: () => 'The final blow came from the pilot themselves',
+    awox: () => 'Killed by members of their own corporation or alliance',
+    brain: () => `${isk(value)} ISK of implants lost with the pod`,
+    goliath: () => `Solo kill by a ${att ? att.name : 'small ship'}`,
+    oof: () => `${isk(value)} ISK in one loss`
+  };
+  const slotOf = f => inRange(f, HIGH) ? 'high' : inRange(f, MED) ? 'med' : inRange(f, LOW) ? 'low' : inRange(f, RIG) ? 'rig' : inRange(f, SUB) ? 'sub' : f === 87 ? 'drone' : 'cargo';
+  const fit = {};
+  for (const i of items) { const k = slotOf(i.flag); const q = (i.quantity_destroyed || 0) + (i.quantity_dropped || 0); (fit[k] = fit[k] || []).push({ id: i.item_type_id, name: nm(i.item_type_id), qty: q || 1, dropped: !!i.quantity_dropped && !i.quantity_destroyed }); }
+  if (fit.cargo) fit.cargo = fit.cargo.slice(0, 12);
   return {
     id: km.killmail_id, time: km.killmail_time, value, cargoValue, systemId: km.solar_system_id, system: s ? s.name : null, security: s ? s.security : null, hs,
     victimId: v.character_id || null, corpId: v.corporation_id || null, allianceId: v.alliance_id || null, shipTypeId: v.ship_type_id, ship: ship.name, shipGroup: g,
     fitted: fitted.length, slots, attackers: players.length, npc: !!zkb.npc, finalShipTypeId: fb.ship_type_id || null, finalShip: fb.ship_type_id && T(fb.ship_type_id) ? T(fb.ship_type_id).name : null,
-    tags: tags.map(t => ({ id: t, ...CATS[t] })), score
+    tags: tags.map(t => { let ev = null; try { ev = EVID[t] ? EVID[t]() : null; } catch {} return { id: t, ...CATS[t], evidence: ev }; }), score, fit
   };
 }
 

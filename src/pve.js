@@ -24,8 +24,8 @@ async function ratting(charIds, days = 14) {
     for (const t of ticks) {
       const time = Date.parse(t.date);
       if (cur && time - cur.lastTick > 30 * 60000) close();
-      if (!cur) cur = { charId: id, charName: (chars.find(c => c.id === id) || {}).name, start: time, lastTick: time, ticks: 0, isk: 0, systems: new Map() };
-      cur.lastTick = time; cur.ticks++; cur.isk += t.amount || 0;
+      if (!cur) cur = { charId: id, charName: (chars.find(c => c.id === id) || {}).name, start: time, lastTick: time, ticks: 0, isk: 0, systems: new Map(), list: [] };
+      cur.lastTick = time; cur.ticks++; cur.isk += t.amount || 0; cur.list.push([time, t.amount || 0, t.context_id || null]);
       if (t.context_id && (t.context_id_type === 'system_id' || (t.context_id >= 30000000 && t.context_id < 32000000))) cur.systems.set(t.context_id, (cur.systems.get(t.context_id) || 0) + (t.amount || 0));
     }
     close();
@@ -41,7 +41,8 @@ async function ratting(charIds, days = 14) {
     const sysId = [...s.systems.entries()].sort((a, b) => b[1] - a[1])[0];
     const total = s.isk + (s.ess || 0);
     return { charId: s.charId, charName: s.charName, start: new Date(s.start - 20 * 60000).toISOString(), end: new Date(s.lastTick).toISOString(), minutes, ticks: s.ticks, bounties: s.isk, ess: s.ess || 0, isk: total, iskPerHour: Math.round(total / minutes * 60),
-      system: sysId && sde.ready() && sde.system(sysId[0]) ? sde.system(sysId[0]).name : null };
+      system: sysId && sde.ready() && sde.system(sysId[0]) ? sde.system(sysId[0]).name : null,
+      tickList: s.list.slice(-60).map(([t, a, sys]) => ({ time: new Date(t).toISOString(), amount: a, system: sys && sde.ready() && sde.system(sys) ? sde.system(sys).name : null })) };
   }).sort((a, b) => b.start.localeCompare(a.start));
   const mins = out.reduce((n, s) => n + s.minutes, 0), isk = out.reduce((n, s) => n + s.isk, 0);
   const bySys = new Map();
@@ -105,7 +106,7 @@ async function setLoot(runId, text, appraise, prices) {
   const c = cfg();
   const a = await appraise(text, 'Jita');
   r.lootValue = Math.round(c.price === 'sell' ? a.totals.sell : c.price === 'split' ? a.totals.split : a.totals.buy);
-  r.lootItems = a.rows.slice(0, 12).map(x => ({ name: x.name, qty: x.qty }));
+  r.lootItems = a.rows.slice(0, 40).map(x => ({ name: x.name, typeId: x.typeId || null, qty: x.qty, value: Math.round(c.price === 'sell' ? x.sell : c.price === 'split' ? (x.sell + x.buy) / 2 : x.buy) }));
   if (r.filament && r.filamentCost === null) r.filamentCost = await filamentPrice(r.filament, prices);
   store.save('abyssRuns');
   return r;

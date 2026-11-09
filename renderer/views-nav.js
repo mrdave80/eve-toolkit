@@ -42,10 +42,12 @@ async function tRoute() {
       <div id="rt-safety"></div>
       <div class="route-strip">${d.path.map(p => html`<span class="rs" style="background:${SEC_COLOR(p.security)}" title="${p.name} ${p.security.toFixed(1)}${p.kills ? ' · ' + p.kills + ' kills' : ''}"></span>`)}</div>
       <div class="panel" style="padding:0"><table><thead><tr><th>#</th><th>System</th><th>Sec</th><th>Region</th><th>Via</th><th class="right">Kills (1h)</th><th class="right">NPC</th></tr></thead><tbody>
-        ${d.path.map((p, i) => html`<tr class="${p.kills >= 5 ? 'hot' : ''}" data-rt-row="${p.id}"><td class="dim">${i}</td><td><b><a href="#" data-system="${p.id}" style="color:inherit">${p.name}</a></b> <span class="rt-flag"></span></td><td>${secBadge(p.security)}</td><td class="muted">${p.region}</td>
+        ${d.path.map((p, i) => { const cells = html`<td class="dim">${i}</td><td><b><a href="#" data-system="${p.id}" style="color:inherit">${p.name}</a></b> <span class="rt-flag"></span></td><td>${secBadge(p.security)}</td><td class="muted">${p.region}</td>
           <td>${p.via === 'wormhole' ? html`<span class="badge accent">${p.viaLabel}</span>` : p.via === 'thera' ? html`<span class="badge" style="color:var(--purple);border-color:var(--purple)">${p.viaLabel}</span>` : p.via === 'bridge' ? html`<span class="badge gold">${p.viaLabel}</span>` : p.via ? raw('<span class="dim">gate</span>') : ''}</td>
-          <td class="right num ${p.kills >= 5 ? 'neg' : p.kills ? 'gold' : 'dim'}">${p.kills || ''}</td><td class="right num dim">${p.npc || ''}</td></tr>`)}</tbody></table></div>
+          <td class="right num ${p.kills >= 5 ? 'neg' : p.kills ? 'gold' : 'dim'}">${p.kills || ''}</td><td class="right num dim">${p.npc || ''}</td>`;
+          return p.kills ? xRow('rk' + p.id, cells, '', 7, { cls: p.kills >= 5 ? 'hot' : '', attrs: `data-rt-row="${p.id}"`, title: 'Click to see what died here', load: () => routeSystemKills(p) }) : html`<tr data-rt-row="${p.id}">${cells}</tr>`; })}</tbody></table></div>
       <div class="toolbar" style="margin-top:10px"><button class="btn btn-primary" id="rt-send">⌁ Send route to EVE</button><button class="btn btn-ghost" id="rt-dest">Set destination only</button><button class="btn btn-ghost" id="rt-copy">Copy system list</button></div>`);
+    xOpenLazy();
     $('#rt-send').onclick = () => sendWaypoints(d.path);
     $('#rt-dest').onclick = () => setDestination(d.to.id);
     $('#rt-copy').onclick = () => api.copy(d.path.map(p => p.name).join('\n')).then(() => toast('Copied'));
@@ -124,6 +126,16 @@ async function tUniverse(stillCurrent) {
 
 // ---------- Route safety ----------
 const HAZ_ICON = { camp: '⛔', undock: '⛔', gank: '☠', activity: '⚠' };
+async function routeSystemKills(p) {
+  const r = await api.nav.routeCheck([{ id: p.id, kills: p.kills }], { hours: 1 });
+  if (!r.ok) throw new Error(r.error);
+  const x = (r.data.reports || [])[0];
+  if (!x) return html`<div class="dim">Only NPC or isolated kills in ${p.name} in the last hour.</div>`;
+  return html`${x.hazards.length ? html`<div style="margin-bottom:6px">${x.hazards.map(z => html`<span class="badge ${z.severity === 'danger' ? 'red' : z.severity === 'warn' ? 'gold' : ''}" title="${z.detail}">${HAZ_ICON[z.type] || '⚠'} ${z.title}</span> `)}</div>` : ''}
+    ${x.pilots && x.pilots.length ? html`<div style="margin-bottom:6px">${x.pilots.map(q => html`<a href="#" data-pilot="${q.id}" class="badge ${q.tone}" style="text-decoration:none">${q.name}</a> `)}</div>` : ''}
+    ${x.kills && x.kills.length ? html`<table><tbody>${x.kills.map(k => html`<tr><td class="dim nowrap">${Math.round((Date.now() - Date.parse(k.time)) / 60000)}m ago</td><td>${icon(k.victimShip, 16)}${k.victimShipName || ''}${k.concord ? raw(' <span class="badge">CONCORD</span>') : ''}</td><td class="muted">${k.where || ''}</td><td class="right num">${k.attackers} attackers</td><td class="right num">${k.value ? fmtCompact(k.value) : ''}</td><td><a href="#" data-link="https://zkillboard.com/kill/${k.id}/">zKill ↗</a></td></tr>`)}</tbody></table>` : html`<div class="dim">No killmails found yet. zKillboard can lag a few minutes behind.</div>`}`;
+}
+
 async function runRouteCheck(d, hours) {
   const box = $('#rt-safety'); if (!box) return;
   const hot = d.path.filter(p => p.kills > 0).length;
@@ -210,14 +222,15 @@ function drawCouriers() {
   box.innerHTML = String(html`<div class="grid grid-4" style="margin-bottom:14px">${stat('Contracts', d.shown, `of ${d.total} public couriers in ${d.regions.join(', ')}`)}${stat('Best ISK/jump', d.rows[0] ? fmtCompact(d.rows[0].iskPerJump) : '—')}
       ${stat('Highsec only', d.rows.filter(r => !r.leavesHs).length)}${stat('Unknown locations', d.unknownLoc, d.unknownLoc ? 'Private structures your pilots can’t see' : '')}</div>
     ${d.rows.length ? html`<div class="panel" style="padding:0"><div class="table-wrap" style="max-height:72vh"><table><thead><tr><th>Pickup</th><th>Deliver to</th><th class="right">Jumps</th><th class="right">Reward<div class="dim" style="font-weight:400">ISK/jump</div></th><th class="right">Collateral<div class="dim" style="font-weight:400">m³</div></th><th>Route safety</th></tr></thead><tbody>
-      ${d.rows.map(r => html`<tr>
+      ${d.rows.map(r => xRow('cc' + r.id, html`
         <td><b>${r.from.system}</b> ${secBadge(r.from.security)}<div class="dim" style="max-width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:11.5px" title="${r.from.name}">${r.pickupJumps}j away · ${r.from.name}</div></td>
         <td><b>${r.to.system}</b> ${secBadge(r.to.security)}<div class="dim" style="max-width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:11.5px" title="${r.to.name}">${r.to.name}</div>${r.warn.map(w => html`<div class="gold" style="font-size:11px;max-width:170px">⚠ ${w}</div>`)}</td>
         <td class="right num">${r.jumps}${r.lowsecJumps ? html`<div class="neg" style="font-size:11px">${r.lowsecJumps} low/null</div>` : ''}</td>
         <td class="right num">${fmtCompact(r.reward)}<div><b>${fmtCompact(r.iskPerJump)}</b></div></td><td class="right num">${fmtCompact(r.collateral)}<div class="dim">${fmtNum(Math.round(r.volume))}</div></td>
         <td style="min-width:130px"><div id="cc-chk-${r.id}">${chk(r.id) ? courierCheckBadge(chk(r.id)) : html`<button class="btn btn-ghost" style="padding:2px 8px;font-size:12px" data-cc-check="${r.id}">Check route</button>`}</div>
-          <div style="margin-top:4px;font-size:11.5px"><a href="#" data-cc-open="${r.id}" title="Needs in-game control">Open in game</a>${r.issuerId ? html` · <a href="#" data-pilot="${r.issuerId}" class="dim" title="Check the issuer before accepting">${r.issuer || 'issuer'}</a>` : ''}</div></td></tr>`)}</tbody></table></div></div>
+          <div style="margin-top:4px;font-size:11.5px"><a href="#" data-cc-open="${r.id}" title="Needs in-game control">Open in game</a>${r.issuerId ? html` · <a href="#" data-pilot="${r.issuerId}" class="dim" title="Check the issuer before accepting">${r.issuer || 'issuer'}</a>` : ''}</div></td>`, '', 6, { title: 'Click to see the route system by system', load: () => courierRoute(r) }))}</tbody></table></div></div>
       <div class="toolbar" style="margin-top:10px"><button class="btn btn-ghost" id="cc-check-top">Check the top 5 routes</button></div>` : emptyBox('No courier contracts match these filters.')}`);
+  xOpenLazy(box);
   const check = async id => {
     const r = d.rows.find(x => x.id === Number(id)); const cell = $('#cc-chk-' + id); if (!r || !cell) return;
     cell.innerHTML = String(raw('<span class="dim">checking…</span>'));
@@ -228,6 +241,18 @@ function drawCouriers() {
   box.querySelectorAll('[data-cc-check]').forEach(b => b.onclick = () => check(b.dataset.ccCheck));
   box.querySelectorAll('[data-cc-open]').forEach(b => b.onclick = e => { e.preventDefault(); openInGame('contract', b.dataset.ccOpen); });
   const top = $('#cc-check-top'); if (top) top.onclick = async () => { for (const r of d.rows.slice(0, 5)) if (!c.checks[r.id]) await check(r.id); };
+}
+
+async function courierRoute(r) {
+  const res = await api.nav.route(r.from.system, r.to.system, { pref: 'shortest', wormholes: false, thera: false });
+  if (!res.ok) throw new Error(res.error);
+  const chk = courierState.checks[r.id];
+  const hz = new Map(); if (chk && chk.reports) for (const x of chk.reports) hz.set(x.systemId, x.hazards.filter(z => z.severity !== 'info'));
+  const path = res.data.path;
+  return html`<div class="dim" style="font-size:12px;margin-bottom:6px">${path.length - 1} jumps from ${r.from.system} to ${r.to.system}${chk ? '' : '. Press "Check route" to flag camps and ganks on it.'}</div>
+    <div style="display:flex;flex-wrap:wrap;gap:4px 6px;font-size:12.5px;line-height:1.9">${path.map((p, i) => { const h = hz.get(p.id) || [];
+      return html`<span style="white-space:nowrap">${i ? raw('<span class="dim">›</span> ') : ''}<a href="#" data-system="${p.id}" style="color:${raw(SEC_COLOR(p.security))}">${p.name}</a>${p.kills ? html`<sup class="neg" style="font-size:10px"> ${p.kills}</sup>` : ''}${h.map(z => html` <span class="badge ${z.severity === 'danger' ? 'red' : 'gold'}" title="${z.detail}">${HAZ_ICON[z.type] || '⚠'} ${z.title}</span>`)}</span>`; })}</div>
+    <div class="dim" style="font-size:11.5px;margin-top:4px">Shortest gate route. Small red numbers are ship kills in the last hour.</div>`;
 }
 
 function courierCheckBadge(x) {

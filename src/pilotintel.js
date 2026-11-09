@@ -199,7 +199,10 @@ function summarise(km, charId, isLoss) {
     attackers: (km.attackers || []).length, attackerGroups: groups,
     solo: (km.attackers || []).filter(a => a.character_id).length === 1,
     concord: isLoss && (km.attackers || []).some(a => a.corporation_id === CONCORD_CORP || a.faction_id === CONCORD_FACTION),
-    cyno: isLoss && ((km.victim && km.victim.items) || []).some(i => CYNO_TYPES.has(i.item_type_id))
+    cyno: isLoss && ((km.victim && km.victim.items) || []).some(i => CYNO_TYPES.has(i.item_type_id)),
+    fleet: (() => { const m = new Map(); for (const x of km.attackers || []) if (x.ship_type_id) m.set(x.ship_type_id, (m.get(x.ship_type_id) || 0) + 1); return [...m.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10).map(([t, n]) => ({ typeId: t, name: nameOf(t), n })); })(),
+    pilots: (km.attackers || []).filter(x => x.character_id).sort((a, b) => (b.damage_done || 0) - (a.damage_done || 0)).slice(0, 10).map(x => ({ id: x.character_id, ship: x.ship_type_id || null, shipName: nameOf(x.ship_type_id), damage: x.damage_done || 0, finalBlow: !!x.final_blow })),
+    damage: (km.victim && km.victim.damage_taken) || 0
   };
 }
 
@@ -208,7 +211,7 @@ async function killDetails(list, charId, isLoss, max) {
   const items = (Array.isArray(list) ? list : []).slice(0, max);
   for (let i = 0; i < items.length; i += 6) {
     const batch = await Promise.all(items.slice(i, i + 6).map(k => safe(() => get(`/killmails/${k.killmail_id}/${k.zkb && k.zkb.hash}/`))));
-    batch.forEach((km, j) => { if (ok(km)) out.push({ ...summarise(km, charId, isLoss), value: items[i + j].zkb ? items[i + j].zkb.totalValue : null, awox: !!(items[i + j].zkb && items[i + j].zkb.awox) }); });
+    batch.forEach((km, j) => { if (ok(km)) out.push({ ...summarise(km, charId, isLoss), value: items[i + j].zkb ? items[i + j].zkb.totalValue : null, fitted: items[i + j].zkb ? items[i + j].zkb.fittedValue || null : null, dropped: items[i + j].zkb ? items[i + j].zkb.droppedValue || null : null, awox: !!(items[i + j].zkb && items[i + j].zkb.awox) }); });
   }
   return out;
 }
@@ -229,6 +232,11 @@ async function profile(q, { refresh = false } = {}) {
     kills = await killDetails(kl, id, false, 30);
     losses = await killDetails(ll, id, true, 20);
   } catch (e) { zkError = e.message; }
+  try {
+    const ids = [...new Set([...kills, ...losses].flatMap(k => [k.victimId, ...(k.pilots || []).map(p => p.id)]).filter(Boolean))].slice(0, 600);
+    const names = ids.length ? await resolveNames(ids) : {};
+    for (const k of [...kills, ...losses]) { if (k.victimId) k.victimName = names[k.victimId] || null; for (const p of k.pilots || []) p.name = names[p.id] || null; }
+  } catch {}
   const st = await standings();
   const standing = st.get(id) ?? st.get(af.corporation_id) ?? (af.alliance_id ? st.get(af.alliance_id) : undefined) ?? null;
   const w = watch()[id] || null;

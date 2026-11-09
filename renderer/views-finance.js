@@ -50,6 +50,19 @@ async function tIncome(stillCurrent) {
 
 
 // ================= Ratting & Abyss ISK per hour =================
+function ratTicks(s) {
+  const t = s.tickList || [];
+  if (!t.length) return html`<div class="dim">Refresh to see the bounty ticks.</div>`;
+  const max = Math.max(1, ...t.map(x => x.amount));
+  return html`<div style="display:flex;align-items:flex-end;gap:3px;height:56px;margin-bottom:6px">${t.map(x => html`<div title="${fmtDate(x.time)} · ${fmtCompact(x.amount)} ISK${x.system ? ' · ' + x.system : ''}" style="flex:1;max-width:26px;height:${raw(String(Math.max(3, Math.round(52 * x.amount / max))))}px;background:var(--accent);opacity:.8;border-radius:2px 2px 0 0"></div>`)}</div>
+    <table><thead><tr><th>Tick</th><th>System</th><th class="right">Bounty</th></tr></thead><tbody>${t.slice().reverse().map(x => html`<tr><td class="nowrap dim">${fmtDate(x.time)}</td><td>${x.system ? html`<a href="#" data-system="${x.system}">${x.system}</a>` : ''}</td><td class="right num">${fmtCompact(x.amount)}</td></tr>`)}</tbody></table>
+    ${s.ess ? html`<div class="dim" style="font-size:12px;margin-top:4px">Plus ${fmtCompact(s.ess)} ISK from the ESS after the session.</div>` : ''}`;
+}
+function abyssLoot(x) {
+  const total = x.lootItems.reduce((n, i) => n + (i.value || 0), 0);
+  return html`<table><thead><tr><th>Item</th><th class="right">Qty</th><th class="right">Value</th><th class="right">Share</th></tr></thead><tbody>${x.lootItems.map(i => html`<tr><td>${i.typeId ? icon(i.typeId, 16) : ''}${i.name}</td><td class="right num">${fmtNum(i.qty)}</td><td class="right num">${i.value !== undefined ? fmtCompact(i.value) : '—'}</td><td class="right num dim">${i.value && total ? Math.round(i.value / total * 100) + '%' : ''}</td></tr>`)}</tbody></table>`;
+}
+
 const pveState = { days: 14, pilot: '', rat: null, abyss: null };
 api.pve.onAbyss((kind, run) => {
   if (kind === 'start') toast(`${run.charName} entered the Abyss. Timing the run…`);
@@ -76,7 +89,7 @@ async function loadRat() {
   box.innerHTML = String(html`<div class="grid grid-3" style="margin-bottom:12px">${stat('ISK per hour', fmtCompact(d.iskPerHour), 'Bounties + ESS', 'pos')}${stat('Time ratting', d.hours.toFixed(1) + ' h', `${d.sessions.length} sessions`)}${stat('Earned', fmtCompact(d.isk) + ' ISK')}</div>
     ${d.systems.length ? html`<div class="panel"><h3>Best systems</h3>${d.systems.map(x => html`<div class="skill-row"><span>${x.system} <span class="dim">${(x.minutes / 60).toFixed(1)} h</span></span><span class="num">${fmtCompact(x.iskPerHour)}/h</span></div>`)}</div>` : ''}
     <div class="panel" style="padding:0">${d.sessions.length ? html`<div class="table-wrap" style="max-height:52vh"><table><thead><tr><th>Session</th><th>Pilot</th><th>System</th><th class="right">Time</th><th class="right">ISK</th><th class="right">ISK/h</th></tr></thead><tbody>
-      ${d.sessions.map(s => html`<tr><td class="nowrap">${fmtDate(s.start)}</td><td>${s.charName || ''}</td><td>${s.system || ''}</td><td class="right num">${Math.floor(s.minutes / 60)}h ${s.minutes % 60}m</td><td class="right num">${fmtCompact(s.isk)}${s.ess ? html`<div class="dim" style="font-size:11px">${fmtCompact(s.ess)} ESS</div>` : ''}</td><td class="right num"><b>${fmtCompact(s.iskPerHour)}</b></td></tr>`)}</tbody></table></div>`
+      ${d.sessions.map(s => xRow('rs' + s.charId + s.start, html`<td class="nowrap">${fmtDate(s.start)}</td><td>${s.charName || ''}</td><td>${s.system || ''}</td><td class="right num">${Math.floor(s.minutes / 60)}h ${s.minutes % 60}m</td><td class="right num">${fmtCompact(s.isk)}${s.ess ? html`<div class="dim" style="font-size:11px">${fmtCompact(s.ess)} ESS</div>` : ''}</td><td class="right num"><b>${fmtCompact(s.iskPerHour)}</b></td>`, ratTicks(s), 6))}</tbody></table></div>`
       : html`<div class="muted" style="padding:14px 18px">No bounty ticks in this period.</div>`}</div>
     <div class="dim" style="font-size:12px">A session is a run of bounty ticks no more than 30 minutes apart. CCP pays bounties every 20 minutes, so times are accurate to about 20 minutes. ESS payouts count towards the session before them.</div>`);
 }
@@ -97,10 +110,10 @@ async function loadAbyss() {
     ${d.byFilament.length ? html`<div class="panel"><h3>By filament</h3>${d.byFilament.map(x => html`<div class="skill-row"><span>${x.filament} <span class="dim">${x.runs} runs · avg ${fmtCompact(x.avg)}</span></span><span class="num">${fmtCompact(x.iskPerHour)}/h</span></div>`)}</div>` : ''}
     <div class="toolbar"><button class="btn btn-ghost" id="ab-add">+ Add a run by hand</button></div>
     <div class="panel" style="padding:0">${d.runs.length ? html`<div class="table-wrap" style="max-height:46vh"><table><thead><tr><th>Run</th><th>Filament</th><th class="right">Time</th><th class="right">Loot</th><th class="right">Profit</th><th class="right">ISK/h</th><th></th></tr></thead><tbody>
-      ${d.runs.map(x => html`<tr><td class="nowrap">${fmtDate(x.start)}<div class="dim" style="font-size:11px">${x.charName || 'manual'}${x.died ? ' · ' : ''}${x.died ? raw('<span class="neg">ship lost</span>') : ''}</div></td><td style="font-size:12px">${x.filament || ''}<div class="dim">${x.filamentCost !== null && x.filamentCost !== undefined ? fmtCompact(x.filamentCost) : ''}</div></td>
+      ${d.runs.map(x => { const cells = html`<td class="nowrap">${fmtDate(x.start)}<div class="dim" style="font-size:11px">${x.charName || 'manual'}${x.died ? ' · ' : ''}${x.died ? raw('<span class="neg">ship lost</span>') : ''}</div></td><td style="font-size:12px">${x.filament || ''}<div class="dim">${x.filamentCost !== null && x.filamentCost !== undefined ? fmtCompact(x.filamentCost) : ''}</div></td>
         <td class="right num">${x.minutes || '?'}m</td><td class="right num">${x.lootValue !== null ? fmtCompact(x.lootValue) : html`<button class="btn btn-primary" style="padding:2px 8px;font-size:12px" data-ab-loot="${x.id}">Paste loot</button>`}</td>
         <td class="right num ${x.profit > 0 ? 'pos' : x.profit < 0 ? 'neg' : ''}">${x.profit !== null ? fmtCompact(x.profit) : ''}</td><td class="right num"><b>${x.iskPerHour !== null ? fmtCompact(x.iskPerHour) : ''}</b></td>
-        <td class="nowrap" style="font-size:12px"><a href="#" data-ab-edit="${x.id}">Edit</a> · <a href="#" data-ab-del="${x.id}">Delete</a></td></tr>`)}</tbody></table></div>`
+        <td class="nowrap" style="font-size:12px"><a href="#" data-ab-edit="${x.id}">Edit</a> · <a href="#" data-ab-del="${x.id}">Delete</a></td>`; return x.lootItems && x.lootItems.length ? xRow('ab' + x.id, cells, abyssLoot(x), 7, { title: 'Click to see the loot' }) : html`<tr>${cells}</tr>`; })}</tbody></table></div>`
       : html`<div class="muted" style="padding:14px 18px">No runs yet. Turn on automatic timing and jump into a filament, or add a run by hand.</div>`}</div>`);
   $('#ab-on').onchange = e => saveAby({ enabled: e.target.checked }, e.target.checked ? 'Abyss timing on' : 'Abyss timing off');
   $('#ab-fil').onchange = e => saveAby({ filament: e.target.value });

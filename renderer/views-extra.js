@@ -34,6 +34,25 @@ function standingSpan(v) {
 }
 
 const icon = (typeId, size = 20) => html`<img src="${typeIcon(typeId)}" width="${size}" height="${size}" style="vertical-align:-5px;margin-right:6px" alt="" loading="lazy" data-tid="${typeId}">`;
+// Expandable table rows: a summary row that opens a detail row underneath. Open rows stay open across redraws.
+const xOpen = new Set();
+const xLoaders = {};
+function xRow(key, cells, detail, cols, opts = {}) {
+  const open = xOpen.has(key);
+  if (opts.load) xLoaders[key] = opts.load;
+  return html`<tr class="xrow ${open ? 'open' : ''} ${opts.cls || ''}" data-x="${key}" ${raw(opts.attrs || '')} title="${opts.title || 'Click for details'}">${cells}</tr><tr class="xdetail" data-xd="${key}" ${raw(open ? '' : 'hidden')}><td colspan="${cols}">${opts.load ? raw('<div class="xlazy"></div>') : detail}</td></tr>`;
+}
+async function toggleX(row) {
+  const key = row.dataset.x, det = row.nextElementSibling; if (!det || det.dataset.xd !== key) return;
+  const open = det.hidden; det.hidden = !open; row.classList.toggle('open', open);
+  if (open) xOpen.add(key); else xOpen.delete(key);
+  const lazy = det.querySelector('.xlazy');
+  if (open && lazy && !lazy.dataset.done && xLoaders[key]) {
+    lazy.dataset.done = '1'; lazy.innerHTML = String(loadingView('Loading…'));
+    try { lazy.innerHTML = String(await xLoaders[key]()); } catch (e) { lazy.innerHTML = String(html`<div class="error">${e.message || e}</div>`); delete lazy.dataset.done; }
+  }
+}
+function xOpenLazy(root = document) { root.querySelectorAll('tr.xrow.open').forEach(r => { const d = r.nextElementSibling; const l = d && d.querySelector('.xlazy'); if (l && !l.dataset.done && xLoaders[r.dataset.x]) { xOpen.delete(r.dataset.x); d.hidden = true; toggleX(r); } }); }
 const stat = (label, value, hint, cls = '') => html`<div class="stat"><div class="label">${label}</div><div class="value ${cls}">${value}</div>${hint ? html`<div class="hint">${hint}</div>` : ''}</div>`;
 const emptyBox = msg => html`<div class="empty" style="padding:30px">${msg}</div>`;
 const fmtM3 = n => fmtNum(n);

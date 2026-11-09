@@ -12,6 +12,10 @@ A free Windows desktop app for EVE Online pilots, corporations and alliances. Sk
 | ![Live map](docs/screenshots/live-map.jpg) | ![Trade profit](docs/screenshots/trade-profit.jpg) |
 | ![Wormhole mapper](docs/screenshots/wormhole-mapper.jpg) | ![Wall of Shame](docs/screenshots/wall-of-shame.jpg) |
 | ![Daily rewards](docs/screenshots/daily-rewards.jpg) | ![Search](docs/screenshots/search.jpg) |
+| ![Pilot card popup](docs/screenshots/pilot-card.jpg) | ![Item card popup](docs/screenshots/item-card.jpg) |
+| ![System card popup](docs/screenshots/system-card.jpg) | ![Fit checker](docs/screenshots/fit-checker.jpg) |
+| ![Contract bargains](docs/screenshots/contract-bargains.jpg) | ![Settings](docs/screenshots/settings.jpg) |
+| ![Liquid Glass theme](docs/screenshots/liquid-glass.jpg) | ![Gunmetal Glass theme](docs/screenshots/gunmetal-glass.jpg) |
 
 Screenshots use demo data with made-up pilots.
 
@@ -192,6 +196,10 @@ A small window that stays on top of the EVE client. It shows:
 - kill spikes nearby
 - recent intel
 
+The overlay uses the same theme as the main window and changes with it, including location-based switching. Glass and liquid glass themes stay see-through over the game.
+
+![Overlay in Liquid Glass](docs/screenshots/overlay-liquid.jpg)
+
 **Ctrl+Shift+L** locks it so clicks pass through to EVE. Use EVE in windowed or fixed-window mode, because exclusive fullscreen hides other windows.
 
 ## Live map (sidebar → Live map)
@@ -348,7 +356,7 @@ To set it up, add the scopes `esi-ui.write_waypoint.v1` and `esi-ui.open_window.
 
 ## Themes (Settings → Appearance)
 
-Sixteen themes, applied instantly:
+Twenty-one themes, applied instantly:
 
 | Theme | Suits |
 |---|---|
@@ -368,8 +376,13 @@ Sixteen themes, applied instantly:
 | Drifter Glass | Glass, wormholes, PvP |
 | Solar Glass | Glass, mining, industry |
 | Frosted Daylight | Glass, light mode |
+| Gunmetal Glass | Dark glass, any space |
+| Gunmetal Ember | Dark glass, PvP |
+| Liquid Glass | Liquid glass, any space |
+| Liquid Gunmetal | Liquid glass, dark |
+| Liquid Daylight | Liquid glass, light mode |
 
-The glass themes use frosted, see-through panels over a soft glow. On older or low-power PCs they can use a little more graphics power than the solid themes.
+The glass themes use frosted, see-through panels over a soft glow. Gunmetal is darker and almost colourless. Liquid glass is clearer, with rounded panels, pill buttons and bright curved edges that catch the light. On older or low-power PCs they can use a little more graphics power than the solid themes.
 
 You can also set a custom highlight colour (your corp colours, say) and a text size. **Match the theme to where I'm flying** switches theme automatically for highsec, lowsec, nullsec, wormhole space and Pochven, based on your pilot's location. It checks every 2 minutes.
 
@@ -392,6 +405,32 @@ The app keeps a log of errors at `%APPDATA%\EVE Toolkit\logs\eve-toolkit.log` (u
 - **View** shows the report in the app first.
 
 Tokens, login codes, webhook addresses and ntfy topics are removed before anything is logged. Your client ID is reported only as set or not set.
+
+## Quick looks and details on demand
+
+Click a pilot, item or system name almost anywhere in the app and a card pops up over the page, so you don't lose your place:
+
+- **Pilot card**: corp and alliance, security status, age, threat grade and the reasons for it, kills and losses, ships they fly and recent activity. **Open full profile** goes to Pilot Intel.
+- **Item card**: click any item icon for hub prices, build cost, required skills, key stats and who among your pilots can use it. **Open in item database** shows everything.
+- **System card**: security, region, sovereignty, kills and jumps in the last hour, planets, gates out, and wormhole class, effect and statics. Buttons plot a route, open the live map, set your destination or open zKillboard and Dotlan.
+- **Route**: "Route" links on the live map, hunting list and Nearby planets plot the route in a popup with gate camp and gank warnings.
+- **Who lives here?** in the wormhole mapper and **Check** on doctrine fits also open as popups.
+
+Rows marked ▸ open to show more:
+
+| Where | What opens |
+|---|---|
+| Trade Profit | Each sale, the buys it was matched to, tax and profit, and the split between pilots |
+| Contract Bargains | Every item in the contract with Jita sell and buy values, anything they want in return, and Copy item list |
+| Wall of Shame | Why it's here: each tag with the evidence behind it, and the full fit and cargo, with dropped items marked |
+| Route Planner | What died in a system on your route in the last hour, who did it, and the hazards |
+| Fit checker | The skills each pilot is missing, with Copy as skill plan |
+| Courier Contracts | The route system by system, with any camps or ganks found by Check route |
+| Ratting | Every bounty tick in the session, with a chart |
+| Abyssal runs | The loot from each run and what each item was worth |
+| Pilot Intel kills and losses | ISK breakdown, attacker ships, and the pilots involved by damage |
+
+Settings are folded into sections, so you only open the one you need. Open all and Close all are at the top, and the app remembers which ones you left open.
 
 ## Finding things
 

@@ -20,6 +20,12 @@ function tFit() {
   if (fitState.pending) { fitState.pending = false; $('#ft-go').click(); }
 }
 
+function fitMissing(p) {
+  return html`<div style="display:flex;flex-wrap:wrap;gap:6px">${p.missing.map(m => html`<span class="badge">${m.name} ${ROMAN[m.level]}${m.have !== undefined ? html` <span class="dim">(has ${m.have ? ROMAN[m.have] : 'none'})</span>` : ''}</span>`)}</div>
+    <div style="margin-top:8px;display:flex;gap:8px;align-items:center"><span class="dim" style="font-size:12px">About ${fmtDuration(p.minutes * 60000, true)} of training.</span>
+      <button type="button" class="btn btn-ghost" style="padding:2px 9px;font-size:12px" data-fit-plan="${p.id}">Copy as skill plan</button></div>`;
+}
+
 function drawFit(box = $('#ft-out'), d = fitState.data) {
   if (!box || !d) return;
   const sc = d.slotCheck;
@@ -45,10 +51,11 @@ function drawFit(box = $('#ft-out'), d = fitState.data) {
         <div class="panel"><h3>Resources with all skills at V</h3>${bar(v.cpu, v.cpuOut, 'CPU', 'tf')}${bar(v.pg, v.pgOut, 'Powergrid', 'MW')}${bar(v.cal, v.calOut, 'Calibration', '')}
           ${sc.turrets.max || sc.turrets.used ? bar(sc.turrets.used, sc.turrets.max, 'Turret hardpoints', '') : ''}${sc.launchers.max || sc.launchers.used ? bar(sc.launchers.used, sc.launchers.max, 'Launcher hardpoints', '') : ''}</div>
         <div class="panel" style="padding:0"><div style="padding:12px 16px 0"><h3>Your pilots</h3></div><table><thead><tr><th>Pilot</th><th>Skills</th><th class="right">CPU</th><th class="right">Powergrid</th><th>Fits?</th></tr></thead><tbody>
-          ${d.pilots.map(p => { const f = p.fitting; return html`<tr><td>${p.name}${p.fromAudit ? html` <span class="badge">audit</span>` : ''}</td>
+          ${d.pilots.map(p => { const f = p.fitting; const cells = html`<td>${p.name}${p.fromAudit ? html` <span class="badge">audit</span>` : ''}</td>
             <td>${p.canFly ? html`<span class="pos">Can fly</span>` : html`<span class="muted" title="${(p.missing || []).map(m => m.name + ' ' + ROMAN[m.level]).join(', ')}">${p.minutes >= 1440 ? Math.round(p.minutes / 1440) + 'd' : fmtDuration(p.minutes * 60000, true)} to train</span>`}</td>
             <td class="right num ${f && f.cpu > f.cpuOut + 0.01 ? 'neg' : ''}">${f ? `${Math.round(f.cpu)}/${Math.round(f.cpuOut)}` : '—'}</td><td class="right num ${f && f.pg > f.pgOut + 0.01 ? 'neg' : ''}">${f ? `${Math.round(f.pg)}/${Math.round(f.pgOut)}` : '—'}</td>
-            <td>${!f ? html`<span class="dim">—</span>` : f.ok ? html`<span class="badge green">Fits</span>` : html`<span class="badge gold" title="Ship bonuses that cut fitting costs aren't counted">Likely over</span>`}</td></tr>`; })}</tbody></table></div>
+            <td>${!f ? html`<span class="dim">—</span>` : f.ok ? html`<span class="badge green">Fits</span>` : html`<span class="badge gold" title="Ship bonuses that cut fitting costs aren't counted">Likely over</span>`}</td>`;
+            return p.missing && p.missing.length ? xRow('fm' + p.id, cells, fitMissing(p), 5, { title: 'Click to see the missing skills' }) : html`<tr>${cells}</tr>`; })}</tbody></table></div>
         <div class="panel"><h3>Hull, before modules and skills</h3><div class="kv">
           <span class="k">Shield / armour / hull</span><span class="num">${fmtNum(h.hp.shield)} / ${fmtNum(h.hp.armor)} / ${fmtNum(h.hp.hull)} HP · about ${fmtNum(h.ehp)} EHP</span>
           <span class="k">Shield resists</span><span class="num">${h.resists.shield.map(pct).join(' · ')}</span>
@@ -60,6 +67,7 @@ function drawFit(box = $('#ft-out'), d = fitState.data) {
           <div class="dim" style="font-size:11.5px;margin-top:6px">Resists in EM · thermal · kinetic · explosive order.</div></div>
       </div></div>
     <div class="dim" style="font-size:12px;margin-top:4px">CPU and powergrid use CPU Management, Power Grid Management, Weapon Upgrades, Advanced Weapon Upgrades, Energy Grid Upgrades, Electronics Upgrades and Shield Upgrades, plus co-processors and similar modules. Ship bonuses that cut fitting costs (for example on logistics ships) aren't counted, so a fit can show as slightly over when it actually fits. For fitted EHP, DPS and capacitor, use Pyfa.</div>`);
+  box.querySelectorAll('[data-fit-plan]').forEach(b => b.onclick = async () => { const p = d.pilots.find(x => String(x.id) === b.dataset.fitPlan); await api.copy(p.missing.map(m => `${m.name} ${m.level}`).join('\n')); toast('Skill list copied. Paste it into a skill plan in game, or into the Skill Planner here.'); });
   box.querySelector('#ft-pyfa').onclick = async () => { await api.copy(d.eft); toast('Fit copied. In Pyfa, import it from the clipboard.'); };
   box.querySelector('#ft-appraise').onclick = () => appraiseFitModal(d);
 }

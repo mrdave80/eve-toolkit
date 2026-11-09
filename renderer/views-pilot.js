@@ -72,13 +72,29 @@ function hourChart(activity) {
     <div class="muted" style="font-size:12px;margin-top:6px">Most active around <b>${String(peak).padStart(2, '0')}:00 EVE time</b> (${new Date(Date.UTC(2000, 0, 1, peak)).toLocaleTimeString([], { hour: 'numeric' })} your time).</div>`;
 }
 
+function killDetail(k, loss) {
+  const isk = k.value || 0;
+  return html`<div class="grid" style="grid-template-columns:1fr 1fr 1fr;gap:16px;align-items:start">
+    <div><div class="dim" style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">ISK</div><div class="kv" style="font-size:12.5px">
+      <span class="k">Total</span><span class="num">${isk ? fmtCompact(isk) : '—'}</span>
+      ${k.fitted ? html`<span class="k">Ship and fit</span><span class="num">${fmtCompact(k.fitted)}</span>` : ''}
+      ${k.dropped ? html`<span class="k">Dropped (loot)</span><span class="num pos">${fmtCompact(k.dropped)}</span>` : ''}
+      ${isk && k.fitted && isk - k.fitted > 1e6 ? html`<span class="k">Cargo and implants</span><span class="num">${fmtCompact(Math.max(0, isk - k.fitted))}</span>` : ''}
+      ${k.damage ? html`<span class="k">Damage taken</span><span class="num">${fmtNum(k.damage)}</span>` : ''}</div>
+      ${k.victimId && !loss ? html`<div style="margin-top:6px;font-size:12px">Victim: <a href="#" data-pilot="${k.victimId}">${k.victimName || 'look up'}</a></div>` : ''}</div>
+    <div><div class="dim" style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">Attacker ships</div>
+      ${(k.fleet || []).length ? k.fleet.map(f => html`<div style="font-size:12.5px;padding:1px 0">${icon(f.typeId, 16)}${f.name || f.typeId} <span class="dim">×${f.n}</span></div>`) : html`<div class="dim" style="font-size:12px">Refresh the profile to see this.</div>`}</div>
+    <div><div class="dim" style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">Pilots by damage</div>
+      ${(k.pilots || []).length ? k.pilots.map(p => html`<div style="font-size:12.5px;padding:1px 0;display:flex;gap:6px;align-items:center"><img src="${portrait(p.id, 32)}" width="16" height="16" style="border-radius:3px" alt=""><a href="#" data-pilot="${p.id}">${p.name || (p.id === pilotState.profile?.id ? 'this pilot' : 'Pilot ' + p.id)}</a> <span class="dim">${p.shipName || ''}</span><span class="num dim" style="margin-left:auto">${fmtNum(p.damage)}</span>${p.finalBlow ? raw('<span class="badge" style="font-size:10px">final blow</span>') : ''}</div>`) : html`<div class="dim" style="font-size:12px">No player attackers.</div>`}</div></div>`;
+}
+
 function killRows(list, loss) {
   if (!list.length) return html`<div class="muted" style="padding:10px 18px">${loss ? 'No recent losses.' : 'No recent kills.'}</div>`;
-  return html`<table><thead><tr><th>When</th><th>${loss ? 'Lost' : 'Flying'}</th>${loss ? '' : raw('<th>Victim</th>')}<th>System</th><th class="right">Pilots</th><th class="right">Value</th><th></th></tr></thead><tbody>${list.map(k => html`<tr>
+  return html`<table><thead><tr><th>When</th><th>${loss ? 'Lost' : 'Flying'}</th>${loss ? '' : raw('<th>Victim</th>')}<th>System</th><th class="right">Pilots</th><th class="right">Value</th><th></th></tr></thead><tbody>${list.map(k => xRow((loss ? 'pl' : 'pk') + k.id, html`
     <td class="dim nowrap">${timeAgo(k.time)}</td><td>${k.ship ? icon(k.ship, 18) : ''}${k.shipName || '?'}${k.concord ? raw(' <span class="badge red">CONCORD</span>') : ''}${k.cyno ? raw(' <span class="badge red">cyno fitted</span>') : ''}</td>
     ${loss ? '' : html`<td>${k.victimShip ? icon(k.victimShip, 18) : ''}${k.victimShipName || '?'}</td>`}
     <td>${k.system ? html`<a href="#" data-system="${k.system}">${k.system}</a>` : ''} ${k.zone ? html`<span class="dim">${ZONE_LABEL[k.zone]}</span>` : ''}</td><td class="right num">${k.solo ? raw('<span class="badge">solo</span>') : k.attackers}</td>
-    <td class="right num">${k.value ? fmtCompact(k.value) : ''}</td><td><a href="#" data-link="https://zkillboard.com/kill/${k.id}/">zKill ↗</a></td></tr>`)}</tbody></table>`;
+    <td class="right num">${k.value ? fmtCompact(k.value) : ''}</td><td><a href="#" data-link="https://zkillboard.com/kill/${k.id}/">zKill ↗</a></td>`, killDetail(k, loss), loss ? 6 : 7))}</tbody></table>`;
 }
 
 function drawPilot() {
@@ -229,6 +245,18 @@ async function loadShame() {
   s.data = r.data; drawShame();
 }
 
+const SHAME_SLOT = [['high', 'High slots'], ['med', 'Mid slots'], ['low', 'Low slots'], ['rig', 'Rigs'], ['sub', 'Subsystems'], ['drone', 'Drone bay'], ['cargo', 'Cargo']];
+function shameDetail(k) {
+  return html`<div class="grid" style="grid-template-columns:1fr 1.4fr;gap:16px;margin-top:8px;align-items:start">
+    <div>${k.tags.map(t => html`<div style="margin-bottom:8px"><span class="badge ${t.pts >= 25 ? 'red' : 'gold'}">${t.label}</span> <span class="dim" style="font-size:11px">+${t.pts}</span>
+      <div class="muted" style="font-size:12px;margin-top:2px">${t.why}</div>${t.evidence ? html`<div style="font-size:12px;margin-top:2px">${t.evidence}</div>` : ''}</div>`)}
+      <div class="dim" style="font-size:11.5px">Shame score is the tag points scaled up by how much ISK was lost.</div></div>
+    <div>${k.fit ? SHAME_SLOT.filter(([s]) => k.fit[s] && k.fit[s].length).map(([s, l]) => html`<div style="margin-bottom:6px"><div class="dim" style="font-size:10.5px;text-transform:uppercase;letter-spacing:.08em">${l}</div>
+        ${k.fit[s].map(m => html`<div style="font-size:12px;padding:1px 0">${icon(m.id, 16)}${m.qty > 1 ? fmtNum(m.qty) + ' × ' : ''}${m.name}${m.dropped ? html` <span class="badge green" style="font-size:10px">dropped</span>` : ''}</div>`)}</div>`)
+      : html`<div class="dim" style="font-size:12px">Reload the wall to see the fit.</div>`}
+      ${k.fit && !Object.keys(k.fit).length ? html`<div class="dim" style="font-size:12px">Nothing fitted and nothing in the hold.</div>` : ''}</div></div>`;
+}
+
 function shameCard(k, rank) {
   return html`<div class="panel" style="display:grid;grid-template-columns:34px 64px 1fr auto;gap:12px;align-items:center;padding:12px 14px;margin-bottom:10px">
     <div style="font-family:var(--font-num);font-size:22px;color:${raw(rank <= 3 ? 'var(--gold)' : 'var(--dim)')};text-align:center">${rank}</div>
@@ -237,7 +265,8 @@ function shameCard(k, rank) {
       <div class="muted" style="font-size:12px">${k.corp || ''}${k.alliance ? ' · ' + k.alliance : ''} · ${k.system || ''} ${k.security !== null ? secBadge(k.security) : ''} · ${timeAgo(k.time)}${k.npc ? ' · killed by NPCs' : k.attackers === 1 && k.finalShip ? ` · solo by a ${k.finalShip}` : ` · ${k.attackers} attackers`}</div>
       <div style="margin-top:5px">${k.tags.map(t => html`<span class="badge ${t.pts >= 25 ? 'red' : 'gold'}" title="${t.why}">${t.label}</span> `)}${k.slots ? html`<span class="dim" style="font-size:11px">${k.fitted}/${k.slots} slots fitted</span>` : ''}</div></div>
     <div style="text-align:right;font-size:12px;white-space:nowrap"><div style="font-family:var(--font-num);font-size:18px">${k.score}</div><div class="dim">shame</div>
-      <a href="#" data-link="https://zkillboard.com/kill/${k.id}/">zKill ↗</a>${k.victimId ? html` · <a href="#" data-pilot="${k.victimId}">Pilot</a>` : ''}<br><a href="#" data-sh-copy="${k.id}">Copy for Discord</a></div></div>`;
+      <a href="#" data-link="https://zkillboard.com/kill/${k.id}/">zKill ↗</a>${k.victimId ? html` · <a href="#" data-pilot="${k.victimId}">Pilot</a>` : ''}<br><a href="#" data-sh-copy="${k.id}">Copy for Discord</a></div>
+    <details class="shame-more" style="grid-column:1/-1"><summary class="dim" style="cursor:pointer;font-size:12px">Why it's here${k.fit ? ' and the fit' : ''}</summary>${shameDetail(k)}</details></div>`;
 }
 
 function drawShame() {

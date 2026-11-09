@@ -76,6 +76,8 @@ async function scan(o = {}) {
     const top = got.filter(x => !x[3]).map(([t, q]) => ({ id: t, name: (sde.type(t) || {}).name || String(t), qty: q, value: P(t, 'sell') * q })).sort((a, b) => b.value - a.value);
     rows.push({ id: c.contract_id, title: c.title || '', price: c.price, wantCost, sellVal, buyVal, profitSell, profitBuy, pct: profitSell / Math.max(1, sellVal),
       items: top.slice(0, 4), itemCount: got.length, wants: want.length, bpcs: bpcs.length, issued: c.date_issued, expires: c.date_expired, issuerId: c.issuer_id,
+      all: got.map(([t, q, , bpc, runs]) => ({ id: t, name: (sde.type(t) || {}).name || String(t), qty: q, bpc: !!bpc, runs: runs || 0, sell: bpc ? 0 : P(t, 'sell') * q, buy: bpc ? 0 : P(t, 'buy') * q })).sort((a, b) => b.sell - a.sell),
+      want: want.map(([t, q]) => ({ id: t, name: (sde.type(t) || {}).name || String(t), qty: q, sell: P(t, 'sell') * q })),
       locationId: c.start_location_id, volume: c.volume, suspicious: profitSell / Math.max(1, sellVal) > 0.7 || want.length > 0 });
   }
   // locations for the shortlist
