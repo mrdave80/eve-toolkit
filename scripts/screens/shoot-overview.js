@@ -68,6 +68,7 @@ const SHOTS = [
   ['64-fit', `fitState.text='[Ishtar, Sentry Ishtar]'; fitState.data=null; state.toolsTab='t-fit'; go('tools')`, `document.getElementById('ft-go').click()`],
   ['65-wh-share', `go('wormholes')`, `document.getElementById('wh-share').click()`, `document.getElementById('whs-code').click()`],
   ['66-fit-appraise', `fitState.text='[Ishtar, Sentry Ishtar]'; fitState.data=null; state.toolsTab='t-fit'; go('tools')`, `document.getElementById('ft-go').click()`, `document.getElementById('ft-appraise').click()`],
+  ['67-sde-prompt', `go('dashboard'); __mock.sdeCheck({ state: 'incomplete', build: 3419624 }); sdePromptState.asked = false; checkGameDataOnStart()`],
   ['57-whinfo', `go('wormholes')`, `whState.sel = { type: 'sys', id: 31000101 }; drawCanvas(); drawSide()`],
   ['42-livemap', `go('liveMap')`, `mapState.sel = 30004765; mapState.heat = 'ship'; drawMap()`],
   ['43-livemap-sov', `mapState.heat = 'sov'; mapState.sel = null; drawMap()`],

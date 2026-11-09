@@ -972,4 +972,46 @@ api.onUpdate(showUpdateBanner);
   render();
   updateServerStatus();
   setInterval(updateServerStatus, 5 * 60 * 1000);
+  setTimeout(checkGameDataOnStart, 2500);
 })();
+
+// ================= Game data check on start =================
+
+const sdePromptState = { asked: false };
+async function checkGameDataOnStart() {
+  if (sdePromptState.asked || !state.settings.clientId) return;   // the welcome screen covers first-time setup
+  const r = await api.sde.check();
+  if (!r.ok || !r.data || ['ok', 'busy'].includes(r.data.state)) return;
+  const c = r.data;
+  if (c.state === 'outdated' && Number(state.settings.sdeSkipBuild) >= Number(c.latest)) return;
+  if (document.getElementById('modal')) { setTimeout(checkGameDataOnStart, 15000); return; }   // don't cover something the user is doing
+  sdePromptState.asked = true;
+  const why = {
+    missing: html`EVE Toolkit needs EVE's game data for planners, routes, the item database, the fit checker and more. It's a one-time download from CCP and takes a few minutes.`,
+    incomplete: html`This version of EVE Toolkit uses parts of the game data your copy doesn't have yet: planets for Nearby planets, and full item details for the fit checker and item database. Updating downloads it again from CCP and takes a few minutes.`,
+    outdated: html`CCP has released new game data${c.released ? html` (${fmtDay(c.released)})` : ''}. Updating brings in ships, items and changes from the latest patch. It takes a few minutes.`
+  }[c.state];
+  openModal({ missing: 'Download game data?', incomplete: 'Update game data?', outdated: 'New game data available' }[c.state], html`
+    <p class="muted" style="margin-top:0">${why}</p>
+    <div id="sdp-progress" hidden><div id="sde-msg" class="muted" style="font-size:12.5px">Starting…</div><div class="bar" style="margin-top:8px"><i id="sde-bar" style="width:2%"></i></div>
+      <div class="dim" style="font-size:12px;margin-top:8px">You can close this and keep using the app; the update carries on in the background.</div></div>
+    <div id="sdp-err"></div>`, {
+    submit: c.state === 'missing' ? 'Download now' : 'Update now',
+    extraButtons: c.state === 'outdated' ? '<button type="button" class="btn btn-ghost" id="sdp-skip" title="Don\'t ask again until CCP releases another update">Skip this update</button>' : '',
+    onSubmit: async () => {
+      $('#sdp-progress').hidden = false; $('#sdp-err').innerHTML = '';
+      const btn = document.querySelector('#modal button[type="submit"]'); if (btn) { btn.disabled = true; btn.textContent = 'Updating…'; }
+      const u = await api.sde.update(false);
+      if (!u.ok) {
+        $('#sdp-err').innerHTML = String(html`<div class="error" style="margin-top:10px">${u.error}<br><span class="muted">If the download keeps failing, download the JSONL zip from developers.eveonline.com/static-data yourself and use Settings → Game data → Import zip.</span></div>`);
+        if (btn) { btn.disabled = false; btn.textContent = 'Try again'; }
+        return true;   // keep the window open
+      }
+      toast('Game data is up to date');
+      if (state.view !== 'settings') render();
+    }
+  });
+  const later = document.querySelector('#modal .modal-foot [data-close]'); if (later) later.textContent = 'Later';
+  const skip = document.getElementById('sdp-skip');
+  if (skip) skip.onclick = async () => { await api.setSettings({ sdeSkipBuild: c.latest }); state.settings.sdeSkipBuild = c.latest; closeModal(); toast("Skipped. You'll be asked again when CCP releases the next update."); };
+}

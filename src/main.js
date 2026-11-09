@@ -443,6 +443,7 @@ handle('settings:set', s => {
   if (typeof s.minimizeToTray === 'boolean') next.minimizeToTray = s.minimizeToTray;
   if (typeof s.onboardingDone === 'boolean') next.onboardingDone = s.onboardingDone;
   if (typeof s.usedSearch === 'boolean') next.usedSearch = s.usedSearch;
+  if (s.sdeSkipBuild !== undefined) next.sdeSkipBuild = Number(s.sdeSkipBuild) || 0;
   if (typeof s.notifyIndustry === 'boolean') next.notifyIndustry = s.notifyIndustry;
   if (typeof s.notifyPlanets === 'boolean') next.notifyPlanets = s.notifyPlanets;
   if (s.incursionJumps !== undefined) next.incursionJumps = Math.max(1, Math.min(30, Math.round(Number(s.incursionJumps) || 10)));
@@ -525,6 +526,7 @@ handle('shell:open', url => {
 
 sde.setListener(st => { if (win && !win.isDestroyed()) win.webContents.send('sde:status', st); });
 handle('sde:info', () => sde.info());
+handle('sde:check', () => sde.check());
 handle('sde:update', force => sde.update({ force: !!force }));
 handle('sde:import', async () => {
   const r = await dialog.showOpenDialog(win, { title: 'Import CCP static data zip (JSONL)', filters: [{ name: 'SDE zip', extensions: ['zip'] }], properties: ['openFile'] });

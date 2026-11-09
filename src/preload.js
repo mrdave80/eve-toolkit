@@ -161,6 +161,7 @@ contextBridge.exposeInMainWorld('api', {
   doctrine: { parseEft: t => call('doc:parseEft', t), evaluate: (d, hub) => call('doc:evaluate', d, hub) },
   sde: {
     info: () => call('sde:info'),
+    check: () => call('sde:check'),
     update: force => call('sde:update', force),
     importZip: () => call('sde:import'),
     search: (q, opts) => call('sde:search', q, opts),

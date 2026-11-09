@@ -154,13 +154,26 @@ async function buildFromZip(file, build) {
 // ---------- Download ----------
 
 async function latestBuild() {
-  const r = await fetch(LATEST, { headers: { 'User-Agent': 'EVE-Toolkit-Desktop' } });
+  const r = await fetch(LATEST, { headers: { 'User-Agent': 'EVE-Toolkit-Desktop' }, signal: AbortSignal.timeout(10000) });
   if (!r.ok) throw new Error(`Could not check the latest game data version (${r.status}).`);
   const text = await r.text();
   for (const line of text.split('\n')) {
     try { const j = JSON.parse(line); if (j._key === 'sde') return { build: j.buildNumber, released: j.releaseDate }; } catch {}
   }
   throw new Error('Unexpected response when checking the game data version.');
+}
+
+/** Start-up check: does the game data need downloading, refreshing for new app features, or updating to CCP's latest build? */
+async function check() {
+  if (status.state === 'downloading' || status.state === 'building') return { state: 'busy' };
+  if (!db) return { state: 'missing' };
+  const have = db.build;
+  if (!hasFull() || !hasPlanets()) return { state: 'incomplete', build: have };
+  try {
+    const { build, released } = await latestBuild();
+    if (build && Number(build) > Number(have)) return { state: 'outdated', build: have, latest: build, released };
+    return { state: 'ok', build: have, latest: build };
+  } catch (e) { return { state: 'ok', build: have, offline: true }; }   // can't reach CCP: don't nag
 }
 
 async function download(build) {
@@ -377,7 +390,7 @@ function wormholeTypes() {
 }
 
 module.exports = {
-  load, update, importZip, info, ready, setListener: fn => { onStatus = fn; },
+  load, update, importZip, info, ready, check, setListener: fn => { onStatus = fn; },
   type, typeIdByName, attrs, fullAttrs, hasFull, usedIn, groupName, planetsIn, hasPlanets, requirements, allRequirements, skillMeta, search, skillsByGroup,
   blueprintFor, blueprint, inventedFrom, wormholeTypes, reprocess, system, systemIdByName, gates, allSystems,
   _buildFromZip: buildFromZip, _install: install

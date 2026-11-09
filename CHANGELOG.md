@@ -2,6 +2,7 @@
 
 ## Next release
 
+- On start, the app checks the game data and offers to download or update it when needed: when it's missing, when this version needs parts your copy doesn't have, or when CCP has released newer data. Updates you skip aren't asked about again until the next one.
 - Wormhole mapper: share maps with ⇄ Share. Copy a map as text for Discord or EVE mail, or save it to a file, and import one as a new map or merged into yours.
 - Fit checker: Appraise opens in a popup instead of leaving the page.
 - The window opens half as big again (1920 × 1230, or as much as fits the screen) and remembers its size and position.

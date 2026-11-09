@@ -344,7 +344,7 @@ api.wh = {
 };
 
 // ---------- 1.3 mock ----------
-api.sde = { info: async () => ({ ok: true, data: { ready: true, state: 'ready', build: 3419624, builtAt: iso(now - 2 * D), counts: { types: 51234, blueprints: 5102, systems: 8437 } } }),
+api.sde = { check: async () => ({ ok: true, data: globalThis.__sdeCheck || { state: 'ok', build: 3419624 } }), info: async () => ({ ok: true, data: { ready: true, state: 'ready', build: 3419624, builtAt: iso(now - 2 * D), counts: { types: 51234, blueprints: 5102, systems: 8437 } } }),
   search: async q => ({ ok: true, data: [{ id: 12005, name: 'Ishtar', group: 'Heavy Assault Cruiser', categoryId: 6 }, { id: 2, name: 'Ishtar Blueprint', group: 'Heavy Assault Cruiser Blueprint', categoryId: 9 }] }),
   type: async id => ({ ok: true, data: { id, name: 'Hammerhead II', group: 'Combat Drone', volume: 10 } }), update: async () => ({ ok: true }), importZip: async () => ({ ok: true }), wormholeTypes: async () => ({ ok: true, data: [] }), onStatus: () => {} };
 const planRows = [['Drones', 5, 'Drones', 1, true], ['Drone Interfacing', 5, 'Drones', 5, false, 'queued'], ['Heavy Drone Operation', 5, 'Drones', 5], ['Drone Sharpshooting', 5, 'Drones', 2], ['Gallente Cruiser', 5, 'Spaceship Command', 5], ['Heavy Assault Cruisers', 5, 'Spaceship Command', 6], ['Armor Layering', 4, 'Armor', 3], ['Thermodynamics', 4, 'Engineering', 3], ['Sentry Drone Interfacing', 4, 'Drones', 5]];
@@ -626,4 +626,5 @@ api.diag = { report: async () => ({ ok: true, data: 'EVE Toolkit 1.9.0\nSystem: 
   };
 })();
 contextBridge.exposeInMainWorld('api', api);
+contextBridge.exposeInMainWorld('__mock', { sdeCheck: v => { globalThis.__sdeCheck = v; } });
 

@@ -397,6 +397,16 @@ Tokens, login codes, webhook addresses and ntfy topics are removed before anythi
 
 Press **Ctrl+K**, or click **Search** in the top bar, to find any tool, page, pilot, item or wormhole. Type a word like "moon", "insurance", "Ishtar" or a J-sig such as J123450 and press Enter. The All pilots page also has a short getting-started checklist until you hide it.
 
+## Game data updates
+
+EVE Toolkit uses CCP's game data for planners, routes, the item database, the fit checker and more. A few seconds after it starts, the app checks that data and offers to download or update it if:
+
+- it hasn't been downloaded yet,
+- a new version of the app needs parts of it your copy doesn't have (for example, planets for Nearby planets), or
+- CCP has released newer game data after a patch. **Skip this update** stops the reminder until CCP releases the next one.
+
+Updating takes a few minutes and carries on in the background if you close the window. If CCP's site can't be reached, the app doesn't ask. You can also update any time from **Settings → Game data**.
+
 ## Where your data is kept
 
 Everything lives in `%APPDATA%\EVE Toolkit\`:
