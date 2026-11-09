@@ -2,7 +2,7 @@
 
 A free Windows desktop app for EVE Online pilots, corporations and alliances. Skill training, industry, planets, market and trading, routes with gate camp checks, pilot intel and threat grades, wormhole mapping, an overlay for the game client, and corp tools, all in one place.
 
-**[Download the latest version](https://github.com/mrdave80/eve-toolkit/releases/latest)** · Windows 10 or 11 · made by [Mr Frank](https://evewho.com/character/742485678)
+**[Download the latest version](https://github.com/mrdave80/eve-toolkit/releases/latest)** · **[App overview (PDF)](docs/EVE-Toolkit-App-Overview.pdf)** · Windows 10 or 11 · made by [Mr Frank](https://evewho.com/character/742485678)
 
 ![All pilots](docs/screenshots/pilots.jpg)
 

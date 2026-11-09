@@ -95,7 +95,7 @@ const SHOTS = [
   ['49-speech', `go('settings')`, `openSettingsSection('speech')`],
   ['50-route-bridges', `state.toolsTab='t-route'; go('tools')`, `document.querySelector('[name="rt-jb"]').checked=true; document.getElementById('rt-jbm').click()`, `void 0`]
 ];
-const THEMES = ['capsuleer', 'concord', 'amarr', 'caldari', 'gallente', 'minmatar', 'nullsec', 'wormhole', 'abyssal', 'industrialist', 'daylight'];
+const THEMES = ['capsuleer', 'concord', 'amarr', 'caldari', 'gallente', 'minmatar', 'nullsec', 'wormhole', 'abyssal', 'industrialist', 'daylight', 'glass-nebula', 'glass-ice', 'glass-drifter', 'glass-solar', 'glass-daylight', 'glass-gunmetal', 'glass-gunmetal-ember', 'liquid-glass', 'liquid-gunmetal', 'liquid-daylight'];
 app.whenReady().then(async () => {
   protocol.handle('https', req => new Response(svgFor(req.url), { headers: { 'content-type': 'image/svg+xml' } }));
   const win = new BrowserWindow({ width: 1440, height: 900, show: false, backgroundColor: '#0a0e13', webPreferences: { preload: path.join(__dirname, 'mock-preload.js'), contextIsolation: true, sandbox: false } });
