@@ -156,14 +156,34 @@ function install(quit) {
   if (!prepared) throw new Error('The update isn’t downloaded yet.');
   set({ phase: 'installing' });
   if (prepared.kind === 'portable') {
+    // The portable launcher keeps its own exe open until the app has fully exited, so the file can't
+    // be renamed from inside the app. A small script waits for it to be free, swaps it and restarts.
     const exe = process.env.PORTABLE_EXECUTABLE_FILE;
-    const old = exe + '.old';
-    try { fs.rmSync(old, { force: true }); } catch {}
-    try { fs.renameSync(exe, old); } catch (e) { set({ phase: 'error', error: 'Couldn’t replace the program file: ' + e.message }); throw e; }
-    try { fs.copyFileSync(prepared.file, exe); }
-    catch (e) { try { fs.renameSync(old, exe); } catch {} set({ phase: 'error', error: e.message }); throw e; }
-    app.relaunch({ execPath: exe, args: [] });
-    quit();
+    const log = path.join(app.getPath('userData'), 'logs', 'update.log');
+    const script = path.join(workDir(prepared.version), 'swap-portable.ps1');
+    fs.writeFileSync(script, [
+      "$ErrorActionPreference = 'Stop'",
+      `$exe = ${psq(exe)}; $new = ${psq(prepared.file)}; $old = $exe + '.old'; $log = ${psq(log)}`,
+      '$deadline = (Get-Date).AddSeconds(120); $done = $false',
+      'while (-not $done -and (Get-Date) -lt $deadline) {',
+      '  try {',
+      '    if (Test-Path -LiteralPath $old) { Remove-Item -LiteralPath $old -Force }',
+      '    Move-Item -LiteralPath $exe -Destination $old',
+      '    $done = $true',
+      '  } catch { Start-Sleep -Milliseconds 500 }',
+      '}',
+      'try {',
+      '  if (-not $done) { throw "The program file was still in use after two minutes." }',
+      '  try { Copy-Item -LiteralPath $new -Destination $exe -Force } catch { Move-Item -LiteralPath $old -Destination $exe -Force; throw }',
+      '  Start-Process -FilePath $exe',
+      '} catch {',
+      '  try { New-Item -ItemType Directory -Force -Path (Split-Path $log) | Out-Null; "$(Get-Date -Format s) $($_.Exception.Message)" | Out-File -FilePath $log -Append } catch {}',
+      '  if (Test-Path -LiteralPath $exe) { Start-Process -FilePath $exe }',
+      '}'
+    ].join('\r\n'));
+    const ps = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-File', script], { detached: true, stdio: 'ignore', windowsHide: true, cwd: path.dirname(script) });
+    ps.once('spawn', () => { ps.unref(); quit(); });
+    ps.once('error', e => set({ phase: 'error', error: 'Couldn’t start the installer: ' + e.message }));
     return;
   }
   const appDir = path.dirname(process.execPath);

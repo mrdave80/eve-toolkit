@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.11.1
+
+- Fixed: one-click update of the portable version failed with "resource busy or locked". The portable launcher keeps its own file open until the app has closed, so the swap now happens just after the app closes and the new version opens by itself. Updating from 1.10.0 or 1.11.0 portable still needs a manual download this one time; the folder (win-x64 zip) version updates normally.
+
 ## 1.11.0
 
 - Route planner: start typing in From or To to pick a system, NPC station or one of your structures, with how many of your items are at each. ★ saves favourites for one-click routes (⇤ uses one as the start), ⌂ lists the stations in a system, ⇅ swaps start and destination. Picking a station sets the in-game destination to the station itself.
