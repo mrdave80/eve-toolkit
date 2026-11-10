@@ -12,6 +12,30 @@ async function renderDaily(stillCurrent) {
   dailyState.timer = setInterval(() => { if (state.view !== 'daily') return clearInterval(dailyState.timer); const el = $('#dl-reset'); if (el) el.textContent = fmtDuration(Number(el.dataset.at) - Date.now(), true); }, 30000);
 }
 
+function dailyGoalList(d, p) {
+  if (!d.goals.length) return html`<div class="dim" style="padding:4px 0">Set today's goals above to tick them off for each pilot. You can still tick <b>Done</b> by hand.</div>`;
+  return html`<div style="display:grid;gap:6px;padding:2px 0">${d.goals.map(g => html`<label class="check" style="margin:0;align-items:flex-start">
+      <input type="checkbox" data-dl-goal="${p.id}" data-g="${g.id}" ${raw(p.ticked.includes(g.id) ? 'checked' : '')} ${raw(p.track ? '' : 'disabled')}>
+      <span><b style="font-weight:600">${g.name}</b>${g.tip ? html`<span class="dim" style="font-size:12px"> · ${g.tip}</span>` : ''}</span></label>`)}
+    <div class="dim" style="font-size:12px;margin-top:2px">${p.ticked.length >= d.goalsForBonus ? 'Daily bonus earned. Claim it in Opportunities in game.' : `Tick ${d.goalsForBonus - p.ticked.length} more for the 10,000 SP bonus.`}</div></div>`;
+}
+
+function openDailyGoals(d) {
+  const cur = new Set(d.goals.map(g => g.id));
+  const fresh = !cur.size;
+  const custom = d.goals.filter(g => g.custom).map(g => g.name).join(', ');
+  openModal("Today's daily goals", html`<p class="dim" style="margin-top:0">Pick the goals shown in the in-game <b>Opportunities</b> window. They're the same for every pilot until the next downtime.</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 16px">${d.catalogue.map(g => html`<label class="check" style="margin:0"><input type="checkbox" name="g" value="${g.id}" ${raw(cur.has(g.id) || (fresh && g.always) ? 'checked' : '')}> ${g.name}</label>`)}</div>
+    ${field('Other goals (new ones CCP adds), separated by commas', inputText('custom', custom, 'e.g. Hack 2 data cans'))}`, {
+    submit: 'Save', onSubmit: async () => {
+      const ids = [...document.querySelectorAll('#modal input[name="g"]:checked')].map(x => x.value);
+      const extra = String(document.querySelector('#modal [name="custom"]').value || '').split(',').map(x => x.trim()).filter(Boolean).map(x => 'custom:' + x);
+      const r = await api.daily.setGoals([...ids, ...extra]);
+      if (!r.ok) { toast(r.error, true); return true; }
+      const s = await api.daily.status(); if (s.ok) drawDaily(s.data);
+    } });
+}
+
 function drawDaily(d) {
   const c = d.cfg;
   const tracked = d.pilots.filter(p => p.track);
@@ -34,15 +58,18 @@ function drawDaily(d) {
       <div class="panel" style="padding:0">
         <div style="padding:14px 18px 6px;display:flex;align-items:center;gap:10px"><h3 style="margin:0;flex:1">Daily goals and monthly track</h3>
           <button class="btn btn-ghost" style="padding:3px 10px;font-size:12px" id="dl-all">Tick all</button><button class="btn btn-ghost" style="padding:3px 10px;font-size:12px" id="dl-none">Clear today</button></div>
-        <div class="dim" style="padding:0 18px 10px;font-size:12px">EVE doesn't share Daily Goals through ESI, so tick a pilot once you've claimed the 10,000 SP for two goals. Each tick is one step on the ${d.monthSteps}-step monthly track. ${d.daysLeft} day${d.daysLeft === 1 ? '' : 's'} left this month, counting today.</div>
+        <div class="dim" style="padding:0 18px 8px;font-size:12px">Every pilot gets the same goals each day. Any ${d.goalsForBonus} give 10,000 SP and one step on the ${d.monthSteps}-step monthly track; each goal also pays 500,000 ISK and 500 EverMarks. ${d.daysLeft} day${d.daysLeft === 1 ? '' : 's'} left this month, counting today.</div>
+        <div style="padding:0 18px 12px">${d.goals.length ? html`<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center"><span class="dim" style="font-size:12px">Today:</span>${d.goals.map(g => html`<span class="badge accent" title="${g.tip || ''}">${g.name}</span>`)}<button class="btn btn-ghost" style="padding:2px 9px;font-size:11.5px" id="dl-goals">Change</button></div>`
+          : html`<div class="notice" style="margin:0;display:flex;align-items:center;gap:10px"><span style="flex:1">EVE doesn't share Daily Goals through ESI. Open <b>Opportunities</b> in game and pick today's goals here once; then open a pilot to tick them off.</span><button class="btn btn-primary" style="padding:4px 12px" id="dl-goals">Set today's goals</button></div>`}</div>
         ${d.pilots.length ? html`<table><thead><tr><th>Pilot</th><th>Today</th><th>Monthly track</th><th class="right">Track</th></tr></thead><tbody>
-          ${d.pilots.map(p => html`<tr style="${raw(p.track ? '' : 'opacity:.5')}">
-            <td><img src="${portrait(p.id, 32)}" width="22" height="22" style="border-radius:4px;vertical-align:middle;margin-right:8px">${p.name}</td>
-            <td><label class="check" style="margin:0"><input type="checkbox" data-dl-done="${p.id}" ${raw(p.doneToday ? 'checked' : '')} ${raw(p.track ? '' : 'disabled')}> ${p.doneToday ? 'Done' : 'Not yet'}</label></td>
+          ${d.pilots.map(p => xRow('dl' + p.id, html`
+            <td style="white-space:nowrap"><img src="${portrait(p.id, 32)}" width="22" height="22" style="border-radius:4px;vertical-align:middle;margin-right:8px">${p.name}</td>
+            <td><label class="check" style="margin:0"><input type="checkbox" data-dl-done="${p.id}" ${raw(p.doneToday ? 'checked' : '')} ${raw(p.track ? '' : 'disabled')}> ${p.doneToday ? 'Done' : 'Not yet'}</label>${d.goals.length ? html`<div class="dim" style="font-size:11.5px">${p.ticked.length} of ${d.goals.length} goals</div>` : ''}</td>
             <td><div style="display:flex;align-items:center;gap:8px"><div class="bar" style="flex:1;min-width:80px;margin-top:0"><i style="width:${Math.round(p.steps / d.monthSteps * 100)}%"></i></div>
               <span class="num" style="font-size:12px">${p.steps}/${d.monthSteps}</span>
               ${p.track && p.stepsLeft > 0 && p.impossible ? html`<span class="badge red" title="Not enough days left this month">can't finish</span>` : p.track && p.atRisk ? html`<span class="badge gold" title="Few spare days left">tight</span>` : p.stepsLeft === 0 ? html`<span class="badge green">complete</span>` : ''}</div></td>
-            <td class="right"><input type="checkbox" title="Track this pilot" data-dl-track="${p.id}" ${raw(p.track ? 'checked' : '')}></td></tr>`)}
+            <td class="right"><input type="checkbox" title="Track this pilot" data-dl-track="${p.id}" ${raw(p.track ? 'checked' : '')}></td>`,
+            dailyGoalList(d, p), 4, { attrs: p.track ? '' : 'style="opacity:.5"', title: 'Click to see and tick today\'s goals' }))}
         </tbody></table>` : emptyBox('Add a pilot to start tracking.')}
       </div>
 
@@ -80,6 +107,8 @@ function drawDaily(d) {
   const reload = async () => { const r = await api.daily.status(); if (r.ok) drawDaily(r.data); };
   document.querySelectorAll('[data-dl-done]').forEach(x => x.onchange = async () => { await api.daily.done(Number(x.dataset.dlDone), x.checked); reload(); });
   document.querySelectorAll('[data-dl-track]').forEach(x => x.onchange = async () => { await api.daily.track(Number(x.dataset.dlTrack), x.checked); reload(); });
+  $('#dl-goals').onclick = () => openDailyGoals(d);
+  document.querySelectorAll('[data-dl-goal]').forEach(x => x.onchange = async () => { const r = await api.daily.tickGoal(Number(x.dataset.dlGoal), x.dataset.g, x.checked); if (!r.ok) toast(r.error, true); reload(); });
   $('#dl-all').onclick = async () => { await api.daily.allDone(true); reload(); };
   $('#dl-none').onclick = async () => { await api.daily.allDone(false); reload(); };
   $('#dl-news').onclick = async () => { const b = $('#dl-news'); b.disabled = true; b.textContent = 'Checking…'; const r = await api.daily.news(); if (!r.ok) { toast(r.error || 'Could not read EVE news', true); b.disabled = false; b.textContent = '⟳ Check now'; return; } drawDaily(r.data); };

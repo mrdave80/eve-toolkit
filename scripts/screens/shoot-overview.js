@@ -58,7 +58,7 @@ const SHOTS = [
   ['39-about', `go('about')`],
   ['40-fats', `state.corpTab='c-fats'; corpState.directors=null; go('corp')`],
   ['41-mining', `go('char', { charId: ${R}, tab: 'mining' })`],
-  ['52-daily', `go('daily')`],
+  ['52-daily', `go('daily')`, `(async()=>{await new Promise(r=>setTimeout(r,500)); document.querySelector('tr.xrow td:nth-child(3)').click();})()`],
   ['53-farm', `state.toolsTab='t-farm'; go('tools')`],
   ['54-insure', `state.toolsTab='t-insure'; go('tools')`],
   ['55-trade', `state.toolsTab='t-trade'; go('tools')`],

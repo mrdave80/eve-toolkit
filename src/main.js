@@ -980,6 +980,8 @@ handle('daily:status', () => daily.status());
 handle('daily:done', (charId, done) => daily.setDone(charId, !!done));
 handle('daily:allDone', done => daily.setAllDone(!!done));
 handle('daily:track', (charId, on) => daily.setTrack(charId, !!on));
+handle('daily:setGoals', ids => daily.setGoals(ids));
+handle('daily:tickGoal', (charId, goalId, on) => daily.tickGoal(charId, String(goalId), !!on));
 handle('daily:save', cfg => daily.save(cfg || {}));
 handle('daily:news', async () => { await daily.fetchNews(true); return daily.status(); });
 

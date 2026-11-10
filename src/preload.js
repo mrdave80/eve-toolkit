@@ -124,7 +124,7 @@ contextBridge.exposeInMainWorld('api', {
   farm: { calc: () => call('farm:calc'), save: c => call('farm:save', c), insurance: names => call('farm:insurance', names) },
   daily: {
     status: () => call('daily:status'), done: (id, v) => call('daily:done', id, v), allDone: v => call('daily:allDone', v),
-    track: (id, v) => call('daily:track', id, v), save: c => call('daily:save', c), news: () => call('daily:news')
+    track: (id, v) => call('daily:track', id, v), setGoals: ids => call('daily:setGoals', ids), tickGoal: (id, g, v) => call('daily:tickGoal', id, g, v), save: c => call('daily:save', c), news: () => call('daily:news')
   },
   appraiseSetPrice: (typeId, price) => call('appraise:setPrice', typeId, price),
   trade: { report: o => call('trade:report', o), lp: (c, hub) => call('trade:lp', c, hub), arbitrage: (n, f, t, tax) => call('trade:arbitrage', n, f, t, tax), watchlist: () => call('trade:watchlist'), myOrders: () => call('trade:myOrders') },

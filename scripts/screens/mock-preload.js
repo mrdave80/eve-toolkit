@@ -529,7 +529,9 @@ api.diag = { report: async () => ({ ok: true, data: 'EVE Toolkit 1.9.0\nSystem: 
   const st = () => ({ ok: true, data: {
     cfg: { enabled: true, resetAlert: true, reminder: true, reminderHours: 3, monthly: true, tqUp: true, longDowntime: true, news: true, newsKinds: { login: true, sp: true, free: true, sale: false, event: true } },
     day: '2026-11-08', nextReset, monthSteps: 12, daysLeft,
-    pilots: pilots.map(([id, name, doneToday, steps], i) => ({ id, name, track: i !== 4, doneToday, steps, stepsLeft: 12 - steps, daysLeft, atRisk: i === 2, impossible: false })),
+    pilots: pilots.map(([id, name, doneToday, steps], i) => ({ id, name, track: i !== 4, doneToday, ticked: [['jumps3', 'npc25', 'salvage5'], ['jumps3', 'mine2000'], ['jumps3'], [], []][i] || [], steps, stepsLeft: 12 - steps, daysLeft, atRisk: i === 2, impossible: false })),
+    goals: [['jumps3', 'Complete 3 jumps', 'Any three stargate jumps, in any ship. On every day.'], ['npc25', 'Destroy 25 non-capsuleers', 'Rat in a belt or a combat anomaly. Small NPCs and drones count.'], ['mine2000', 'Mine 2,000 units of ore', 'A cycle or two of a Venture in any belt.'], ['salvage5', 'Salvage 5 wrecks', 'Fit a salvager and clear a few wrecks after ratting or a mission.'], ['scan5', 'Scan 5 signatures', 'Probe five signatures down to 100%. Any kind counts.']].map(([id, name, tip]) => ({ id, name, tip })),
+    catalogue: [], goalsForBonus: 2,
     newsAt: now - 12 * 60000, tq: { online: true, players: 24318, since: now - 3 * H },
     news: [
       { id: 'a', title: 'Fractured Skies Login Rewards', link: 'https://www.eveonline.com/news', pub: now - 2 * D, kinds: ['login', 'sp', 'event'], endsAt: now + 9 * D, active: true },
@@ -538,7 +540,7 @@ api.diag = { report: async () => ({ ok: true, data: 'EVE Toolkit 1.9.0\nSystem: 
       { id: 'd', title: 'Crimson Harvest Intensifies', link: 'https://www.eveonline.com/news', pub: now - 12 * D, kinds: ['login', 'event'], endsAt: now - 1 * D, active: false },
       { id: 'e', title: 'Double Training Weekend', link: 'https://www.eveonline.com/news', pub: now - 20 * D, kinds: ['sp'], endsAt: now - 16 * D, active: false }
     ] } });
-  api.daily = { status: async () => st(), done: async () => ({ ok: true, data: true }), allDone: async () => ({ ok: true, data: true }), track: async () => ({ ok: true, data: true }), save: async c => ({ ok: true, data: c }), news: async () => st() };
+  api.daily = { status: async () => st(), done: async () => ({ ok: true, data: true }), allDone: async () => ({ ok: true, data: true }), track: async () => ({ ok: true, data: true }), setGoals: async () => ({ ok: true, data: true }), tickGoal: async () => ({ ok: true, data: true }), save: async c => ({ ok: true, data: c }), news: async () => st() };
   api.appraiseSetPrice = async () => ({ ok: true, data: true });
   {
     const it = (typeId, name, sold, revenue, cost, tax, bought, spent, hold, stock) => ({ typeId, name, sold, revenue, cost, tax, profit: revenue - cost - tax, margin: (revenue - cost - tax) / revenue, avgHoldDays: hold, bought, spent, stock, trades: 3, unmatched: 0 });

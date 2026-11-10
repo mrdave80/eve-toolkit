@@ -1,5 +1,9 @@
 # Changelog
 
+## Next release
+
+- Daily goals: set today's goals once (they're the same for every pilot), then open any pilot to see each goal with a tip on doing it quickly and tick off the ones they've done. Two goals ticked marks the pilot done for the day and moves the monthly track on.
+
 ## 1.10.0
 
 - Fit checker: damage, tank and capacitor. DPS and volley, EHP and resists per layer, active and passive tank, capacitor stability with and without the prop module, speed, align, signature and targeting, for all skills at V or any of your pilots. Calculated with EVEShip.fit's open-source engine; the first check downloads its game data (about 10 MB).

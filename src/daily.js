@@ -8,6 +8,25 @@ const diag = require('./diag');
 
 const RESET_H = 11;               // daily downtime, 11:00 EVE time (UTC)
 const MONTH_STEPS = 12;           // steps on the Daily Goals monthly track
+const GOALS_FOR_BONUS = 2;        // any two goals give the daily SP bonus and a track step
+
+/* AIR Daily Goals seen in game. Every pilot gets the same set each day: four career goals plus
+   "Complete 3 jumps". ESI doesn't share them, so the user picks today's set once. */
+const GOALS = [
+  { id: 'jumps3', name: 'Complete 3 jumps', tip: 'Any three stargate jumps, in any ship. On every day.', always: true },
+  { id: 'npc25', name: 'Destroy 25 non-capsuleers', tip: 'Rat in a belt or a combat anomaly. Small NPCs and drones count.' },
+  { id: 'lp50', name: 'Earn 50 LP', tip: 'One security or distribution mission, or a faction warfare site.' },
+  { id: 'salvage5', name: 'Salvage 5 wrecks', tip: 'Fit a salvager and clear a few wrecks after ratting or a mission.' },
+  { id: 'mine2000', name: 'Mine 2,000 units of ore', tip: 'A cycle or two of a Venture in any belt.' },
+  { id: 'manufacture', name: 'Manufacture an item', tip: 'Starting any manufacturing job counts. One run of ammo is enough.' },
+  { id: 'scan5', name: 'Scan 5 signatures', tip: 'Probe five signatures down to 100%. Any kind counts.' },
+  { id: 'dmgPlayers', name: 'Damage other capsuleers (2,500 HP)', tip: 'Duel a friend or an alt, or join a roam.' },
+  { id: 'armorRep', name: 'Armor repair other capsuleers (2,500 HP)', tip: 'Rep a friend or an alt who has taken some armour damage.' },
+  { id: 'shieldBoost', name: 'Shield boost other capsuleers (2,500 HP)', tip: 'Remote shield boost a friend or an alt.' },
+  { id: 'fwCapture', name: 'Capture a contested FW complex', tip: 'Needs faction warfare enlistment.' },
+  { id: 'fwDefend', name: 'Defend a contested FW complex', tip: 'Needs faction warfare enlistment.' }
+];
+const goalById = id => GOALS.find(g => g.id === id) || (String(id).startsWith('custom:') ? { id, name: String(id).slice(7), tip: '', custom: true } : null);
 const NEWS_URL = 'https://www.eveonline.com/rss/news';
 const NEWS_EVERY = 30 * 60000;
 const UA = 'EVE-Toolkit-Desktop (in-game contact: Mr Frank)';
@@ -25,6 +44,8 @@ function state() {
   s.alerted = s.alerted || {};  // kind -> dayKey last sent
   s.news = s.news || { seen: [], items: [], at: 0 };
   s.tq = s.tq || { online: null, since: 0, checked: 0, players: 0 };
+  s.goals = s.goals || {};      // dayKey -> [goal ids]; the same set for every pilot that day
+  s.ticks = s.ticks || {};      // charId -> { dayKey: [goal ids done] }
   return s;
 }
 
@@ -50,7 +71,8 @@ function pilotRows() {
     const doneToday = done.includes(today);
     const left = MONTH_STEPS - steps; const daysLeft = daysLeftInMonth();
     const avail = daysLeft - (doneToday ? 1 : 0);   // days still open to tick, after today if today is done
-    return { id: c.id, name: c.name, track: s.track[c.id] !== false, doneToday, steps, stepsLeft: left, daysLeft,
+    const ticked = ((s.ticks[c.id] || {})[today] || []).filter(g => (s.goals[today] || []).includes(g));
+    return { id: c.id, name: c.name, track: s.track[c.id] !== false, doneToday, ticked, steps, stepsLeft: left, daysLeft,
       atRisk: left > 0 && avail < left + 2, impossible: left > avail };
   });
 }
@@ -65,6 +87,34 @@ function setDone(charId, done, day = dayKey()) {
   store.save('daily');
   return true;
 }
+/** Today's goal set (same for every pilot). ids: catalogue ids or "custom:Name". */
+function setGoals(ids) {
+  const s = state(); const today = dayKey();
+  const clean = [...new Set((Array.isArray(ids) ? ids : []).map(x => String(x).trim()).filter(Boolean))]
+    .map(x => x.startsWith('custom:') ? 'custom:' + x.slice(7).replace(/[<>]/g, '').trim().slice(0, 60) : x)
+    .filter(x => x !== 'custom:' && goalById(x)).slice(0, 8);
+  s.goals[today] = clean;
+  for (const k of Object.keys(s.goals)) if (k < dayKey(Date.now() - 7 * 86400000)) delete s.goals[k];
+  store.save('daily');
+  return true;
+}
+
+/** Tick one goal for a pilot. Two goals ticked marks the pilot done for the day. */
+function tickGoal(charId, goalId, on) {
+  const s = state(); const today = dayKey(); const id = String(Number(charId));
+  if (!(s.goals[today] || []).includes(goalId)) throw new Error('That goal is not in today\'s set.');
+  const byDay = s.ticks[id] = s.ticks[id] || {};
+  const set = new Set(byDay[today] || []);
+  if (on) set.add(goalId); else set.delete(goalId);
+  byDay[today] = [...set];
+  for (const k of Object.keys(byDay)) if (k < dayKey(Date.now() - 7 * 86400000)) delete byDay[k];
+  const was = (s.done[id] || []).includes(today);
+  if (set.size >= GOALS_FOR_BONUS && !was) setDone(id, true);
+  else if (set.size < GOALS_FOR_BONUS && was && !on) setDone(id, false);
+  else store.save('daily');
+  return true;
+}
+
 function setAllDone(done) { for (const c of store.get().characters || []) if (state().track[c.id] !== false) setDone(c.id, done); return true; }
 function setTrack(charId, on) { const s = state(); if (on) delete s.track[Number(charId)]; else s.track[Number(charId)] = false; store.save('daily'); return true; }
 
@@ -207,7 +257,9 @@ async function tick(notify) {
 
 function status() {
   const s = state();
+  const today = (s.goals[dayKey()] || []).map(goalById).filter(Boolean);
   return { cfg: cfg(), day: dayKey(), nextReset: nextReset(), monthSteps: MONTH_STEPS, daysLeft: daysLeftInMonth(), pilots: pilotRows(),
+    goals: today, catalogue: GOALS, goalsForBonus: GOALS_FOR_BONUS,
     news: newsItems(), newsAt: s.news.at || 0, tq: s.tq };
 }
 
@@ -221,4 +273,4 @@ function save(next) {
   return out;
 }
 
-module.exports = { tick, status, save, setDone, setAllDone, setTrack, fetchNews, _t: { dayKey, monthKey, nextReset, daysLeftInMonth, parseRss, classify, endDate } };
+module.exports = { tick, status, save, setDone, setAllDone, setTrack, setGoals, tickGoal, fetchNews, _t: { dayKey, monthKey, nextReset, daysLeftInMonth, parseRss, classify, endDate } };

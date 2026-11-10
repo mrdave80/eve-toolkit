@@ -280,7 +280,7 @@ It also shows active hours by time zone, the last kill, and structures lost.
 EVE doesn't share login rewards or Daily Goals through ESI, so the app can't see what's waiting to be claimed. It covers the rest:
 
 - **Reset and server alerts.** An alert when Tranquility comes back after downtime (11:00 EVE time) and Daily Goals have reset, and another if downtime runs long.
-- **Daily Goals ticks.** Tick each pilot once you've claimed the 10,000 SP for two goals. A reminder lists any pilot you haven't ticked a set number of hours before the next reset.
+- **Daily Goals.** Every pilot gets the same goals each day, so pick today's set once from the list (the in-game Opportunities window shows them). Click a pilot to see each goal with a tip on doing it quickly, and tick off the ones they've done. Two goals ticked marks the pilot done for the day; you can also tick **Done** by hand. A reminder lists any pilot you haven't ticked a set number of hours before the next reset.
 - **Monthly track.** Each tick counts as one of the 12 steps. The app warns when a pilot is running out of days to finish the month. It assumes the track runs by calendar month.
 - **EVE news.** The app reads CCP's news feed every 30 minutes and alerts on new login campaigns, skill point events, free items, events and (if you want) sales, with the end date where the article gives one.
 
