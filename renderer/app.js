@@ -368,7 +368,7 @@ async function renderSettings() {
       </div>`)}
       <button class="btn btn-primary" id="s-save" style="margin:4px 0 12px">Save settings</button>
       ${settingsFold('updates', 'Updates', `This is version ${info.ok ? info.data.version : ''}`, html`<div class="panel"><h3>Updates</h3>
-        <div class="muted" style="margin-bottom:10px">The app checks <a href="#" data-link="https://github.com/mrdave80/eve-toolkit/releases">GitHub releases</a> twice a day and shows a banner when there's a newer version.</div>
+        <div class="muted" style="margin-bottom:10px">The app checks <a href="#" data-link="https://github.com/mrdave80/eve-toolkit/releases">GitHub releases</a> twice a day and shows a banner when there's a newer version. <b>Update now</b> downloads it, checks it and restarts on the new version, keeping all your data.</div>
         <details style="margin-bottom:10px"><summary class="dim" style="cursor:pointer;font-size:12px">Use a different update feed</summary>
         <div class="field" style="margin-top:8px"><label for="s-upd">Update feed URL</label><input id="s-upd" type="text" value="${st.updateUrl || ''}" placeholder="Leave empty for GitHub releases" spellcheck="false" style="max-width:none"></div>
         <div class="dim" style="font-size:12px">A JSON file like <code>{"version":"1.9.0","url":"https://…","notes":"…"}</code>, or another GitHub releases API address.</div></details>
@@ -405,7 +405,7 @@ async function renderSettings() {
   drawPhonePanel();
   drawIngamePanel();
   drawSdePanel();
-  $('#s-updcheck').onclick = async () => { await api.setSettings({ updateUrl: $('#s-upd').value }); const r = await api.checkUpdate(); toast(!r.ok ? r.error : r.data ? `Version ${r.data.version} is available` : 'You have the latest version', !r.ok); };
+  $('#s-updcheck').onclick = async () => { await api.setSettings({ updateUrl: $('#s-upd').value }); const r = await api.checkUpdate(); if (r.ok && r.data) { showUpdateBanner(r.data); openUpdateModal(r.data, false); } else toast(!r.ok ? r.error : 'You have the latest version', !r.ok); };
   $('#s-save').onclick = async () => {
     const r = await api.setSettings({
       clientId: $('#s-client').value,
@@ -968,14 +968,65 @@ function showUpdateBanner(u) {
   if (!u || document.getElementById('upd-banner')) return;
   const b = document.createElement('div');
   b.id = 'upd-banner';
-  b.innerHTML = String(html`<span>EVE Toolkit <b>${u.version}</b> is available.${u.notes ? ' ' + u.notes : ''}</span><a href="#" data-link="${u.url}" class="btn btn-primary" style="padding:4px 12px">Download</a><button class="btn btn-ghost" style="padding:4px 10px" id="upd-x">✕</button>`);
+  b.innerHTML = String(html`<span>EVE Toolkit <b>${u.version}</b> is available. <a href="#" id="upd-notes">What’s new</a></span>
+    ${u.canInstall ? html`<button class="btn btn-primary" style="padding:4px 12px" id="upd-go">Update now</button>` : html`<a href="#" data-link="${u.url}" class="btn btn-primary" style="padding:4px 12px">Download</a>`}
+    <button class="btn btn-ghost" style="padding:4px 10px" id="upd-x" title="Hide until next start">✕</button>`);
   document.getElementById('main').prepend(b);
   b.querySelector('#upd-x').onclick = () => b.remove();
+  b.querySelector('#upd-notes').onclick = e => { e.preventDefault(); openUpdateModal(u, false); };
+  const go = b.querySelector('#upd-go'); if (go) go.onclick = () => openUpdateModal(u, true);
+}
+
+// Release notes are markdown from GitHub: show headings and bullets as plain text, never as HTML.
+function releaseNotesHtml(md) {
+  const lines = String(md || '').split('\n').map(l => l.trimEnd()).filter((l, i, a) => l || (a[i - 1] && a[i - 1].trim()));
+  if (!lines.length) return html`<div class="dim">No notes for this version.</div>`;
+  const clean = t => t.replace(/\*\*|__|`/g, '').replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
+  return html`<div style="max-height:46vh;overflow:auto;font-size:13px;line-height:1.55">${lines.map(l => /^#+\s/.test(l) ? html`<div style="font-weight:600;margin:8px 0 4px">${clean(l.replace(/^#+\s*/, ''))}</div>`
+    : /^\s*[-*]\s/.test(l) ? html`<div style="display:flex;gap:8px;margin:2px 0"><span style="color:var(--accent)">•</span><span>${clean(l.replace(/^\s*[-*]\s*/, ''))}</span></div>`
+    : html`<div style="margin:4px 0">${clean(l)}</div>`)}</div>`;
+}
+
+const updState = { st: null };
+function drawUpdateProgress() {
+  const box = document.getElementById('upd-prog'); if (!box) return;
+  const st = updState.st || {};
+  const btn = document.getElementById('upd-install');
+  const label = { downloading: `Downloading… ${st.pct || 0}%`, verifying: 'Checking the download…', ready: 'Ready. EVE Toolkit will close and open again on the new version.', installing: 'Installing…', error: st.error || 'The update failed.' }[st.phase] || '';
+  box.innerHTML = String(html`${st.phase && st.phase !== 'idle' ? html`<div class="bar ${st.phase === 'error' ? 'gold' : ''}" style="margin:12px 0 6px"><i style="width:${raw(String(st.phase === 'downloading' ? st.pct || 0 : 100))}%"></i></div>
+    <div class="${st.phase === 'error' ? 'neg' : 'muted'}" style="font-size:12.5px">${label}</div>` : ''}`);
+  if (btn) { btn.disabled = !['ready', 'error', 'idle', undefined].includes(st.phase); btn.textContent = st.phase === 'ready' ? 'Restart and update' : st.phase === 'error' ? 'Try again' : ['downloading', 'verifying'].includes(st.phase) ? 'Downloading…' : st.phase === 'installing' ? 'Restarting…' : 'Download and install'; }
+}
+api.update.onProgress(st => { updState.st = st; drawUpdateProgress(); });
+
+async function openUpdateModal(u, start) {
+  const s = await api.update.status(); updState.st = s.ok ? s.data : null;
+  const m = openModal(`EVE Toolkit ${u.version}`, html`${releaseNotesHtml(u.notes)}
+    ${u.canInstall ? html`<div class="dim" style="font-size:12px;margin-top:12px">The download is checked against the release checksum before anything changes. Your pilots, settings and data stay as they are.</div>` : html`<div class="notice" style="margin:12px 0 0">This copy can’t update itself. Download the new version and replace the old one.</div>`}
+    <div id="upd-prog"></div>`, {
+    wide: true,
+    extraButtons: String(html`<button type="button" class="btn btn-ghost" data-link="${u.url}">Release page ↗</button>`)
+  });
+  const foot = m.querySelector('.modal-foot'); const close = foot.querySelector('[data-close]'); if (close) close.textContent = 'Later';
+  if (u.canInstall) {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'btn btn-primary'; b.id = 'upd-install'; foot.appendChild(b);
+    b.onclick = async () => {
+      const st = updState.st || {};
+      if (st.phase === 'ready') { b.disabled = true; const r = await api.update.install(); if (!r.ok) toast(r.error, true); return; }
+      updState.st = { phase: 'downloading', pct: 0 }; drawUpdateProgress();
+      const r = await api.update.prepare();
+      if (!r.ok) { updState.st = { phase: 'error', error: r.error }; drawUpdateProgress(); return; }
+      updState.st = r.data; drawUpdateProgress();
+    };
+    drawUpdateProgress();
+    if (start && !(updState.st && ['downloading', 'verifying', 'ready'].includes(updState.st.phase))) b.click();
+  }
 }
 api.onUpdate(showUpdateBanner);
 
 (async function boot() {
   api.updateInfo().then(r => { if (r.ok && r.data) showUpdateBanner(r.data); });
+  api.update.justUpdated().then(r => { if (r.ok && r.data) setTimeout(() => toast(`Updated to version ${r.data}`), 1500); });
   api.info().then(r => { if (r.ok) { document.title = 'EVE Toolkit ' + r.data.version; const b = document.querySelector('.brand-name'); if (b) b.title = 'Version ' + r.data.version; } });
   const [s, c] = await Promise.all([api.getSettings(), api.listCharacters()]);
   state.settings = s.ok ? s.data : {};

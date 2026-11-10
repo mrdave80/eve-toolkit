@@ -7,6 +7,7 @@ contextBridge.exposeInMainWorld('api', {
   checkUpdate: () => call('app:checkUpdate'),
   updateInfo: () => call('app:updateInfo'),
   onUpdate: cb => ipcRenderer.on('app:update', (_e, d) => cb(d)),
+  update: { prepare: () => call('update:prepare'), install: () => call('update:install'), status: () => call('update:status'), justUpdated: () => call('update:justUpdated'), onProgress: cb => ipcRenderer.on('update:progress', (_e, d) => cb(d)) },
   getSettings: () => call('settings:get'),
   setSettings: s => call('settings:set', s),
   listCharacters: () => call('characters:list'),

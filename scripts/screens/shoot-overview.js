@@ -81,6 +81,7 @@ const SHOTS = [
   ['74-pop-whres', `closeModal()`, `openWhResCard('J123450')`],
   ['75-pop-fit', `closeModal()`, `openFitCard('[Ishtar, Sentry Ishtar]')`],
   ['76-pop-wsystem', `closeModal()`, `openSystemCard('J152701')`],
+  ['85-update', `go('dashboard'); showUpdateBanner({ version: '1.9.1', canInstall: true, url: 'https://github.com/mrdave80/eve-toolkit/releases/latest', notes: '## EVE Toolkit 1.9.1\\n- Fit checker: damage, tank and capacitor with your skills\\n- Price alerts: a watchlist with Windows and phone alerts\\n- One-click updates' })`, `openUpdateModal({ version: '1.9.1', canInstall: true, url: 'https://github.com/mrdave80/eve-toolkit/releases/latest', notes: '## EVE Toolkit 1.9.1\\n- Fit checker: damage, tank and capacitor with your skills\\n- Price alerts: a watchlist with Windows and phone alerts\\n- One-click updates' }, false).then(() => { updState.st = { phase: 'downloading', pct: 62 }; drawUpdateProgress(); })`],
   ['57-whinfo', `go('wormholes')`, `whState.sel = { type: 'sys', id: 31000101 }; drawCanvas(); drawSide()`],
   ['42-livemap', `go('liveMap')`, `mapState.sel = 30004765; mapState.heat = 'ship'; drawMap()`],
   ['43-livemap-sov', `mapState.heat = 'sov'; mapState.sel = null; drawMap()`],

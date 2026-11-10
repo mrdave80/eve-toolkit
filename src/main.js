@@ -360,6 +360,9 @@ setInterval(() => checkUndercuts().catch(() => {}), 5 * 60000);
 // ---------- Update check ----------
 
 let updateInfo = null;
+let updateRelease = null;
+const updater = require('./updater');
+updater.setListener(st => { if (win && !win.isDestroyed()) win.webContents.send('update:progress', st); });
 // Official releases: https://github.com/mrdave80/eve-toolkit/releases. A custom feed in Settings overrides it.
 const RELEASES_API = 'https://api.github.com/repos/mrdave80/eve-toolkit/releases/latest';
 const RELEASES_PAGE = 'https://github.com/mrdave80/eve-toolkit/releases/latest';
@@ -375,7 +378,8 @@ async function checkForUpdate() {
     if (!/^\d+\.\d+\.\d+/.test(version) || j.draft || j.prerelease) return updateInfo;
     if (newerVersion(version, app.getVersion())) {
       const notes = String(j.notes || j.body || '').replace(/\r/g, '').slice(0, 1500);
-      updateInfo = { version, url: j.url && !j.tag_name ? j.url : (j.html_url || RELEASES_PAGE), notes };
+      updateRelease = j;
+      updateInfo = { version, url: j.url && !j.tag_name ? j.url : (j.html_url || RELEASES_PAGE), notes, canInstall: !!updater.assetsFor(j), kind: updater.kind() };
       if (win && !win.isDestroyed()) win.webContents.send('app:update', updateInfo);
       const d = store.get();
       if (!seen(d, 'update:' + version)) notify('EVE Toolkit update available', `Version ${version} is ready to download.`, 'app');
@@ -422,6 +426,15 @@ handle('app:info', () => ({
 handle('settings:get', () => store.get().settings);
 handle('app:checkUpdate', () => checkForUpdate());
 handle('app:updateInfo', () => updateInfo);
+handle('update:prepare', async () => { if (!updateRelease) throw new Error('No update to install.'); return updater.prepare(updateRelease); });
+handle('update:status', () => updater.status());
+handle('update:install', () => {
+  const st = updater.status();
+  store.get().settings.justUpdated = st.version || null; store.save(); store.saveNow();
+  setTimeout(() => { try { updater.install(() => { quitting = true; app.quit(); }); } catch (e) { diag.warn('update', e.message); } }, 150);
+  return true;
+});
+handle('update:justUpdated', () => { const d = store.get(); const v = d.settings.justUpdated; if (!v) return null; delete d.settings.justUpdated; store.save(); return v === app.getVersion() ? v : null; });
 handle('settings:set', s => {
   const cur = store.get().settings;
   const next = { ...cur };
@@ -1149,6 +1162,7 @@ app.on('second-instance', (_e, _argv, _cwd, data) => {
 });
 
 app.whenReady().then(() => {
+  setTimeout(() => updater.cleanup(), 8000);
   diag.info('app', `start ${app.getVersion()} on ${process.platform} ${require('os').release()}`);
   store.load();
   workspace.load();
