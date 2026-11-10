@@ -3,10 +3,11 @@
 
 const TOOLS_GROUPS = [
   ['Market', [['t-market', 'Browser'], ['t-appraisal', 'Appraisal'], ['t-orders', 'My Orders'], ['t-arbitrage', 'Hub Arbitrage'], ['t-lp', 'LP Store'], ['t-trade', 'Trade Profit'], ['t-prices', 'Price Alerts'], ['t-bargain', 'Contract Bargains'], ['t-items', 'Item Database']]],
-  ['Industry', [['t-build', 'Build Calculator'], ['t-invent', 'Invention'], ['t-reprocess', 'Reprocessing'], ['t-moon', 'Moon Scan']]],
+  ['Industry', [['t-build', 'Build Calculator'], ['t-invent', 'Invention'], ['t-reprocess', 'Reprocessing'], ['t-ores', 'Ore Values'], ['t-moon', 'Moon Scan'], ['t-assets', 'Asset Finder']]],
   ['Navigation', [['t-route', 'Route Planner'], ['t-courier', 'Courier Contracts'], ['t-hunt', 'Hunting & Ratting'], ['t-jump', 'Jump Planner'], ['t-universe', 'Universe']]],
   ['Intel', [['t-pilot', 'Pilot Intel'], ['t-whres', 'Wormhole Residents'], ['t-shame', 'Wall of Shame'], ['t-intel', 'Intel Watch'], ['t-local', 'Local & D-scan'], ['t-combat', 'Combat Log']]],
   ['Fitting', [['t-fit', 'Fit Checker']]],
+  ['Client', [['t-eveset', 'Copy EVE Settings']]],
   ['Finance', [['t-networth', 'Net Worth'], ['t-income', 'Income'], ['t-pve', 'Ratting & Abyss'], ['t-farm', 'Skill Farm'], ['t-charval', 'Character Value'], ['t-insure', 'Insurance']]]
 ];
 const toolsGroupOf = tab => TOOLS_GROUPS.find(g => g[1].some(t => t[0] === tab)) || TOOLS_GROUPS[0];
@@ -30,7 +31,7 @@ const iskCell = (v, cls = '') => html`<span class="num ${cls}">${v === null || v
 
 async function renderTools(stillCurrent) {
   const tab = state.toolsTab || 't-market';
-  const needsSde = ['t-shame', 't-whres', 't-hunt', 't-courier', 't-market', 't-appraisal', 't-arbitrage', 't-build', 't-invent', 't-reprocess', 't-route', 't-jump', 't-intel', 't-local'];
+  const needsSde = ['t-shame', 't-whres', 't-hunt', 't-courier', 't-market', 't-appraisal', 't-arbitrage', 't-build', 't-invent', 't-reprocess', 't-ores', 't-assets', 't-route', 't-jump', 't-intel', 't-local'];
   if (needsSde.includes(tab)) {
     const info = await api.sde.info();
     if (!info.ok || !info.data.ready) return setContent(needSdeView('This tool'));
@@ -42,7 +43,7 @@ async function renderTools(stillCurrent) {
     't-pilot': tPilot, 't-whres': () => tWhRes(), 't-shame': () => tShame(), 't-intel': () => (typeof tIntel === 'function' ? tIntel() : null), 't-local': () => (typeof tLocal === 'function' ? tLocal() : null), 't-combat': () => (typeof tCombat === 'function' ? tCombat() : null),
     't-fit': () => tFit(),
     't-items': () => tItems(), 't-bargain': () => tBargains(), 't-charval': () => tCharValue(stillCurrent),
-    't-trade': () => tTrade(stillCurrent), 't-prices': () => tPriceWatch(), 't-moon': () => tMoon(),
+    't-trade': () => tTrade(stillCurrent), 't-assets': () => tAssetFinder(), 't-ores': () => tOres(), 't-eveset': () => tEveSettings(), 't-prices': () => tPriceWatch(), 't-moon': () => tMoon(),
     't-farm': () => tFarm(stillCurrent), 't-insure': () => tInsure(stillCurrent),
     't-pve': () => tPve(), 't-networth': () => (typeof tNetworth === 'function' ? tNetworth(stillCurrent) : null), 't-income': () => (typeof tIncome === 'function' ? tIncome(stillCurrent) : null)
   };

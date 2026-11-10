@@ -531,6 +531,34 @@ handle('comms:markRead', (charId, mailId, read) => comms.markRead(Number(charId)
 handle('comms:respond', (charId, eventId, response) => comms.respond(Number(charId), eventId, String(response)));
 handle('comms:inbox', () => comms.inbox());
 
+// ---------- Asset finder, ore values, EVE client settings ----------
+const assetfinder = require('./assetfinder');
+handle('assets:search', o => assetfinder.search(o || {}));
+handle('assets:consolidate', o => assetfinder.consolidate(o || {}));
+handle('ind:ores', o => industry.oreTable(o || {}));
+const eveprofiles = require('./eveprofiles');
+handle('eveprof:list', async () => {
+  const r = eveprofiles.list();
+  const ids = r.installs.flatMap(i => i.profiles.flatMap(p => p.chars.map(c => c.id)));
+  const names = ids.length ? await esi.safe(() => esi.resolveNames(ids)) : {};
+  const mine = new Map((store.get().characters || []).map(c => [c.id, c.name]));
+  const labels = store.get().settings.eveAccountLabels || {};
+  for (const i of r.installs) for (const p of i.profiles) {
+    for (const c of p.chars) { const n = names && !names.__error ? names[c.id] : null; c.name = mine.get(c.id) || (n && (n.name || n)) || `#${c.id}`; c.mine = mine.has(c.id); }
+    for (const u of p.users) u.label = labels[u.id] || '';
+  }
+  return { ...r, running: await eveprofiles.eveRunning() };
+});
+handle('eveprof:copy', o => eveprofiles.copy(o || {}));
+handle('eveprof:backups', () => eveprofiles.backups());
+handle('eveprof:restore', (id, force) => eveprofiles.restore(String(id), !!force));
+handle('eveprof:label', (id, label) => {
+  const s = store.get().settings; s.eveAccountLabels = s.eveAccountLabels || {};
+  const v = String(label || '').slice(0, 40).trim();
+  if (v) s.eveAccountLabels[Number(id)] = v; else delete s.eveAccountLabels[Number(id)];
+  store.save(); return true;
+});
+
 // ---------- Backup and restore ----------
 const backup = require('./backup');
 handle('backup:create', async password => {

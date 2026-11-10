@@ -654,6 +654,50 @@ api.diag = { report: async () => ({ ok: true, data: 'EVE Toolkit 1.9.0\nSystem: 
     ] } })
   };
 })();
+
+// ---- Mocks for the comms, assets, ores and EVE settings batch ----
+{ chars.forEach((c, i) => Object.assign(c, { canWrite: i < 3, canSendMail: i < 3, canSaveFits: i < 3, canRespond: i < 3 }));
+  const SC = ['esi-skills.read_skills.v1', 'esi-skills.read_skillqueue.v1', 'esi-wallet.read_character_wallet.v1', 'esi-assets.read_assets.v1', 'esi-mail.read_mail.v1', 'esi-calendar.read_calendar_events.v1', 'esi-location.read_location.v1', 'esi-industry.read_character_jobs.v1', 'esi-planets.manage_planets.v1', 'esi-killmails.read_killmails.v1', 'esi-markets.read_character_orders.v1', 'esi-universe.read_structures.v1'];
+  api.info = async () => ({ ok: true, data: { version: '1.9.0', os: 'Windows 11 Pro (10.0.26100)', electron: '38.8.6', userData: 'C:\\Users\\Capsuleer\\AppData\\Roaming\\EVE Toolkit', scopes: SC, uiScopes: ['esi-ui.write_waypoint.v1', 'esi-ui.open_window.v1'], writeScopes: ['esi-mail.send_mail.v1', 'esi-mail.organize_mail.v1', 'esi-calendar.respond_calendar_events.v1', 'esi-fittings.write_fittings.v1'], corpScopes: [] } });
+  const who = ['Richard Fitzwell', 'Mike Hunt', 'Hugh Jayness'];
+  const inbox = [['Loose Cannons Coalition', 'CTA: Sunday fleet 0900 EVE time', 0, 1, ['Mike Hunt', 'Hugh Jayness']], ['Mike Hunt', 'Moon mining schedule for next week', 0, 1, []], ['Dee Fender', 'Your structure is low on fuel: Athanor', 2, 4, []],
+    ['Hugh Jayness', 'Re: Freight run to Perimeter', 0, 10, []], ['Bill Board', 'WTB Ishtar fits', 1, 26, []], ['Deep Pockets Salvage', 'Monthly corp tax summary', 0, 30, ['Mike Hunt']], ['CONCORD', 'Your contract has been completed', 1, 77, []], ['Sal Monella', 'Recruitment: welcome aboard', 2, 120, []]]
+    .map(([f, s, w, h, also], i) => ({ mail_id: 600 + i, charId: chars[w].id, pilot: who[w], fromName: f, subject: s, is_read: h > 8, timestamp: iso(now - h * H), alsoTo: also, from: 1 }));
+  const mb0 = api.mailBody; api.mailBody = async (c, id) => { const m = inbox.find(x => x.mail_id === id); if (!m) return mb0(c, id);
+    return { ok: true, data: { ...m, recipientNames: ['Richard Fitzwell', 'Mike Hunt', 'Hugh Jayness'], body: 'All pilots,<br><br>Sunday strat-op forms at 0900 EVE time in Perimeter. Doctrine is Ishtars; logi pilots bring Guardians.<br><br>Check your fits against the doctrine in EVE Toolkit before you undock.<br><br>o7<br>Coalition command' } }; };
+  api.comms = { inbox: async () => ({ ok: true, data: { mails: inbox, unread: inbox.filter(m => !m.is_read).length, errors: [] } }), send: async (_c, m) => ({ ok: true, data: { to: String(m.to).split(',') } }), markRead: async () => ({ ok: true, data: true }), respond: async () => ({ ok: true, data: true }) };
+  api.backup = { create: async () => ({ ok: true, data: null }), pick: async () => ({ ok: true, data: null }), describe: async () => ({ ok: true, data: {} }), restore: async () => ({ ok: true, data: {} }) };
+  const AF_LOC = [
+    ['Jita IV - Moon 4 - Caldari Navy Assembly Plant', 'Jita', 0.95, 'The Forge', 0, 0, [[12005, 'Ishtar', 'Heavy Assault Cruiser', 2, 5.4e8, 20000], [2185, 'Hammerhead II', 'Combat Drone', 40, 4.4e7, 400], [44992, 'PLEX', 'Pilot Services', 500, 2.1e9, 6]]],
+    ['Perimeter - Tranquility Trading Tower', 'Perimeter', 0.95, 'The Forge', 1, 1, [[22544, 'Hulk', 'Exhumer', 1, 2.9e8, 3750], [16278, 'Ice Harvester II', 'Strip Miner', 2, 1.6e7, 50]]],
+    ['Amarr VIII (Oris) - Emperor Family Academy', 'Amarr', 1.0, 'Domain', 9, 2, [[2185, 'Hammerhead II', 'Combat Drone', 15, 1.65e7, 150], [17738, 'Machariel', 'Battleship', 1, 4.1e8, 50000]]],
+    ['Dodixie IX - Moon 20 - Federation Navy Assembly Plant', 'Dodixie', 0.87, 'Sinq Laison', 15, 3, [[2185, 'Hammerhead II', 'Combat Drone', 5, 5.5e6, 50], [34, 'Tritanium', 'Mineral', 2400000, 9.8e6, 24000]]],
+    ['T5ZI-S - Sanctuary of the Gentle Deer', 'T5ZI-S', -0.21, 'Tenal', 31, 0, [[2185, 'Hammerhead II', 'Combat Drone', 10, 1.1e7, 100], [20185, 'Charon', 'Freighter', 1, 1.42e9, 870000]]],
+    ['J152701 - Home POS', 'J152701', -1, 'C-R00012', null, 4, [[2185, 'Hammerhead II', 'Combat Drone', 20, 2.2e7, 200]]]];
+  const afGroups = (q, from) => AF_LOC.map(([location, system, security, region, jumps, pi, items], k) => {
+    const its = items.filter(i => !q || (i[1] + ' ' + i[2]).toLowerCase().includes(q.toLowerCase())).map(([typeId, name, group, qty, value, volume]) => ({ typeId, name, group, qty, value, volume }));
+    return { key: k + ':' + location, charId: chars[pi].id, pilot: chars[pi].name, location, system, security, region, jumps: from ? jumps : null, items: its, itemCount: its.length, value: its.reduce((n, i) => n + i.value, 0), volume: its.reduce((n, i) => n + i.volume, 0) };
+  }).filter(g => g.items.length);
+  api.assetFinder = {
+    search: async o => { let g = afGroups(o.q, o.from); g.sort(o.from ? (a, b) => (a.jumps ?? 999) - (b.jumps ?? 999) : (a, b) => b.value - a.value);
+      return { ok: true, data: { at: now - 22 * 60e3, errors: [], from: o.from ? 'Jita' : null, groups: g, totalGroups: g.length, matched: g.reduce((n, x) => n + x.itemCount, 0), value: g.reduce((n, x) => n + x.value, 0), volume: g.reduce((n, x) => n + x.volume, 0), pilots: [] } }; },
+    consolidate: async o => { const g = afGroups(o.q, true); const trips = g.filter(x => x.system !== 'Jita' && x.jumps !== null).sort((a, b) => a.jumps - b.jumps);
+      return { ok: true, data: { to: 'Jita', trips, unreachable: g.filter(x => x.jumps === null), here: 1, volume: trips.reduce((n, x) => n + x.volume, 0), value: trips.reduce((n, x) => n + x.value, 0), maxJumps: Math.max(...trips.map(x => x.jumps)) } }; } };
+  const ORE = [[46689, 'Dense Veldspar', 'Veldspar', 182, 196, 171], [17470, 'Azure Plagioclase', 'Plagioclase', 214, 238, 229], [46682, 'Bright Spodumain', 'Spodumain', 296, 331, 318], [17867, 'Glazed Hedbergite', 'Hedbergite', 262, 270, 289],
+    [46675, 'Iridescent Gneiss', 'Gneiss', 248, 275, 262], [17459, 'Fiery Kernite', 'Kernite', 231, 262, 244], [46687, 'Shimmering Crokite', 'Crokite', 341, 390, 372], [46679, 'Prismatic Gneiss', 'Gneiss', 251, 281, 266],
+    [17865, 'Luminous Kernite', 'Kernite', 220, 245, 241], [46677, 'Onyx Ochre', 'Dark Ochre', 288, 309, 301], [17453, 'Viscous Pyroxeres', 'Pyroxeres', 159, 176, 168], [17460, 'Concentrated Veldspar', 'Veldspar', 166, 181, 158]];
+  const MAT = [[34, 'Tritanium'], [35, 'Pyerite'], [36, 'Mexallon'], [37, 'Isogen']];
+  api.ind.ores = async o => ({ ok: true, data: { family: o.family || 'ore', yield: 0.7238, side: o.side || 'buy', hub: o.hub || 'Jita', rows: ORE.map(([typeId, name, group, raw, comp, rep]) => {
+    const best = Math.max(raw, comp, rep); const vol = /Spodumain|Crokite|Ochre/.test(group) ? 16 : /Gneiss|Hedbergite/.test(group) ? 5 : /Kernite|Plagioclase/.test(group) ? 1.2 : 0.1;
+    return { typeId, name, group, volume: vol, portion: 100, raw, compressed: comp, reprocessed: rep, best, verdict: best === rep ? 'reprocess' : best === comp ? 'compress' : 'raw', perHour: o.m3PerHour ? best * o.m3PerHour : null,
+      materials: MAT.slice(0, 2 + (typeId % 3)).map(([id, n], k) => ({ typeId: id, name: n, qty: Math.round(400 / (k + 1) * (1 + (typeId % 5) / 10)), value: Math.round(1800 / (k + 1)) })) }; }).sort((a, b) => b.best - a.best) } });
+  const prof = 'C:\\Users\\Capsuleer\\AppData\\Local\\CCP\\EVE\\c_eve_sharedcache_tq_tranquility\\settings_Default';
+  const ES = { roots: [], running: false, installs: [{ name: 'c_eve_sharedcache', server: 'Tranquility', profiles: [{ name: 'Default', dir: prof,
+    chars: chars.map((c, i) => ({ id: c.id, name: c.name, mine: true, file: `core_char_${c.id}.dat`, modified: now - [2, 30, 50, 300, 4000][i] * 60e3 * 6, size: 210000 + i * 7311 })).concat([{ id: 2119999001, name: 'Old Alt Retired', mine: false, modified: now - 210 * D, size: 98000 }]),
+    users: [{ id: 8812231, label: 'Main account', modified: now - 12 * 60e3, size: 41000 }, { id: 9120044, label: 'Alts', modified: now - 3 * D, size: 39000 }, { id: 7100562, label: '', modified: now - 90 * D, size: 36000 }] },
+    { name: 'Mining', dir: prof.replace('Default', 'Mining'), chars: [], users: [] }] }] };
+  api.eveSettings = { list: async () => ({ ok: true, data: ES }), backups: async () => ({ ok: true, data: [{ id: 'b1', at: now - 2 * D, kind: 'char', files: [1, 2, 3] }] }), copy: async o => ({ ok: true, data: { copied: o.to.length, backup: 'b2' } }), restore: async () => ({ ok: true, data: { restored: 3 } }), label: async () => ({ ok: true, data: true }) };
+}
 contextBridge.exposeInMainWorld('api', api);
 contextBridge.exposeInMainWorld('__mock', { sdeCheck: v => { globalThis.__sdeCheck = v; } });
 

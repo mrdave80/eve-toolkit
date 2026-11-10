@@ -37,7 +37,7 @@ async function tPilot() {
 
 function timeAgo(iso) {
   if (!iso) return '';
-  const m = (Date.now() - Date.parse(iso)) / 60000;
+  const m = (Date.now() - (typeof iso === 'number' ? iso : Date.parse(iso))) / 60000;
   return m < 60 ? Math.round(m) + 'm ago' : m < 2880 ? Math.round(m / 60) + 'h ago' : Math.round(m / 1440) + 'd ago';
 }
 

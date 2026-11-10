@@ -52,9 +52,15 @@ function parse(input) {
   if (text.length > MAX_BYTES * 2) throw new Error('That file is too big to be a wormhole map.');
   const at = text.indexOf(PREFIX);
   if (at >= 0) {
-    const b64 = text.slice(at + PREFIX.length).replace(/[^A-Za-z0-9+/=]/g, '');
-    try { text = zlib.gunzipSync(Buffer.from(b64, 'base64'), { maxOutputLength: MAX_BYTES }).toString('utf8'); }
-    catch { throw new Error('That map code is damaged or incomplete. Copy all of it, including the EVETK-WH1: start.'); }
+    // The code may be wrapped over lines and followed by chat text ("fly safe"), so try the
+    // pieces after the prefix one more at a time until one decodes.
+    const parts = text.slice(at + PREFIX.length).split(/\s+/).map(p => p.replace(/[^A-Za-z0-9+/=]/g, ''));
+    let got = null;
+    for (let n = 1; n <= parts.length && !got; n++) {
+      try { const t = zlib.gunzipSync(Buffer.from(parts.slice(0, n).join(''), 'base64'), { maxOutputLength: MAX_BYTES }).toString('utf8'); JSON.parse(t); got = t; } catch {}
+    }
+    if (!got) throw new Error('That map code is damaged or incomplete. Copy all of it, including the EVETK-WH1: start.');
+    text = got;
   }
   let data;
   try { data = JSON.parse(text); } catch { throw new Error('Not an EVE Toolkit wormhole map. Export one from the wormhole mapper and import that.'); }

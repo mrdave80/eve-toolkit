@@ -2,7 +2,7 @@
 
 A free Windows desktop app for EVE Online pilots, corporations and alliances. Skill training, industry, planets, market and trading, routes with gate camp checks, pilot intel and threat grades, wormhole mapping, an overlay for the game client, and corp tools, all in one place.
 
-**[Download the latest version](https://github.com/mrdave80/eve-toolkit/releases/latest)** · **[App overview (PDF)](docs/EVE-Toolkit-App-Overview.pdf)** · Windows 10 or 11 · made by [Mr Frank](https://evewho.com/character/742485678)
+**[Download the latest version](https://github.com/mrdave80/eve-toolkit/releases/latest)** · **[App overview (PDF)](docs/EVE-Toolkit-App-Overview.pdf)** · Windows 10 or 11 (Linux AppImage too) · made by [Mr Frank](https://evewho.com/character/742485678)
 
 ![All pilots](docs/screenshots/pilots.jpg)
 
@@ -17,6 +17,8 @@ A free Windows desktop app for EVE Online pilots, corporations and alliances. Sk
 | ![Contract bargains](docs/screenshots/contract-bargains.jpg) | ![Settings](docs/screenshots/settings.jpg) |
 | ![Liquid Glass theme](docs/screenshots/liquid-glass.jpg) | ![Gunmetal Glass theme](docs/screenshots/gunmetal-glass.jpg) |
 | ![Price alerts](docs/screenshots/price-alerts.jpg) | ![One-click update](docs/screenshots/update.jpg) |
+| ![Mail for all pilots](docs/screenshots/mail-all-pilots.jpg) | ![Asset finder](docs/screenshots/asset-finder.jpg) |
+| ![Ore values](docs/screenshots/ore-values.jpg) | ![Copy EVE settings](docs/screenshots/copy-eve-settings.jpg) |
 
 Screenshots use demo data with made-up pilots.
 
@@ -143,6 +145,34 @@ Corp mode works much like AllianceAuth, but runs from this app with no server to
 **Live sharing without a server:** under Discord → Share & Backup, choose a shared OneDrive, Dropbox or Google Drive folder. Every officer's app merges everyone's changes, deletions included, each minute. Members can be linked to their main on the Members page.
 
 **Without a server**, corp records (ops, timers, fleets, SRP, applications, audits) live on the PC running the app. Officers share them with **Discord → Share & Backup → Export / Import**. Imports merge records, and the newest change wins. Background alerts and role sync run only while the app is open.
+
+## Mail and calendar (sidebar → Mail)
+
+Every pilot's EVE mail in one inbox, newest first, with a filter by pilot or unread and a search. Mail sent to several of your pilots shows once. Open a message to read it, then **Reply**, **Reply to all** or **Forward**. **New mail** writes from any pilot to pilots, corporations or alliances by name. In each pilot's Calendar tab you can **Accept**, answer **Maybe** or **Decline** invites. Sending, marking read and calendar answers need the opt-in Sending permissions (see In-game control and sending); without them you can still read everything and use **Open in game instead**.
+
+## Asset finder (Tools → Industry → Asset Finder)
+
+Search every pilot's hangars at once by item, group, station or system, and filter by pilot or value. Type a system in **Jumps from** to sort by distance; each place shows the pilot, system, security, region, m³ and value, and opens to list what's there. **Gather plan** lists everything that would have to move to bring the matches to one system, nearest first, with the volume and a hint at which ship can carry it. Places with no gate route (wormhole space) are listed separately. Player structures need the pilot to have docking access, otherwise their system shows as unknown.
+
+## Ore values (Tools → Industry → Ore Values)
+
+Which ore, moon ore, ice or gas earns most per cubic metre mined, at any hub, selling to buy or sell orders. Each row compares selling it raw, compressed (per m³ of raw ore) and reprocessed at the yield set in the Reprocessing tool, and marks the best. Add your mining rate in m³ per hour to see ISK per hour. Open a row for what one batch reprocesses into.
+
+## Copy EVE settings (Tools → Client → Copy EVE Settings)
+
+Copy one pilot's window layout, overview and chat setup to your other pilots, or one account's hotkeys, audio and graphics to your other accounts. The app finds EVE's settings profiles on this PC (including the Steam/Proton folder on Linux) and lists each pilot and account with when EVE last saved it. Accounts have no names in EVE's files, so you can label them. Every file that gets replaced is backed up first and **Undo this copy** puts it back. Close EVE before copying, or the client writes its own settings over the copy when it exits; the app warns you if it sees EVE running.
+
+## Quiet hours and per-pilot alerts (Settings → Notifications and behaviour)
+
+Set quiet hours (they can run past midnight) when no Windows, phone or spoken alerts go out, with exceptions for being attacked, intel near your pilots and structure attacks. Untick a pilot to silence their skill, industry, PI, market and other pilot alerts.
+
+## Under-attack alert (Tools → Intel → Intel Watch)
+
+Reads your combat logs and alerts the moment another player starts shooting one of your pilots (or anything, NPCs included, if you choose). It flashes the overlay red, beeps, can speak the alert, and sends a phone alert. One alert per pilot every 90 seconds.
+
+## Backup and restore (Settings → Backup and restore)
+
+Save everything (pilots, settings, maps, price alerts, trade records) to one file locked with a password you choose (AES-256). Restoring it on another PC brings your pilots back without logging in again. The current data is kept aside before a restore, just in case.
 
 ## Alerts and updates
 
@@ -355,13 +385,15 @@ Contracts are flagged when the route leaves highsec, the collateral is high comp
 
 Forward chosen alert types to your phone through **ntfy**, a free push-notification app, or a **Discord webhook** to a private channel. The types are skill queue, industry, PI, market, intel, structures, ops, wormholes, corp and app updates. You can choose to send only while the app isn't the active window. **Send a test** checks the setup.
 
-## In-game control (Settings → In-game control)
+## In-game control and sending (Settings → In-game control and sending)
 
 This is opt-in. Once on, it gives you:
 - **Send route to EVE**: sets every waypoint, stopping before any wormhole or Thera hop.
 - **Set destination only.**
 - **Open in game** for courier contracts, and **Show info in game** for pilots.
 - **Open mail in game** on the About page, pre-filled to Mr Frank with your version details.
+
+**Sending** is a separate opt-in. It lets the app send mail you write, mark mail read or unread, answer calendar invites and **Save to game** a fit from the fit checker into the pilot's in-game fittings. It needs `esi-mail.send_mail.v1`, `esi-mail.organize_mail.v1`, `esi-calendar.respond_calendar_events.v1` and `esi-fittings.write_fittings.v1` ticked on your app registration, then a re-authorise. The other way round, saved in-game fittings, Wall of Shame losses and kills have a **Check fit** button that opens them in the fit checker.
 
 To set it up, add the scopes `esi-ui.write_waypoint.v1` and `esi-ui.open_window.v1` to your app on developers.eveonline.com, turn the option on, then re-authorise your pilots. The pilot needs to be logged in to EVE. If logins fail with "invalid scope", the app registration is missing the two scopes.
 
@@ -466,11 +498,12 @@ Everything lives in `%APPDATA%\EVE Toolkit\`:
 - `sde\`: the downloaded game data.
 - `logs\`: the error log used by Copy diagnostics.
 
-To back up or move to another PC, copy the whole folder while the app is closed. Refresh tokens only decrypt for the same Windows user, so on a new PC you'll need to log each pilot in again.
+To move to another PC, use Settings → Backup and restore, which keeps your pilots logged in. Copying the folder by hand also works, but refresh tokens only decrypt for the same Windows user, so on a new PC you'd need to log each pilot in again.
 
 ## Privacy and security
 
-- Read-only by default. The app can't move ISK or items. Setting waypoints and opening windows in game are opt-in and need extra scopes you grant per pilot.
+- Read-only by default. The app can't move ISK or items. Setting waypoints, opening windows in game, sending mail, answering invites and saving fits are opt-in and need extra scopes you grant per pilot.
+- About & support → **Privacy and permissions** lists what each permission is for and every outside service the app talks to.
 - Refresh tokens are encrypted with Windows DPAPI and stored in `%APPDATA%\EVE Toolkit\companion-data.json`.
 - The app talks to CCP (`login.eveonline.com`, `esi.evetech.net`, `images.evetech.net`), zKillboard and EVE-Scout for public data, and ntfy.sh or Discord only if you turn on phone alerts or Discord posts.
 
@@ -482,6 +515,7 @@ Needs Node.js 20 or later.
 npm install
 npm start            # run in development
 npm run dist:win     # build the portable .exe and the zip into dist/
+npm run dist:linux   # build the Linux AppImage
 ```
 
 ---

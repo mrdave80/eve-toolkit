@@ -1,7 +1,7 @@
 /* Find anything: Ctrl+K or the search button. Tools, pilots, items and wormhole systems. */
 const SEARCH_EXTRA = {
   't-market': 'price order book jita hub', 't-appraisal': 'value evepraisal janice paste cargo fit', 't-orders': 'undercut outbid my orders', 't-arbitrage': 'hauling hub profit',
-  't-lp': 'loyalty points isk per lp', 't-trade': 'tycoon profit trading fifo margin', 't-prices': 'price alert watchlist notify cheap buy sell plex injector', 't-bargain': 'contracts cheap deals snipe', 't-items': 'item info stats eve ref database ship module',
+  't-lp': 'loyalty points isk per lp', 't-trade': 'tycoon profit trading fifo margin', 't-prices': 'price alert watchlist notify cheap buy sell plex injector', 't-assets': 'find item where is my stuff hangar consolidate gather move haul', 't-ores': 'mining ore ice gas isk per m3 compress compression which ore', 't-eveset': 'copy settings overview layout window hotkeys core_char core_user dat profile', 't-bargain': 'contracts cheap deals snipe', 't-items': 'item info stats eve ref database ship module',
   't-build': 'manufacturing industry fuzzwork cost', 't-invent': 'invention t2 decryptor', 't-reprocess': 'refine ore minerals compress', 't-moon': 'moon survey probe scan r64 athanor tatara',
   't-route': 'route gate camp gank dotlan safe autopilot', 't-courier': 'courier hauling contracts', 't-hunt': 'hunting ratting safe pvp targets', 't-jump': 'jump capital fatigue range jf',
   't-universe': 'sov incursion thera turnur faction warfare', 't-pilot': 'pilot intel zkill evewho threat grade', 't-whres': 'wormhole residents eviction who lives j-space', 't-shame': 'wall of shame fails bad fits oof',

@@ -224,4 +224,48 @@ async function reprocess(items, o) {
   return { yieldOre, yieldScrap, rows, minerals, totalBuy: minerals.reduce((n, m) => n + m.buy, 0), totalSell: minerals.reduce((n, m) => n + m.sell, 0) };
 }
 
-module.exports = { STRUCTURES, DECRYPTORS, costIndices, calculate, invention, reprocess, reprocessYield, matQty, meFactor };
+// ---------- Ore, ice and gas: what is a cubic metre worth? ----------
+
+function oreFamily(t) {
+  if (t.group === 'Harvestable Cloud') return 'gas';
+  if (t.categoryId !== 25 && !/^Asteroid$/i.test(t.category)) return null;
+  if (/Moon Asteroids/i.test(t.group)) return 'moon';
+  if (/Ice/i.test(t.group)) return 'ice';
+  return 'ore';
+}
+
+/** For each ore of a family: ISK per m³ mined, sold raw, compressed, or reprocessed at your yield. */
+async function oreTable(o = {}) {
+  const fam = o.family || 'ore';
+  const all = sde.typesWhere(t => t.published && t.marketGroupId && oreFamily(t) === fam);
+  const byName = new Map(all.map(t => [t.name.toLowerCase(), t]));
+  let extra = null; // compressed gas lives in its own group, so look it up across all types once
+  const compressedOf = t => {
+    const k = 'compressed ' + t.name.toLowerCase();
+    if (byName.has(k)) return byName.get(k);
+    if (!extra) extra = new Map(sde.typesWhere(x => x.published && /^compressed /i.test(x.name)).map(x => [x.name.toLowerCase(), x]));
+    return extra.get(k) || null;
+  };
+  const base = all.filter(t => !/^(Batch )?Compressed /i.test(t.name) && t.volume > 0);
+  const y = fam === 'ore' || fam === 'moon' || fam === 'ice' ? reprocessYield(o) : null;
+  const rows = base.map(t => ({ t, c: compressedOf(t), mats: y ? (sde.reprocess(t.id) || []) : [] }));
+  const ids = new Set();
+  for (const r of rows) { ids.add(r.t.id); if (r.c) ids.add(r.c.id); for (const [m] of r.mats) ids.add(m); }
+  const prices = await market.prices([...ids], o.hub || 'Jita');
+  const side = o.side === 'sell' ? 'sell' : 'buy';
+  const p = id => { const x = prices[id]; return x ? (x[side] ?? x.avg ?? 0) || 0 : 0; };
+  const out = rows.map(({ t, c, mats }) => {
+    const raw = p(t.id) / t.volume;
+    const comp = c ? p(c.id) / t.volume : null; // compression is one unit for one unit, so per raw m³
+    const portion = t.portionSize || 1;
+    const rep = mats.length ? mats.reduce((n, [m, q]) => n + p(m) * q * y, 0) / (portion * t.volume) : null;
+    const best = Math.max(raw, comp || 0, rep || 0);
+    return { typeId: t.id, name: t.name, group: t.group, volume: t.volume, portion, compressedId: c ? c.id : null, compressedVolume: c ? c.volume : null,
+      raw, compressed: comp, reprocessed: rep, best, verdict: best === 0 ? null : best === rep ? 'reprocess' : best === comp ? 'compress' : 'raw',
+      perHour: o.m3PerHour ? best * Number(o.m3PerHour) : null,
+      materials: mats.map(([m, q]) => ({ typeId: m, name: (sde.type(m) || {}).name, qty: Math.floor(q * y), value: p(m) * Math.floor(q * y) })) };
+  }).sort((a, b) => b.best - a.best);
+  return { family: fam, yield: y, side, hub: o.hub || 'Jita', rows: out };
+}
+
+module.exports = { oreTable, oreFamily, STRUCTURES, DECRYPTORS, costIndices, calculate, invention, reprocess, reprocessYield, matQty, meFactor };

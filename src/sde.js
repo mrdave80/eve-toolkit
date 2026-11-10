@@ -371,6 +371,8 @@ function system(id) {
 const systemIdByName = name => need().nameToSystem.get(String(name).trim().toLowerCase()) || null;
 const gates = id => need().gates[id] || [];
 const allSystems = () => need().systems;
+/** Every type id whose summary passes fn(type). */
+const typesWhere = fn => Object.keys(need().types).map(id => type(id)).filter(t => t && fn(t));
 const ready = () => !!db;
 
 /** Wormhole types from group 988 with destination class, lifetime and mass limits. */
@@ -392,6 +394,6 @@ function wormholeTypes() {
 module.exports = {
   load, update, importZip, info, ready, check, setListener: fn => { onStatus = fn; },
   type, typeIdByName, attrs, fullAttrs, hasFull, usedIn, groupName, planetsIn, hasPlanets, requirements, allRequirements, skillMeta, search, skillsByGroup,
-  blueprintFor, blueprint, inventedFrom, wormholeTypes, reprocess, system, systemIdByName, gates, allSystems,
+  blueprintFor, blueprint, inventedFrom, wormholeTypes, reprocess, system, systemIdByName, gates, allSystems, typesWhere,
   _buildFromZip: buildFromZip, _install: install
 };

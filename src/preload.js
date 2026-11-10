@@ -107,7 +107,7 @@ contextBridge.exposeInMainWorld('api', {
     skills: () => call('plan:skills')
   },
   ind: {
-    calc: o => call('ind:calc', o), invent: o => call('ind:invent', o), reprocess: (t, o) => call('ind:reprocess', t, o),
+    calc: o => call('ind:calc', o), invent: o => call('ind:invent', o), reprocess: (t, o) => call('ind:reprocess', t, o), ores: o => call('ind:ores', o),
     structures: () => call('ind:structures'), pilotSkills: id => call('ind:pilotSkills', id)
   },
   appraise: (text, hub) => call('appraise', text, hub),
@@ -115,6 +115,8 @@ contextBridge.exposeInMainWorld('api', {
   items: { search: q => call('items:search', q), info: id => call('items:info', id) },
   systemCard: q => call('sys:card', q),
   backup: { create: pw => call('backup:create', pw), pick: () => call('backup:pick'), describe: pw => call('backup:describe', pw), restore: pw => call('backup:restore', pw) },
+  assetFinder: { search: o => call('assets:search', o), consolidate: o => call('assets:consolidate', o) },
+  eveSettings: { list: () => call('eveprof:list'), copy: o => call('eveprof:copy', o), backups: () => call('eveprof:backups'), restore: (id, force) => call('eveprof:restore', id, force), label: (id, l) => call('eveprof:label', id, l) },
   priceWatch: { list: () => call('pw:list'), add: p => call('pw:add', p), update: (id, p) => call('pw:update', id, p), remove: id => call('pw:remove', id), check: () => call('pw:check'), onUpdate: cb => ipcRenderer.on('pw:update', (_e, d) => cb(d)) },
   charValue: () => call('charvalue'),
   bargains: { scan: o => call('bargains:scan', o) },
