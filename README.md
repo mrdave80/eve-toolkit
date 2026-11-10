@@ -272,8 +272,10 @@ Paste a fit in EFT format (the in-game "Copy to clipboard" or Pyfa's EFT export)
 - The slot layout with every module, charge, drone and cargo item, and what it all costs at Jita.
 - CPU, powergrid and calibration used against what the ship has with all skills at V, and the same for each of your pilots with their real skills. Too many modules for the slots or hardpoints is flagged.
 - Which pilots can fly it, and how long the rest need to train.
-- The hull's own stats before modules and skills: HP, resists, speed, align time, cargo, drone bay, signature, lock range and capacitor.
-- **Open in Pyfa** copies the fit so Pyfa can import it from the clipboard. Fitted EHP, DPS and capacitor stability are left to Pyfa on purpose.
+- **Damage, tank and capacitor** with everything fitted: DPS (split into weapons and drones), volley, EHP and resists for each layer, active and passive tank, capacitor stability or how long it lasts (with and without the prop module), speed, align time, signature and targeting. Pick all skills at V or any of your pilots to see the fit with their real skills.
+- **Open in Pyfa** copies the fit so Pyfa can import it from the clipboard, for deeper theorycrafting.
+
+The stats come from [EVEShip.fit](https://eveship.fit)'s open-source dogma engine, the same one their website uses. The first check downloads its copy of the game data (about 10 MB, from the npm registry, checked against its published checksum). It looks for newer data every few days.
 
 Fitting uses CPU Management, Power Grid Management, Weapon Upgrades, Advanced Weapon Upgrades, Energy Grid Upgrades, Electronics Upgrades and Shield Upgrades, plus co-processors and similar modules. Ship bonuses that cut fitting costs aren't counted, so a fit can show as slightly over when it actually fits. Doctrine fits on the Corporation → Doctrines page have a **Check** button that opens them here.
 
@@ -492,5 +494,5 @@ EVE Toolkit is free software: you can redistribute it and/or modify it under the
 
 In short: you can use, copy, change and share the app, but if you share a changed version you have to share its source under the same licence.
 
-The licence covers this project's own code. The bundled wormhole statics list (`src/data/wh-statics.json`) comes from the Pathfinder project under the MIT licence, kept in `src/data/wh-statics.LICENSE.txt`. EVE Online game data, artwork and names belong to CCP hf. and aren't covered by this licence; the app downloads game data from CCP at runtime.
+The licence covers this project's own code. The bundled wormhole statics list (`src/data/wh-statics.json`) comes from the Pathfinder project under the MIT licence, kept in `src/data/wh-statics.LICENSE.txt`. Fit stats use [EVEShip.fit's dogma engine](https://github.com/EVEShipFit/dogma-engine) (`@eveshipfit/dogma-engine`, MIT licence, its licence ships with it) and its game data package `@eveshipfit/sde`. EVE Online game data, artwork and names belong to CCP hf. and aren't covered by this licence; the app downloads game data from CCP at runtime.
 

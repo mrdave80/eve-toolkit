@@ -110,7 +110,7 @@ contextBridge.exposeInMainWorld('api', {
     structures: () => call('ind:structures'), pilotSkills: id => call('ind:pilotSkills', id)
   },
   appraise: (text, hub) => call('appraise', text, hub),
-  fit: { check: text => call('fit:check', text) },
+  fit: { check: text => call('fit:check', text), engineStatus: () => call('fit:engineStatus'), engineUpdate: () => call('fit:engineUpdate'), onEngine: cb => ipcRenderer.on('fit:engine', (_e, d) => cb(d)) },
   items: { search: q => call('items:search', q), info: id => call('items:info', id) },
   systemCard: q => call('sys:card', q),
   priceWatch: { list: () => call('pw:list'), add: p => call('pw:add', p), update: (id, p) => call('pw:update', id, p), remove: id => call('pw:remove', id), check: () => call('pw:check'), onUpdate: cb => ipcRenderer.on('pw:update', (_e, d) => cb(d)) },

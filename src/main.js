@@ -873,6 +873,10 @@ handle('items:info', id => items.info(Number(id)));
 handle('charvalue', () => charvalue.value());
 handle('bargains:scan', o => bargains.scan(o || {}));
 handle('pi:nearby', o => planets.nearby(o || {}));
+const fitengine = require('./fitengine');
+fitengine.setListener(st => { if (win && !win.isDestroyed()) win.webContents.send('fit:engine', st); });
+handle('fit:engineStatus', () => fitengine.status());
+handle('fit:engineUpdate', () => fitengine.ensureData({ force: true }));
 handle('fit:check', text => fitcheck.check(String(text || ''), { audits: workspace.get().audits }));
 handle('moon:value', (text, o) => moonscan.value(String(text || ''), o || {}));
 // Keep the trade ledger growing past ESI's 30 days even when the page isn't opened.

@@ -1,11 +1,12 @@
 'use strict';
 /* Fit checker: slots, fitting resources with each pilot's skills, who can fly it, cost and hull stats.
-   Deliberately not a full stats engine: fitted EHP, DPS and capacitor belong in Pyfa. */
+   Damage, tank and capacitor come from EVEShip.fit's dogma engine (see fitengine.js). */
 const sde = require('./sde');
 const market = require('./market');
 const store = require('./store');
 const skillplan = require('./skillplan');
 const doctrines = require('./doctrines');
+const fitengine = require('./fitengine');
 
 const A = {
   cpu: 50, power: 30, cpuOut: 48, powerOut: 11, calCost: 1153, calOut: 1132, hi: 14, med: 13, low: 12, rig: 1137, sub: 1367,
@@ -158,10 +159,14 @@ async function check(text, o = {}) {
   const total = counted.reduce((n, x) => n + price(x.id) * x.qty, 0);
   // fitting per pilot, plus all skills at V
   const pilots = [];
+  const engine = { allV: null, pilots: {}, error: null };
+  try { engine.allV = await fitengine.stats(fit, null); }
+  catch (e) { engine.error = e.message || String(e); }
   for (const p of reqCheck.pilots) {
     let levels = null;
     if (!p.fromAudit) { try { levels = (await skillplan.charState(p.id)).levels; } catch { levels = null; } }
     pilots.push({ ...p, fitting: levels ? fitting(fit, levels) : null });
+    if (levels && engine.allV) { try { engine.pilots[p.id] = await fitengine.stats(fit, Object.fromEntries(levels)); } catch {} }
   }
   const allV = fitting(fit, null);
   return {
@@ -169,7 +174,7 @@ async function check(text, o = {}) {
     slots: Object.fromEntries(Object.entries(fit.slots).map(([k, list]) => [k, list.map(m => (m.empty ? { empty: true } : { id: m.id, name: m.name, offline: m.offline, chargeId: m.chargeId, charge: m.charge, price: price(m.id) }))])),
     drones: fit.drones.map(m => ({ id: m.id, name: m.name, qty: m.qty })), cargo: fit.cargo.map(m => ({ id: m.id, name: m.name, qty: m.qty })),
     slotCheck: slotCheck(fit), allV, pilots, requirements: reqCheck.requirements.length, hull: hullStats(fit), hasFull: sde.hasFull(),
-    cost: { hull, total, fittings: total - hull }
+    cost: { hull, total, fittings: total - hull }, engine
   };
 }
 

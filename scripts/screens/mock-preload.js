@@ -577,7 +577,12 @@ api.diag = { report: async () => ({ ok: true, data: 'EVE Toolkit 1.9.0\nSystem: 
         { id: 2119000004, name: 'Wayne Kerr', canFly: true, minutes: 0, fitting: fitRes(370.1, 412.5, 1061, 1124) },
         { id: 2119000005, name: 'Jack Mehoff', canFly: false, minutes: 64 * 1440, missing: [{ name: 'Gallente Cruiser', level: 5 }], fitting: fitRes(389.6, 357.5, 1104, 1036) }],
       hull: { hp: { shield: 2150, armor: 1950, hull: 2250 }, resists: { shield: [0, 0.2, 0.4, 0.5], armor: [0.5, 0.35, 0.25, 0.1], hull: [0.33, 0.33, 0.33, 0.33] }, ehp: 9470, velocity: 210, align: 8.1, cargo: 420, droneBay: 375, bandwidth: 125, sig: 155, lockRange: 60000, scanRes: 250, maxLocked: 7, cap: 1750, capRecharge: 494 },
-      cost: { hull: 268e6, total: 312e6, fittings: 44e6 } } }) };
+      cost: { hull: 268e6, total: 312e6, fittings: 44e6 },
+      engine: (() => { const mk = (k) => ({ dps: 507.1 * k, dpsReload: 507.1 * k, droneDps: 507.1 * k, weaponDps: 0, volley: 2028 * k, ehp: 48183 * (0.8 + 0.2 * k), layers: { shield: 36045 * (0.8 + 0.2 * k), armor: 4986, hull: 7152 }, hp: { shield: 10911 * (0.8 + 0.2 * k), armor: 2000, hull: 2875 },
+        resists: { shield: [0.563, 0.764, 0.911, 0.705], armor: [0.575, 0.724, 0.862, 0.235], hull: [0.598, 0.598, 0.598, 0.598] }, rep: { shield: 0, armor: 0, hull: 0, passive: 110 },
+        cap: { amount: 1312.5, recharge: 198.8, stable: false, stableAt: 0, lastsSeconds: 860, delta: -0.19 }, speed: 1546, align: 8.2, sig: 743, lockRange: 75000, scanRes: 367, maxTargets: 7,
+        propOff: { speed: 175, sig: 233, cap: { amount: 1050, recharge: 265, stable: true, stableAt: 83, lastsSeconds: null } }, cpu: { used: 407, out: 425 }, pg: { used: 382, out: 925 }, violations: [] });
+        return { allV: mk(1), pilots: { 2119000001: mk(1), 2119000004: mk(0.86) }, error: null }; })() } }) };
     api.pi.nearby = async o => {
       const types = o.types || ['Barren', 'Temperate'];
       const sys = [['1DQ1-A', 0, -0.4, { Barren: 2, Gas: 3, Ice: 1, Lava: 1, Storm: 1 }], ['8QT-H4', 1, -0.4, { Barren: 3, Temperate: 1, Gas: 2, Oceanic: 1 }], ['T5ZI-S', 2, -0.2, { Temperate: 2, Barren: 1, Plasma: 1, Gas: 4 }],

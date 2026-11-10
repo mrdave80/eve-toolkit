@@ -52,6 +52,7 @@
     "resedit": "3.1.0"
   },
   "dependencies": {
+    "@eveshipfit/dogma-engine": "14.1.0",
     "yauzl": "^3.4.0"
   },
   "homepage": "https://github.com/mrdave80/eve-toolkit",
