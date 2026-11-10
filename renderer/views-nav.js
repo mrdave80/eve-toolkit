@@ -13,12 +13,85 @@ async function fillFromPilots(inputId) {
   document.querySelectorAll('[data-pick-sys]').forEach(b => b.onclick = () => { $(inputId).value = b.dataset.pickSys; closeModal(); });
 }
 
+
+// ---------- Places: search systems, stations and structures, favourites ----------
+const PLACE_ICON = { system: '✦', station: '⌂', structure: '◈' };
+const placeItems = it => it ? (it.stacks !== undefined ? `${fmtNum(it.stacks)} item${it.stacks === 1 ? '' : 's'}${it.places ? ` in ${it.places} place${it.places === 1 ? '' : 's'}` : ''}${it.value ? ' · ' + fmtCompact(it.value) : ''}` : '') : '';
+
+/** Autocomplete for a route field. onPick(place) gets { kind, id, systemId, name, system }. */
+function attachPlaceSearch(input, onPick) {
+  const wrap = document.createElement('div'); wrap.className = 'srch-wrap'; wrap.style.flex = '1';
+  input.parentNode.insertBefore(wrap, input); wrap.appendChild(input);
+  const list = document.createElement('div'); list.className = 'srch-list place-list'; list.hidden = true; wrap.appendChild(list);
+  let timer, items = [], idx = -1, seq = 0;
+  const show = () => {
+    list.innerHTML = items.map((it, i) => `<div class="srch-item ${i === idx ? 'on' : ''}" data-i="${i}" style="align-items:flex-start">
+      <span style="width:16px;text-align:center;color:var(--${it.fav ? 'gold' : 'accent'})">${it.fav ? '★' : PLACE_ICON[it.kind] || '•'}</span>
+      <span style="flex:1;min-width:0"><span>${esc(it.name)}</span><span class="dim" style="display:block;font-size:11px">${it.kind === 'system' ? esc(it.region || '') : esc(it.system || '')} ${it.security !== undefined && it.security !== null ? (Math.round(it.security * 10) / 10).toFixed(1) : ''}</span></span>
+      ${it.items ? `<span class="badge accent" style="white-space:nowrap" title="Your items here">${esc(placeItems(it.items))}</span>` : ''}</div>`).join('') || '<div class="srch-item dim">No matches</div>';
+    list.hidden = false;
+    list.querySelectorAll('[data-i]').forEach(el => el.onmousedown = e => { e.preventDefault(); pick(items[+el.dataset.i]); });
+  };
+  const pick = it => { if (!it) return; list.hidden = true; input.value = it.name; onPick(it); };
+  const load = async () => {
+    const my = ++seq; const r = await api.places.search(input.value.trim());
+    if (my !== seq) return;
+    if (!r.ok) { list.innerHTML = `<div class="srch-item neg">${esc(r.error)}</div>`; list.hidden = false; return; }
+    items = r.data; idx = items.length ? 0 : -1; if (items.length || input.value.trim().length >= 2) show(); else list.hidden = true;
+  };
+  input.addEventListener('input', () => { onPick(null); clearTimeout(timer); timer = setTimeout(load, 160); });
+  input.addEventListener('focus', () => { if (!input.value.trim()) load(); });
+  input.addEventListener('keydown', e => {
+    if (list.hidden) return;
+    if (e.key === 'ArrowDown') { idx = Math.min(items.length - 1, idx + 1); show(); e.preventDefault(); }
+    else if (e.key === 'ArrowUp') { idx = Math.max(0, idx - 1); show(); e.preventDefault(); }
+    else if (e.key === 'Enter') { pick(items[idx]); e.preventDefault(); }
+    else if (e.key === 'Escape') list.hidden = true;
+  });
+  input.addEventListener('blur', () => setTimeout(() => { list.hidden = true; }, 150));
+}
+
+/** Pick a station in a system, with your items at each. */
+async function openStationPicker(systemName, onPick) {
+  if (!systemName) return toast('Type a system first.', true);
+  openModal(`Stations in ${systemName}`, html`<div id="sp-body">${loadingView('Loading stations…')}</div>`);
+  const r = await api.places.stations(systemName);
+  const body = document.getElementById('sp-body');
+  if (!body) return;
+  if (!r.ok) { body.innerHTML = String(errorView(r)); return; }
+  const d = r.data;
+  body.innerHTML = String(html`${d.places.length ? html`<div style="display:grid;gap:6px">${d.places.map((p, i) => html`<button type="button" class="btn btn-ghost" style="display:flex;gap:10px;align-items:center;text-align:left;width:100%" data-sp="${i}">
+      <span style="color:var(--accent)">${PLACE_ICON[p.kind]}</span><span style="flex:1">${p.name}</span>${p.items ? html`<span class="badge accent">${placeItems(p.items)}</span>` : html`<span class="dim" style="font-size:12px">no items</span>`}</button>`)}</div>` : emptyBox('No stations in this system.')}`);
+  body.querySelectorAll('[data-sp]').forEach(b => b.onclick = () => { const p = d.places[+b.dataset.sp]; closeModal(); onPick({ ...p, system: d.system, security: d.security }); });
+}
+
+async function drawRouteFavs() {
+  const box = $('#rt-favs'); if (!box) return;
+  const r = await api.places.favs(); const list = r.ok ? r.data : [];
+  box.innerHTML = String(list.length ? html`<div class="dim" style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;margin-bottom:4px">Favourites</div><div style="display:flex;flex-wrap:wrap;gap:5px">${list.map(f => html`<span class="badge" style="display:inline-flex;gap:6px;align-items:center;cursor:pointer;padding:3px 8px" title="${f.name}${f.items ? ' · ' + placeItems(f.items) : ''}">
+      <span data-fav-to="${f.kind}:${f.id}">★ ${f.label || f.name.split(' - ')[0]}${f.kind !== 'system' ? html` <span class="dim">${f.kind === 'station' ? '⌂' : '◈'}</span>` : ''}</span>
+      <span class="dim" data-fav-from="${f.kind}:${f.id}" title="Use as start">⇤</span><span class="dim" data-fav-del="${f.kind}:${f.id}" title="Remove">✕</span></span>`)}</div>` : html`<div class="dim" style="font-size:12px">Pick a system or station and press ☆ to save it as a favourite.</div>`);
+  const find = k => list.find(f => `${f.kind}:${f.id}` === k);
+  box.querySelectorAll('[data-fav-to]').forEach(el => el.onclick = () => { const f = find(el.dataset.favTo); setRoutePlace('to', f); });
+  box.querySelectorAll('[data-fav-from]').forEach(el => el.onclick = () => { const f = find(el.dataset.favFrom); setRoutePlace('from', f); });
+  box.querySelectorAll('[data-fav-del]').forEach(el => el.onclick = async () => { const [k, id] = el.dataset.favDel.split(':'); await api.places.removeFav(k, Number(id)); drawRouteFavs(); });
+}
+
+function setRoutePlace(which, p) {
+  navState[which + 'Place'] = p || null;
+  const inp = $('#rt-' + which); if (inp && p) inp.value = p.name;
+  const hint = $('#rt-' + which + '-hint');
+  if (hint) hint.innerHTML = String(p && p.kind !== 'system' ? html`<span class="dim" style="font-size:11.5px">${p.kind === 'station' ? 'Station' : 'Structure'} in <b>${p.system}</b>${p.items ? ' · your items: ' + placeItems(p.items) : ''}</span>` : p && p.items ? html`<span class="dim" style="font-size:11.5px">Your items here: ${placeItems(p.items)}</span>` : '');
+}
+const routeSystemOf = (which, typed) => { const p = navState[which + 'Place']; return p && p.name === typed ? (p.system || p.name) : typed; };
+
 async function tRoute() {
   const n = navState;
   { const jb = await api.bridges.list(); navState.jbCount = jb.ok ? jb.data.length : 0; }
   setContent(html`<div class="ind-layout"><div class="panel ind-form"><h3>Route</h3>
-      ${field('From', html`<div style="display:flex;gap:6px"><input type="text" id="rt-from" value="${n.from}" placeholder="e.g. Jita"><button class="btn btn-ghost" id="rt-me" title="Use a pilot's location">⌖</button></div>`)}
-      ${field('To', html`<input type="text" id="rt-to" value="${n.to}" placeholder="e.g. Amarr">`)}
+      <div id="rt-favs" style="margin-bottom:10px"></div>
+      ${field('From', html`<div style="display:flex;gap:6px"><input type="text" id="rt-from" value="${n.from}" placeholder="System or station, e.g. Jita" autocomplete="off"><button class="btn btn-ghost" id="rt-me" title="Use a pilot's location">⌖</button><button class="btn btn-ghost" id="rt-fav-from" title="Save as a favourite">☆</button></div><div id="rt-from-hint"></div>`)}
+      ${field('To', html`<div style="display:flex;gap:6px"><input type="text" id="rt-to" value="${n.to}" placeholder="System or station, e.g. Amarr" autocomplete="off"><button class="btn btn-ghost" id="rt-st" title="Pick a station in this system">⌂</button><button class="btn btn-ghost" id="rt-fav-to" title="Save as a favourite">☆</button><button class="btn btn-ghost" id="rt-swap" title="Swap start and destination">⇅</button></div><div id="rt-to-hint"></div>`)}
       ${field('Preference', html`<select id="rt-pref">${[['shortest', 'Shortest'], ['safer', 'Safer (prefer high-sec)'], ['less', 'Less secure (avoid high-sec)']].map(([k, l]) => html`<option value="${k}" ${raw(n.pref === k ? 'selected' : '')}>${l}</option>`)}</select>`)}
       ${field('Avoid systems', html`<textarea id="rt-avoid" rows="3" class="mono-area" style="width:100%" placeholder="One per line, e.g. Uedama, Niarja">${n.avoid}</textarea>`)}
       ${checkbox('rt-wh', 'Use wormholes from my maps (not critical-mass ones)', n.wormholes)}
@@ -30,10 +103,25 @@ async function tRoute() {
     <div id="rt-out">${emptyBox('Plan a route across stargates, your mapped wormhole chain and public Thera/Turnur connections.')}</div></div>`);
   $('#rt-me').onclick = () => fillFromPilots('#rt-from');
   $('#rt-jbm').onclick = () => manageBridges();
+  api.places.prepare();
+  attachPlaceSearch($('#rt-from'), p => setRoutePlace('from', p));
+  attachPlaceSearch($('#rt-to'), p => setRoutePlace('to', p));
+  setRoutePlace('from', n.fromPlace && n.fromPlace.name === n.from ? n.fromPlace : null);
+  setRoutePlace('to', n.toPlace && n.toPlace.name === n.to ? n.toPlace : null);
+  drawRouteFavs();
+  $('#rt-st').onclick = () => openStationPicker(routeSystemOf('to', $('#rt-to').value.trim()), p => setRoutePlace('to', p));
+  $('#rt-swap').onclick = () => { const a = $('#rt-from').value, b = $('#rt-to').value, pa = navState.fromPlace, pb = navState.toPlace; $('#rt-from').value = b; $('#rt-to').value = a; setRoutePlace('from', pb); setRoutePlace('to', pa); };
+  const saveFav = async which => {
+    const typed = $('#rt-' + which).value.trim(); let p = navState[which + 'Place'];
+    if (!p || p.name !== typed) { const id = typed ? await api.nav.systemId(typed) : null; if (!id || !id.ok || !id.data) return toast('Pick a system or station from the list first.', true); p = { kind: 'system', id: id.data, systemId: id.data, name: typed }; }
+    const r = await api.places.addFav(p); toast(r.ok ? `★ ${p.name} saved` : r.error, !r.ok); drawRouteFavs();
+  };
+  $('#rt-fav-from').onclick = () => saveFav('from');
+  $('#rt-fav-to').onclick = () => saveFav('to');
   $('#rt-go').onclick = async () => {
     Object.assign(n, { from: $('#rt-from').value.trim(), to: $('#rt-to').value.trim(), pref: $('#rt-pref').value, avoid: $('#rt-avoid').value, wormholes: document.querySelector('[name="rt-wh"]').checked, thera: document.querySelector('[name="rt-thera"]').checked, bridges: document.querySelector('[name="rt-jb"]').checked, safety: document.querySelector('[name="rt-safe"]').checked, hours: Number($('#rt-hours').value) });
     const out = $('#rt-out'); out.innerHTML = String(loadingView('Routing…'));
-    const r = await api.nav.route(n.from, n.to, { pref: n.pref, avoid: n.avoid.split(/[\n,]/).map(x => x.trim()).filter(Boolean), wormholes: n.wormholes, thera: n.thera, bridges: n.bridges });
+    const r = await api.nav.route(routeSystemOf('from', n.from), routeSystemOf('to', n.to), { pref: n.pref, avoid: n.avoid.split(/[\n,]/).map(x => x.trim()).filter(Boolean), wormholes: n.wormholes, thera: n.thera, bridges: n.bridges });
     if (!r.ok) { out.innerHTML = String(errorView(r)); return; }
     const d = r.data;
     const danger = d.path.filter(p => p.kills >= 5);
@@ -48,8 +136,10 @@ async function tRoute() {
           return p.kills ? xRow('rk' + p.id, cells, '', 7, { cls: p.kills >= 5 ? 'hot' : '', attrs: `data-rt-row="${p.id}"`, title: 'Click to see what died here', load: () => routeSystemKills(p) }) : html`<tr data-rt-row="${p.id}">${cells}</tr>`; })}</tbody></table></div>
       <div class="toolbar" style="margin-top:10px"><button class="btn btn-primary" id="rt-send">⌁ Send route to EVE</button><button class="btn btn-ghost" id="rt-dest">Set destination only</button><button class="btn btn-ghost" id="rt-copy">Copy system list</button></div>`);
     xOpenLazy();
-    $('#rt-send').onclick = () => sendWaypoints(d.path);
-    $('#rt-dest').onclick = () => setDestination(d.to.id);
+    const toSt = navState.toPlace && navState.toPlace.name === n.to && navState.toPlace.kind !== 'system' ? navState.toPlace : null;
+    const pathOut = toSt ? [...d.path.slice(0, -1), { ...d.path[d.path.length - 1], id: toSt.id }] : d.path;
+    $('#rt-send').onclick = () => sendWaypoints(pathOut);
+    $('#rt-dest').onclick = () => setDestination(toSt ? toSt.id : d.to.id);
     $('#rt-copy').onclick = () => api.copy(d.path.map(p => p.name).join('\n')).then(() => toast('Copied'));
     navState.lastRoute = d;
     api.overlay.setRoute({ path: d.path, from: d.from.name, to: d.to.name });

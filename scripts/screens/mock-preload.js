@@ -745,6 +745,19 @@ api.diag = { report: async () => ({ ok: true, data: 'EVE Toolkit 1.9.0\nSystem: 
     { order_id: 3, charId: 2119000002, charName: 'Mike Hunt', type_id: 34, typeName: 'Tritanium', is_buy_order: true, price: 4.02, volume_remain: 4.2e6, volume_total: 5e6, escrow: 1.7e7, locationName: 'Jita IV - Moon 4', check: { beaten: true, best: 4.05, by: 0.03 } },
     { order_id: 4, charId: 2119000002, charName: 'Mike Hunt', type_id: 44992, typeName: 'PLEX', is_buy_order: false, price: 4.21e6, volume_remain: 120, volume_total: 500, locationName: 'Jita IV - Moon 4', check: { beaten: true, best: 4.188e6, by: 22000 } }] }); }
 }
+
+// ---- Route planner places ----
+{ const FAV = [{ kind: 'station', id: 60003760, systemId: 30000142, name: 'Jita IV - Moon 4 - Caldari Navy Assembly Plant', label: 'Jita 4-4', system: 'Jita', security: 0.95, items: { stacks: 214, units: 9e5, value: 8.4e9, pilots: ['Richard Fitzwell'] } },
+    { kind: 'system', id: 30004759, systemId: 30004759, name: '1DQ1-A', system: '1DQ1-A', security: -0.38 }, { kind: 'structure', id: 1035466617946, systemId: 30000144, name: 'Perimeter - Tranquility Trading Tower', label: 'TTT', system: 'Perimeter', security: 0.95, items: { stacks: 37, value: 1.1e9 } },
+    { kind: 'station', id: 60008494, systemId: 30002187, name: 'Amarr VIII (Oris) - Emperor Family Academy', label: 'Amarr', system: 'Amarr', security: 1, items: { stacks: 12, value: 4.1e8 } }];
+  const SR = [{ kind: 'system', id: 30000142, systemId: 30000142, name: 'Jita', region: 'The Forge', security: 0.95, items: { stacks: 251, places: 2, value: 9.5e9 } },
+    { kind: 'station', id: 60003760, systemId: 30000142, name: 'Jita IV - Moon 4 - Caldari Navy Assembly Plant', system: 'Jita', security: 0.95, fav: true, items: { stacks: 214, value: 8.4e9 } },
+    { kind: 'station', id: 60003469, systemId: 30000142, name: 'Jita IV - Caldari Business Tribunal Information Center', system: 'Jita', security: 0.95, items: { stacks: 37, value: 1.1e9 } },
+    { kind: 'station', id: 60000361, systemId: 30000142, name: 'Jita IV - Moon 10 - Caldari Constructions Production Plant', system: 'Jita', security: 0.95, items: null },
+    { kind: 'station', id: 60003055, systemId: 30000142, name: 'Jita V - Moon 1 - Caldari Navy Logistic Support', system: 'Jita', security: 0.95, items: null }];
+  api.places = { search: async q => ({ ok: true, data: q ? SR : FAV.map(f => ({ ...f, fav: true })) }), favs: async () => ({ ok: true, data: FAV }), addFav: async () => ({ ok: true, data: FAV }), removeFav: async () => ({ ok: true, data: FAV }), prepare: async () => ({ ok: true }),
+    stations: async () => ({ ok: true, data: { system: 'Jita', security: 0.95, places: SR.filter(x => x.kind === 'station') } }) };
+}
 contextBridge.exposeInMainWorld('api', api);
 contextBridge.exposeInMainWorld('__mock', { sdeCheck: v => { globalThis.__sdeCheck = v; } });
 

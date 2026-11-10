@@ -227,6 +227,8 @@ When a new version is out, a banner shows at the top of the app. **Update now** 
 
 ## Route safety (Tools → Navigation → Route Planner)
 
+Type in **From** or **To** and pick from the list: systems, NPC stations and your own structures, each showing how many of your items are there. Press ☆ to save a place as a favourite; favourites sit above the form, click one to route there or ⇤ to start from it. ⌂ lists every station in a system with your items at each, and ⇅ swaps start and destination. When the destination is a station, **Send route to EVE** and **Set destination only** point the autopilot at the station itself. Station names are read once from ESI after a game data update.
+
 Each route is checked against recent zKillboard kills. The check flags:
 - **Gate camps**: 2 or more kills at the same gate, with a badge when it's a gate you'll jump through.
 - **Undock camps.**

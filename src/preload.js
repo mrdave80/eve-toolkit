@@ -133,6 +133,7 @@ contextBridge.exposeInMainWorld('api', {
   },
   appraiseSetPrice: (typeId, price) => call('appraise:setPrice', typeId, price),
   trade: { report: o => call('trade:report', o), lp: (c, hub) => call('trade:lp', c, hub), arbitrage: (n, f, t, tax) => call('trade:arbitrage', n, f, t, tax), watchlist: () => call('trade:watchlist'), myOrders: () => call('trade:myOrders') },
+  places: { search: q => call('places:search', q), stations: s => call('places:stations', s), favs: () => call('places:favs'), addFav: p => call('places:addFav', p), removeFav: (k, id) => call('places:removeFav', k, id), prepare: () => call('places:prepare') },
   nav: {
     systemId: n => call('nav:systemId', n), route: (a, b, o) => call('nav:route', a, b, o), routeCheck: (p, o) => call('nav:routeCheck', p, o), jump: (a, b, o) => call('nav:jump', a, b, o),
     range: (n, ly) => call('nav:range', n, ly), universe: () => call('nav:universe'), ships: () => call('nav:ships'), pilotLocations: () => call('nav:pilotLocations')

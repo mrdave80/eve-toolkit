@@ -586,3 +586,7 @@ html[data-streamer] .char-item .nm, html[data-streamer] .char-item img, html[dat
 html[data-streamer] [data-pilot], html[data-streamer] [data-private], html[data-streamer] img[src*="/characters/"], html[data-streamer] #crumb.pilot,
 html[data-streamer] .mail-row .from, html[data-streamer] .mail-view { filter: blur(7px); }
 #streamer-btn.on { color: var(--gold); border-color: var(--gold); }
+
+/* Route planner place search: wider than the input so station names fit */
+.srch-list.place-list { min-width: 520px; max-width: 640px; max-height: 420px; }
+.srch-list.place-list .srch-item { display: flex; gap: 10px; align-items: flex-start; white-space: normal; }

@@ -771,6 +771,13 @@ handle('trade:myOrders', () => tradetools.myOrders());
 // ================= Navigation =================
 
 handle('nav:systemId', name => sde.systemIdByName(name));
+const places = require('./places');
+handle('places:search', q => places.search(q));
+handle('places:stations', sys => places.stationsIn(sys));
+handle('places:favs', () => places.listFavs());
+handle('places:addFav', p => places.addFav(p || {}));
+handle('places:removeFav', (kind, id) => places.removeFav(String(kind), id));
+handle('places:prepare', () => places.prepare());
 handle('nav:route', (a, b, o) => nav.route(a, b, o));
 handle('couriers:find', o => couriers.find(o || {}));
 handle('map:region', (id, o) => livemap.region(id, o || {}));

@@ -10,7 +10,7 @@ const { app } = require('electron');
 const store = require('./store');
 
 const FORMAT = 'evetk-backup-1';
-const SKIP = new Set(['nameCache', 'contractItems', 'seenEvents', 'skillGroups', 'locSystems']);   // caches that rebuild themselves
+const SKIP = new Set(['nameCache', 'contractItems', 'seenEvents', 'skillGroups', 'locSystems', 'stationNames']);   // caches that rebuild themselves
 const KDF = { N: 1 << 15, r: 8, p: 1, maxmem: 128 * 1024 * 1024 };
 
 const key = (password, salt) => crypto.scryptSync(String(password), salt, 32, KDF);
