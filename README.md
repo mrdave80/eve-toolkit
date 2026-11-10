@@ -21,6 +21,7 @@ A free Windows desktop app for EVE Online pilots, corporations and alliances. Sk
 | ![Ore values](docs/screenshots/ore-values.jpg) | ![Copy EVE settings](docs/screenshots/copy-eve-settings.jpg) |
 | ![What to build](docs/screenshots/what-to-build.jpg) | ![Agent finder](docs/screenshots/agent-finder.jpg) |
 | ![D-scan roles and warnings](docs/screenshots/dscan.jpg) | ![PI watchdog](docs/screenshots/pi-watchdog.jpg) |
+| ![Route planner places and favourites](docs/screenshots/route-places.jpg) | ![Daily goals](docs/screenshots/daily-rewards.jpg) |
 
 Screenshots use demo data with made-up pilots.
 

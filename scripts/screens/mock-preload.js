@@ -84,7 +84,7 @@ const contracts = [
 ];
 const MOCK_SETTINGS = { onboardingDone: true, clientId: '3f1c0a9e2b7d4c51a8e6f0b2d9c4e7a1', callbackPort: 51515, notifications: true, minimizeToTray: true, refreshMinutes: 15, theme: process.env.MOCK_THEME || 'capsuleer' };
 const api = {
-  info: async () => ({ ok: true, data: { version: '1.10.0', os: 'Windows 11 Pro (10.0.26100)', electron: '38.8.6', userData: 'C:\\Users\\Capsuleer\\AppData\\Roaming\\EVE Toolkit', scopes: [] } }),
+  info: async () => ({ ok: true, data: { version: '1.11.0', os: 'Windows 11 Pro (10.0.26100)', electron: '38.8.6', userData: 'C:\\Users\\Capsuleer\\AppData\\Roaming\\EVE Toolkit', scopes: [] } }),
   getSettings: async () => ({ ok: true, data: { ...MOCK_SETTINGS } }),
   setSettings: async p => { Object.assign(MOCK_SETTINGS, p, p.themeAuto ? { themeAuto: { ...(MOCK_SETTINGS.themeAuto || {}), ...p.themeAuto } } : {}); return { ok: true, data: { ...MOCK_SETTINGS } }; },
   listCharacters: async () => ({ ok: true, data: chars }),
@@ -290,7 +290,7 @@ let fleetLive = { id: null, fcId: 2119000001, fcName: 'Richard Fitzwell', name: 
 api.fleet = { status: async () => ({ ok: true, data: fleetLive }), check: async () => ({ ok: true, data: {} }), start: async () => ({ ok: true }), stop: async () => ({ ok: true }), onUpdate: () => {} };
 api.discord = { set: async p => ({ ok: true, data: p }), test: async () => ({ ok: true, data: {} }), guild: async () => ({ ok: true, data: { name: 'x', roles: [] } }), link: async () => ({ ok: true, data: {} }), sync: async () => ({ ok: true, data: {} }) };
 api.exportAudit = async () => ({ ok: true });
-api.info = async () => ({ ok: true, data: { version: '1.10.0', os: 'Windows 11 Pro (10.0.26100)', electron: '38.8.6', userData: 'C:\\Users\\Capsuleer\\AppData\\Roaming\\EVE Toolkit', scopes: [], corpScopes: [] } });
+api.info = async () => ({ ok: true, data: { version: '1.11.0', os: 'Windows 11 Pro (10.0.26100)', electron: '38.8.6', userData: 'C:\\Users\\Capsuleer\\AppData\\Roaming\\EVE Toolkit', scopes: [], corpScopes: [] } });
 
 // ---------- PI + skill info mock ----------
 const tierPrice = [6, 450, 9000, 75000, 1300000];
@@ -660,7 +660,7 @@ api.diag = { report: async () => ({ ok: true, data: 'EVE Toolkit 1.9.0\nSystem: 
 // ---- Mocks for the comms, assets, ores and EVE settings batch ----
 { chars.forEach((c, i) => Object.assign(c, { canWrite: i < 3, canSendMail: i < 3, canSaveFits: i < 3, canRespond: i < 3 }));
   const SC = ['esi-skills.read_skills.v1', 'esi-skills.read_skillqueue.v1', 'esi-wallet.read_character_wallet.v1', 'esi-assets.read_assets.v1', 'esi-mail.read_mail.v1', 'esi-calendar.read_calendar_events.v1', 'esi-location.read_location.v1', 'esi-industry.read_character_jobs.v1', 'esi-planets.manage_planets.v1', 'esi-killmails.read_killmails.v1', 'esi-markets.read_character_orders.v1', 'esi-universe.read_structures.v1'];
-  api.info = async () => ({ ok: true, data: { version: '1.10.0', os: 'Windows 11 Pro (10.0.26100)', electron: '38.8.6', userData: 'C:\\Users\\Capsuleer\\AppData\\Roaming\\EVE Toolkit', scopes: SC, uiScopes: ['esi-ui.write_waypoint.v1', 'esi-ui.open_window.v1'], writeScopes: ['esi-mail.send_mail.v1', 'esi-mail.organize_mail.v1', 'esi-calendar.respond_calendar_events.v1', 'esi-fittings.write_fittings.v1'], corpScopes: [] } });
+  api.info = async () => ({ ok: true, data: { version: '1.11.0', os: 'Windows 11 Pro (10.0.26100)', electron: '38.8.6', userData: 'C:\\Users\\Capsuleer\\AppData\\Roaming\\EVE Toolkit', scopes: SC, uiScopes: ['esi-ui.write_waypoint.v1', 'esi-ui.open_window.v1'], writeScopes: ['esi-mail.send_mail.v1', 'esi-mail.organize_mail.v1', 'esi-calendar.respond_calendar_events.v1', 'esi-fittings.write_fittings.v1'], corpScopes: [] } });
   const who = ['Richard Fitzwell', 'Mike Hunt', 'Hugh Jayness'];
   const inbox = [['Loose Cannons Coalition', 'CTA: Sunday fleet 0900 EVE time', 0, 1, ['Mike Hunt', 'Hugh Jayness']], ['Mike Hunt', 'Moon mining schedule for next week', 0, 1, []], ['Dee Fender', 'Your structure is low on fuel: Athanor', 2, 4, []],
     ['Hugh Jayness', 'Re: Freight run to Perimeter', 0, 10, []], ['Bill Board', 'WTB Ishtar fits', 1, 26, []], ['Deep Pockets Salvage', 'Monthly corp tax summary', 0, 30, ['Mike Hunt']], ['CONCORD', 'Your contract has been completed', 1, 77, []], ['Sal Monella', 'Recruitment: welcome aboard', 2, 120, []]]

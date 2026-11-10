@@ -1,6 +1,6 @@
 # Changelog
 
-## Next release
+## 1.11.0
 
 - Route planner: start typing in From or To to pick a system, NPC station or one of your structures, with how many of your items are at each. ★ saves favourites for one-click routes (⇤ uses one as the start), ⌂ lists the stations in a system, ⇅ swaps start and destination. Picking a station sets the in-game destination to the station itself.
 - D-scan: ships sorted by role (combat, tackle and ewar, logistics, capitals, haulers), and a "Worth knowing" list of dangerous hulls and objects in priority order: supercapitals, black ops, recons, interdictors and HICs, cynos, bubbles, probes, mobile tractor units and depots.
