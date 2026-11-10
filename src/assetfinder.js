@@ -87,4 +87,4 @@ async function consolidate(o = {}) {
     volume: trips.reduce((n, g) => n + g.volume, 0), value: trips.reduce((n, g) => n + g.value, 0), maxJumps: trips.reduce((n, g) => Math.max(n, g.jumps), 0) };
 }
 
-module.exports = { search, consolidate, _distances: distances };
+module.exports = { search, consolidate, load, _distances: distances };

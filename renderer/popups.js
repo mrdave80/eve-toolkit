@@ -104,6 +104,22 @@ async function openItemCard(typeId) {
 
 // ---------- System card ----------
 
+/** 7 × 24 heatmap of kills by day and EVE hour, with the quietest and busiest hours. */
+function activityHeat(a) {
+  if (!a || !a.activity) return html`<div class="dim" style="font-size:12px">No kills on zKillboard for this system.</div>`;
+  const g = a.activity, max = Math.max(1, ...g.flat());
+  if (!g.flat().some(Boolean)) return html`<div class="dim" style="font-size:12px">No kills on zKillboard for this system.</div>`;
+  const hours = Array.from({ length: 24 }, (_, h) => g.reduce((n, row) => n + row[h], 0));
+  const peak = hours.indexOf(Math.max(...hours));
+  const quiet = (() => { let best = 0, bestSum = Infinity; for (let h = 0; h < 24; h++) { const s = hours[h] + hours[(h + 1) % 24] + hours[(h + 2) % 24]; if (s < bestSum) { bestSum = s; best = h; } } return best; })();
+  const local = h => new Date(Date.UTC(2000, 0, 1, h)).toLocaleTimeString([], { hour: 'numeric' });
+  const cell = v => v ? `color-mix(in srgb, var(--red) ${Math.round(15 + 85 * v / max)}%, transparent)` : 'var(--bg-2)';
+  return html`<div style="display:grid;grid-template-columns:30px repeat(24,1fr);gap:2px;font-size:10px">
+      ${g.map((row, d) => html`<span class="dim" style="align-self:center">${a.days[d]}</span>${row.map((v, h) => html`<span title="${a.days[d]} ${String(h).padStart(2, '0')}:00 EVE: ${v} kills" style="height:12px;border-radius:2px;background:${raw(cell(v))}"></span>`)}`)}
+      <span></span>${Array.from({ length: 24 }, (_, h) => html`<span class="dim" style="text-align:center">${h % 6 === 0 ? String(h).padStart(2, '0') : ''}</span>`)}</div>
+    <div class="muted" style="font-size:12px;margin-top:6px">Busiest around <b>${String(peak).padStart(2, '0')}:00 EVE</b> (${local(peak)} your time). Quietest from <b>${String(quiet).padStart(2, '0')}:00 EVE</b> (${local(quiet)} your time) for three hours. From kills recorded on zKillboard.</div>`;
+}
+
 async function openSystemCard(q) {
   popShell('System', 'pop-sys', { loading: 'Loading system…' });
   const r = await api.systemCard(q);
@@ -123,9 +139,11 @@ async function openSystemCard(q) {
       <div><h3 class="mh">Planets</h3>${planets.length ? html`<div style="display:flex;flex-wrap:wrap;gap:6px">${planets.map(([t, n]) => html`<span class="badge">${t} ×${n}</span>`)}</div>` : html`<div class="dim">${s.planets === null ? 'Needs a game data refresh.' : 'No planets.'}</div>`}</div>
       <div><h3 class="mh">Gates to</h3>${s.gates.length ? html`<div style="display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12.5px">${s.gates.map(g => html`<span><a href="#" data-system="${g.id}">${g.name}</a> ${secBadge(g.security)}${g.region !== s.region ? html` <span class="dim">${g.region}</span>` : ''}</span>`)}</div>` : html`<div class="dim">${s.wspace ? 'No gates. Wormhole space.' : 'No gates.'}</div>`}</div>
     </div>
+    <div id="pop-sact" style="margin-top:14px"><h3 class="mh">When it's busy</h3><div class="dim" style="font-size:12px">Loading kills by hour from zKillboard…</div></div>
     <div style="margin-top:14px;display:flex;gap:6px;flex-wrap:wrap">
       ${s.wspace ? '' : popBtn('Route here', 'id="pop-sroute"')}${s.wspace ? popBtn('Who lives here?', 'id="pop-swh"') : ''}${popBtn('Live map', 'id="pop-smap"')}${popBtn('Set destination', 'id="pop-sdest"')}
       ${popBtn('zKillboard ↗', `data-link="https://zkillboard.com/system/${s.id}/"`)}${popBtn('Dotlan ↗', `data-link="https://evemaps.dotlan.net/system/${s.name.replace(/ /g, '_')}"`)}${s.wspace ? popBtn('anoik.is ↗', `data-link="https://anoik.is/systems/${s.name}"`) : ''}</div>`);
+  api.systemActivity(s.id).then(a => { const el = box.querySelector('#pop-sact'); if (el) el.innerHTML = String(html`<h3 class="mh">When it's busy</h3>${a.ok ? activityHeat(a.data) : html`<div class="dim" style="font-size:12px">${a.error}</div>`}`); });
   const on = (sel, fn) => { const b = box.querySelector(sel); if (b) b.onclick = fn; };
   on('#pop-sroute', () => openRouteCard(navState.from || '', s.name));
   on('#pop-swh', () => openWhResCard(s.name));

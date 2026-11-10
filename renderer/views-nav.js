@@ -291,21 +291,29 @@ K-6K16    1DQ1-A</pre>
 const huntState = { from: '', jumps: 6, mode: 'hunt', zones: ['ls', 'ns'], bridges: false, result: null, deep: {} };
 function tHunt() {
   const h = huntState;
+  if (h.mode === 'camps' && !h.campsInit) { h.campsInit = true; h.zones = ['hs', 'ls', 'ns']; h.jumps = Math.max(h.jumps || 0, 8); }
   setContent(html`<div class="ind-layout"><div class="panel ind-form"><h3>Hunting &amp; ratting</h3>
-      <div class="seg" style="margin-bottom:12px">${[['hunt', 'Hunting grounds'], ['rat', 'Safe ratting']].map(([k, l]) => html`<button data-hm="${k}" class="${h.mode === k ? 'active' : ''}">${l}</button>`)}</div>
+      <div class="seg" style="margin-bottom:12px">${[['hunt', 'Hunting grounds'], ['rat', 'Safe ratting'], ['camps', 'Gate camps']].map(([k, l]) => html`<button data-hm="${k}" class="${h.mode === k ? 'active' : ''}">${l}</button>`)}</div>
       ${field('Near', html`<div style="display:flex;gap:6px"><input type="text" id="hn-from" value="${h.from}" placeholder="e.g. Tama"><button class="btn btn-ghost" id="hn-me" title="Use a pilot's location">⌖</button></div>`)}
       ${field('Within jumps', html`<input type="number" id="hn-j" value="${h.jumps}" min="1" max="15">`)}
       ${field('Space', html`<div class="pi-chips">${[['hs', 'Highsec'], ['ls', 'Lowsec'], ['ns', 'Nullsec']].map(([k, l]) => html`<label class="check" style="margin:0 12px 0 0"><input type="checkbox" data-hz="${k}" ${raw(h.zones.includes(k) ? 'checked' : '')}> ${l}</label>`)}</div>`)}
       ${checkbox('hn-jb', 'Use our jump bridges', h.bridges)}
       <button class="btn btn-primary" id="hn-go" style="width:100%">Search</button>
-      <div class="dim" style="font-size:12px;margin-top:8px">${h.mode === 'hunt' ? 'Ranks systems where NPCs are dying (ratters at work) but players aren’t, closer first. Dead ends and quiet systems rank higher.' : 'Ranks quiet systems with no player kills in the last hour and little traffic. Dead ends rank higher because hostiles can only come one way.'} Based on CCP’s hourly stats. Use <b>Check 3h</b> for a zKillboard look at the last 3 hours.</div></div>
-    <div id="hn-out">${h.result ? '' : emptyBox(h.mode === 'hunt' ? 'Find active ratters nearby.' : 'Find quiet systems to rat in.')}</div></div>`);
+      <div class="dim" style="font-size:12px;margin-top:8px">${h.mode === 'camps' ? html`Lists gate and undock camps active right now, for when you want a fight. Checks the busiest systems in range on zKillboard, so it takes a few seconds. Jump clones near trade hubs make good launch points.` : h.mode === 'hunt' ? 'Ranks systems where NPCs are dying (ratters at work) but players aren’t, closer first. Dead ends and quiet systems rank higher.' : 'Ranks quiet systems with no player kills in the last hour and little traffic. Dead ends rank higher because hostiles can only come one way.'} Based on CCP’s hourly stats. Use <b>Check 3h</b> for a zKillboard look at the last 3 hours.</div></div>
+    <div id="hn-out">${h.result ? '' : emptyBox(h.mode === 'camps' ? 'Find gate camps to fight near you or a trade hub.' : h.mode === 'hunt' ? 'Find active ratters nearby.' : 'Find quiet systems to rat in.')}</div></div>`);
+
   if (h.result && h.result.mode === h.mode) drawHunt();
   document.querySelectorAll('[data-hm]').forEach(b => b.onclick = () => { h.mode = b.dataset.hm; h.result = null; tHunt(); });
   $('#hn-me').onclick = () => fillFromPilots('#hn-from');
   $('#hn-go').onclick = async () => {
     Object.assign(h, { from: $('#hn-from').value.trim(), jumps: Number($('#hn-j').value) || 6, zones: [...document.querySelectorAll('[data-hz]:checked')].map(x => x.dataset.hz), bridges: document.querySelector('[name="hn-jb"]').checked, deep: {} });
     if (!h.from) return toast('Enter a system.', true);
+    if (h.mode === 'camps') {
+      $('#hn-out').innerHTML = String(loadingView('Checking the busiest systems on zKillboard…'));
+      const c = await api.camps({ from: h.from, jumps: h.jumps, zones: h.zones, bridges: h.bridges });
+      if (!c.ok) { $('#hn-out').innerHTML = String(errorView(c)); return; }
+      h.result = { ...c.data, mode: 'camps' }; drawHunt(); return;
+    }
     $('#hn-out').innerHTML = String(loadingView('Reading CCP’s hourly stats…'));
     const r = await api.hunt.find({ from: h.from, jumps: h.jumps, mode: h.mode, zones: h.zones, bridges: h.bridges });
     if (!r.ok) { $('#hn-out').innerHTML = String(errorView(r)); return; }
@@ -313,8 +321,24 @@ function tHunt() {
   };
 }
 
+function drawCamps(d, box) {
+  box.innerHTML = String(html`<div class="muted" style="margin-bottom:10px">${d.rows.length} camp${d.rows.length === 1 ? '' : 's'} found · checked the ${d.checked} busiest of ${d.candidates} systems with kills in the last hour, within ${d.jumps} jumps of ${d.from}</div>
+    ${d.rows.length ? html`<div class="panel" style="padding:0"><table><thead><tr><th>Where</th><th class="right">Jumps</th><th class="right">Kills</th><th class="right">Latest</th><th>Campers</th><th></th></tr></thead><tbody>
+    ${d.rows.map((r, i) => xRow('camp' + i, html`<td><b><a href="#" data-system="${r.id}" style="color:inherit">${r.name}</a></b> ${secBadge(r.security)} <span class="muted">${r.where}</span>
+        ${r.smartbomb ? raw(' <span class="badge red">smartbombs</span>') : ''}${r.bubbles ? raw(' <span class="badge gold">bubbles</span>') : ''}<div class="dim" style="font-size:11.5px">${r.region}</div></td>
+      <td class="right num">${r.jumps}</td><td class="right num">${r.kills}</td><td class="right num ${r.latest <= 20 ? 'neg' : ''}">${r.latest} min ago</td>
+      <td style="font-size:12px">${r.groups.slice(0, 2).map(g => g.name).join(', ')}<div class="dim">${r.ships.slice(0, 3).map(s => s.name).join(', ')}</div></td>
+      <td class="nowrap" style="font-size:12px"><a href="#" data-hn-route="${r.name}">Route</a></td>`,
+      html`<div class="grid grid-2" style="gap:14px"><div><b style="font-size:12px">Ships they fly</b>${r.ships.map(s => html`<div class="skill-row" style="font-size:12.5px"><span>${icon(s.typeId, 16)}${s.name}</span><span class="num">${s.kills} kill${s.kills === 1 ? '' : 's'}</span></div>`)}</div>
+        <div><b style="font-size:12px">Recent kills</b>${r.recent.map(k => html`<div class="skill-row" style="font-size:12.5px"><span>${icon(k.victimShip, 16)}${k.victimShipName} <span class="dim">${k.where}</span></span><span class="num dim">${fmtCompact(k.value)} · ${k.attackers} attackers</span></div>`)}
+        ${r.pilots.length ? html`<div style="margin-top:6px;font-size:12px">Check the campers: ${r.pilots.map(p => html`<a href="#" data-pilot="${p.id}">${p.name}</a> `)}</div>` : ''}</div></div>`, 6))}</tbody></table></div>`
+    : emptyBox('No gate camps found in range right now. Try more jumps or check again in a few minutes.')}`);
+  box.querySelectorAll('[data-hn-route]').forEach(a => a.onclick = e => { e.preventDefault(); openRouteCard(huntState.from, a.dataset.hnRoute); });
+}
+
 function drawHunt() {
   const h = huntState, d = h.result, box = $('#hn-out'); if (!box || !d) return;
+  if (d.mode === 'camps') return drawCamps(d, box);
   box.innerHTML = String(html`<div class="muted" style="margin-bottom:10px">${d.rows.length} of ${d.checked} systems within ${d.jumps} jumps of ${d.from} · CCP stats from ${new Date(d.updated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
     ${d.rows.length ? html`<div class="panel" style="padding:0"><div class="table-wrap" style="max-height:74vh"><table><thead><tr><th>System</th><th class="right">Jumps</th><th class="right">NPC kills</th><th class="right">Ships / pods</th><th class="right">Traffic</th><th>Sov</th><th style="width:22%">Why</th><th></th></tr></thead><tbody>
       ${d.rows.slice(0, 40).map(r => html`<tr><td><b><a href="#" data-system="${r.id}" style="color:inherit">${r.name}</a></b> ${secBadge(r.security)}${r.gates === 1 ? raw(' <span class="badge">dead end</span>') : ''}<div class="dim" style="font-size:11.5px">${r.region}</div>

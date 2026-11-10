@@ -169,3 +169,138 @@ function drawEveSettings() {
     toast(`Put back ${r.data.restored} file(s).`); tEveSettings();
   });
 }
+
+// ================= Compare skills =================
+
+const cmpState = { ids: null, data: null, q: '', diff: true };
+
+async function tCompareSkills() {
+  const chars = state.characters.filter(c => !c.needsReauth);
+  if (!cmpState.ids) cmpState.ids = chars.slice(0, 10).map(c => c.id);
+  setContent(html`<div class="panel" style="margin-bottom:14px"><div style="display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center">
+      ${chars.map(c => html`<label class="check" style="margin:0"><input type="checkbox" class="cmp-pilot" value="${c.id}" ${raw(cmpState.ids.includes(c.id) ? 'checked' : '')}> ${c.name}</label>`)}</div>
+    <div style="display:flex;gap:8px;margin-top:10px;align-items:center;flex-wrap:wrap"><button class="btn btn-primary" id="cmp-go">Compare</button>
+      <input type="search" id="cmp-q" placeholder="Filter skills or groups" value="${cmpState.q}" style="max-width:260px">
+      <label class="check" style="margin:0"><input type="checkbox" id="cmp-diff" ${raw(cmpState.diff ? 'checked' : '')}> Only skills where pilots differ</label>
+      <span style="flex:1"></span><button class="btn btn-ghost" id="cmp-csv">Skills CSV</button><button class="btn btn-ghost" id="cmp-qcsv">Queues CSV</button></div>
+    <div class="dim" style="font-size:12px;margin-top:6px">Up to 10 pilots side by side.</div></div>
+    <div id="cmp-out">${cmpState.data ? cmpView() : emptyBox('Pick pilots and click Compare to see their trained skills side by side.')}</div>`);
+  const ids = () => [...document.querySelectorAll('.cmp-pilot:checked')].map(x => Number(x.value)).slice(0, 10);
+  $('#cmp-go').onclick = async () => {
+    cmpState.ids = ids(); if (!cmpState.ids.length) return toast('Pick at least one pilot.', true);
+    const out = $('#cmp-out'); out.innerHTML = String(loadingView('Loading skills…'));
+    const r = await api.skillsCompare(cmpState.ids);
+    if (!r.ok) { out.innerHTML = String(errorView(r)); return; }
+    cmpState.data = r.data; out.innerHTML = String(cmpView());
+  };
+  $('#cmp-q').oninput = e => { cmpState.q = e.target.value; if (cmpState.data) $('#cmp-out').innerHTML = String(cmpView()); };
+  $('#cmp-diff').onchange = e => { cmpState.diff = e.target.checked; if (cmpState.data) $('#cmp-out').innerHTML = String(cmpView()); };
+  $('#cmp-csv').onclick = async () => {
+    if (!cmpState.data) return toast('Click Compare first.', true);
+    const d = cmpState.data;
+    const rows = [['Group', 'Skill', ...d.pilots.map(p => p.name)], ...d.skills.map(s => [s.group, s.name, ...d.pilots.map(p => p.levels[s.id] || 0)])];
+    const r = await api.saveCsv('EVE skills ' + new Date().toISOString().slice(0, 10), rows);
+    if (r.ok && r.data) toast(`Saved ${r.data.rows - 1} skills`); else if (!r.ok) toast(r.error, true);
+  };
+  $('#cmp-qcsv').onclick = async () => {
+    const q = await api.queuesCsv(ids()); if (!q.ok) return toast(q.error, true);
+    const r = await api.saveCsv('EVE skill queues ' + new Date().toISOString().slice(0, 10), q.data);
+    if (r.ok && r.data) toast(`Saved ${r.data.rows - 1} queued levels`); else if (!r.ok) toast(r.error, true);
+  };
+}
+
+function cmpView() {
+  const d = cmpState.data, q = cmpState.q.trim().toLowerCase();
+  const errs = d.errors.length ? html`<div class="notice" style="margin-bottom:10px">Couldn't read: ${d.errors.map(e => e.pilot).join(', ')}</div>` : '';
+  const rows = d.skills.filter(s => (!q || s.name.toLowerCase().includes(q) || s.group.toLowerCase().includes(q)) && (!cmpState.diff || new Set(d.pilots.map(p => p.levels[s.id] || 0)).size > 1));
+  const box = lv => html`<span class="num" style="display:inline-block;min-width:22px;text-align:center;border-radius:4px;padding:1px 4px;background:${raw(lv === 5 ? 'color-mix(in srgb, var(--accent) 35%, transparent)' : lv ? 'color-mix(in srgb, var(--accent) ' + (lv * 6) + '%, transparent)' : 'transparent')};color:${raw(lv ? 'var(--text)' : 'var(--dim)')}">${lv || '–'}</span>`;
+  let lastGroup = '';
+  return html`${errs}<div class="panel" style="padding:0"><div class="table-wrap" style="max-height:70vh"><table><thead><tr><th>Skill</th>${d.pilots.map(p => html`<th class="right" title="${fmtNum(p.totalSp)} SP">${p.name.split(' ')[0]}</th>`)}</tr></thead><tbody>
+    <tr><td class="dim">Total SP</td>${d.pilots.map(p => html`<td class="right num dim">${fmtCompact(p.totalSp)}</td>`)}</tr>
+    ${rows.map(s => { const g = s.group !== lastGroup; lastGroup = s.group; return html`${g ? html`<tr><td colspan="${d.pilots.length + 1}" style="padding-top:12px"><b class="dim" style="font-size:11px;letter-spacing:.08em;text-transform:uppercase">${s.group}</b></td></tr>` : ''}
+      <tr><td>${s.name}</td>${d.pilots.map(p => html`<td class="right">${box(p.levels[s.id] || 0)}</td>`)}</tr>`; })}</tbody></table></div></div>
+    <div class="dim" style="font-size:12px;margin-top:6px">${rows.length} of ${d.skills.length} skills shown.</div>`;
+}
+
+// ================= Agent finder =================
+
+const agState = { from: '', jumps: 10, levels: [4], division: '', type: '', faction: '', highsec: true, locator: false, q: '', opts: null, data: null, lpItem: '', lp: null, tab: 'agents' };
+
+async function tAgents() {
+  const o = agState;
+  if (!o.opts) { const r = await api.agents.options(); if (!r.ok) return setContent(errorView(r)); o.opts = r.data; }
+  const sel = (id, list, val, none) => html`<select id="${id}"><option value="">${none}</option>${list.map(x => html`<option value="${x.id}" ${raw(String(x.id) === String(val) ? 'selected' : '')}>${x.name}</option>`)}</select>`;
+  setContent(html`<div class="seg" style="margin-bottom:12px">${[['agents', 'Agents'], ['lp', 'Buy with LP']].map(([k, l]) => html`<button data-agtab="${k}" class="${o.tab === k ? 'active' : ''}">${l}</button>`)}</div>
+    ${o.tab === 'agents' ? html`<div class="panel" style="margin-bottom:14px"><div class="grid grid-4" style="align-items:end">
+      ${field('Near', html`<div style="display:flex;gap:6px"><input type="text" id="ag-from" value="${o.from}" placeholder="e.g. Dodixie (optional)"><button class="btn btn-ghost" id="ag-me" title="Use a pilot's location">⌖</button></div>`)}
+      ${field('Within jumps', html`<input type="number" id="ag-j" value="${o.jumps}" min="0" max="40">`)}
+      ${field('Division', sel('ag-div', o.opts.divisions, o.division, 'Any'))}
+      ${field('Kind', sel('ag-type', o.opts.types, o.type, 'Any'))}
+      ${field('Faction', sel('ag-fac', o.opts.factions, o.faction, 'Any'))}
+      ${field('Name, corp or system', html`<input type="text" id="ag-q" value="${o.q}" placeholder="optional">`)}
+      ${field('Level', html`<div class="pi-chips">${[1, 2, 3, 4, 5].map(l => html`<label class="check" style="margin:0 10px 0 0"><input type="checkbox" data-aglv="${l}" ${raw(o.levels.includes(l) ? 'checked' : '')}> ${l}</label>`)}</div>`)}
+      ${field('', html`<label class="check" style="margin:0"><input type="checkbox" id="ag-hs" ${raw(o.highsec ? 'checked' : '')}> Highsec only</label><label class="check" style="margin:0"><input type="checkbox" id="ag-loc" ${raw(o.locator ? 'checked' : '')}> Locator agents</label>`)}</div>
+      <button class="btn btn-primary" id="ag-go">Find agents</button></div>
+      <div id="ag-out">${o.data ? agView(o.data) : emptyBox('Find mission, research and storyline agents by level, division, faction and distance.')}</div>`
+    : html`<div class="panel" style="margin-bottom:14px"><div class="grid grid-3" style="align-items:end">
+      ${field('Item', html`<input type="text" id="lp-item" value="${o.lpItem}" placeholder="e.g. Caldari Navy Mjolnir Heavy Missile">`)}
+      ${field('Nearest to', html`<div style="display:flex;gap:6px"><input type="text" id="lp-from" value="${o.from}" placeholder="e.g. Jita (optional)"><button class="btn btn-ghost" id="lp-me" title="Use a pilot's location">⌖</button></div>`)}
+      <div><button class="btn btn-primary" id="lp-go" style="width:100%">Find LP stores</button></div></div>
+      <div class="dim" style="font-size:12px;margin-top:6px">Searches every NPC corporation's LP store for the item. The first search reads all the stores (about a minute); later ones are instant for a day.</div></div>
+      <div id="lp-out">${o.lp ? lpView(o.lp) : emptyBox('Find which corporations sell an item for LP, and their nearest station.')}</div>`}`);
+  document.querySelectorAll('[data-agtab]').forEach(b => b.onclick = () => { o.tab = b.dataset.agtab; tAgents(); });
+  if (o.tab === 'agents') {
+    $('#ag-me').onclick = () => fillFromPilots('#ag-from');
+    $('#ag-go').onclick = async () => {
+      Object.assign(o, { from: $('#ag-from').value.trim(), jumps: Number($('#ag-j').value) || 0, division: $('#ag-div').value, type: $('#ag-type').value, faction: $('#ag-fac').value, q: $('#ag-q').value.trim(),
+        levels: [...document.querySelectorAll('[data-aglv]:checked')].map(x => Number(x.dataset.aglv)), highsec: $('#ag-hs').checked, locator: $('#ag-loc').checked });
+      const out = $('#ag-out'); out.innerHTML = String(loadingView('Finding agents…'));
+      const r = await api.agents.find({ from: o.from || undefined, jumps: o.from ? o.jumps : undefined, levels: o.levels, division: o.division, type: o.type, faction: o.faction, highsec: o.highsec, locator: o.locator, q: o.q });
+      if (!r.ok) { out.innerHTML = String(errorView(r)); return; }
+      o.data = r.data; out.innerHTML = String(agView(r.data)); wireAg();
+    };
+    wireAg();
+  } else {
+    $('#lp-me').onclick = () => fillFromPilots('#lp-from');
+    $('#lp-go').onclick = async () => {
+      o.lpItem = $('#lp-item').value.trim(); o.from = $('#lp-from').value.trim();
+      if (!o.lpItem) return toast('Type an item name.', true);
+      const out = $('#lp-out'); out.innerHTML = String(loadingView('Reading LP stores…'));
+      const r = await api.agents.lpFor(o.lpItem, o.from || undefined);
+      if (!r.ok) { out.innerHTML = String(errorView(r)); return; }
+      o.lp = r.data; out.innerHTML = String(lpView(r.data)); wireAg();
+    };
+    wireAg();
+  }
+}
+
+function agView(d) {
+  if (!d.rows.length) return emptyBox('No agents match. Try more jumps, another level, or fewer filters.');
+  return html`${d.hubs.length ? html`<div class="panel" style="margin-bottom:12px"><h3 class="mh" style="margin-top:0">Mission hubs in these results</h3><div style="display:flex;flex-wrap:wrap;gap:8px">${d.hubs.map(h => html`<span class="badge accent" title="${h.station}">${h.system} · ${h.count} agents · L${h.levels.join('/')}${h.jumps !== null ? ` · ${h.jumps} j` : ''}</span>`)}</div></div>` : ''}
+    <div class="panel" style="padding:0"><div class="table-wrap" style="max-height:66vh"><table><thead><tr><th>Agent</th><th class="right">Level</th><th>Division</th><th>Corporation</th><th>Where</th>${d.from ? html`<th class="right">Jumps</th>` : ''}<th></th></tr></thead><tbody>
+    ${d.rows.map(a => html`<tr><td><img src="${portrait(a.id, 32)}" width="22" height="22" style="border-radius:4px;vertical-align:middle;margin-right:8px">${a.name}${a.locator ? raw(' <span class="badge">locator</span>') : ''}<div class="dim" style="font-size:11.5px">${a.type}</div></td>
+      <td class="right num"><b>${a.level}</b></td><td>${a.division}</td><td>${a.corp}<div class="dim" style="font-size:11.5px">${a.faction}</div></td>
+      <td>${a.system ? html`<a href="#" data-system="${a.systemId}">${a.system}</a> ${secBadge(a.security)}` : ''}<div class="dim" style="font-size:11.5px">${a.station || a.region}</div></td>
+      ${d.from ? html`<td class="right num">${a.jumps}</td>` : ''}<td class="nowrap"><button class="btn btn-ghost" style="padding:1px 8px;font-size:11.5px" data-ag-dest="${a.systemId}">Set destination</button></td></tr>`)}</tbody></table></div></div>
+    <div class="dim" style="font-size:12px;margin-top:6px">${d.total > d.rows.length ? `Showing ${d.rows.length} of ${d.total}. Narrow it down for the rest.` : `${d.total} agents.`} Mission guides: search the agent's mission name on the EVE University wiki.</div>`;
+}
+
+function lpView(d) {
+  if (!d.rows.length) return emptyBox(`No NPC LP store sells ${d.name} (checked ${d.checked} corporations).`);
+  return html`<div class="panel" style="padding:0"><table><thead><tr><th>Corporation</th><th class="right">LP</th><th class="right">ISK</th><th>Also needs</th><th>Nearest station</th>${d.from ? html`<th class="right">Jumps</th>` : ''}<th></th></tr></thead><tbody>
+    ${d.rows.map(r => html`<tr><td>${r.corp}</td><td class="right num">${fmtNum(r.lp)}</td><td class="right num">${fmtCompact(r.isk)}</td>
+      <td style="font-size:12px">${r.required.length ? r.required.map(x => html`<div>${icon(x.typeId, 16)}${fmtNum(x.qty)}× ${x.name}</div>`) : html`<span class="dim">—</span>`}</td>
+      <td>${r.system ? html`<a href="#" data-system="${r.system}">${r.system}</a> ${secBadge(r.security)}<div class="dim" style="font-size:11.5px">${r.station}</div>` : html`<span class="dim">no station found</span>`}</td>
+      ${d.from ? html`<td class="right num">${r.jumps ?? '—'}</td>` : ''}<td><button class="btn btn-ghost" style="padding:1px 8px;font-size:11.5px" data-lp-open="${r.corpId}">LP store</button></td></tr>`)}</tbody></table></div>
+    <div class="dim" style="font-size:12px;margin-top:6px">${d.rows.length} store${d.rows.length === 1 ? '' : 's'} sell ${fmtNum(d.rows[0].qty)}× ${d.name}.</div>`;
+}
+
+function wireAg() {
+  document.querySelectorAll('[data-ag-dest]').forEach(b => b.onclick = async () => {
+    const pilots = await api.ui.pilots(); const p = pilots.ok && pilots.data.find(x => x.canWaypoint);
+    if (!p) return toast('Turn on In-game control in Settings to set destinations from here.', true);
+    const r = await api.ui.waypoints(p.id, [Number(b.dataset.agDest)]);
+    toast(r.ok ? `Destination set for ${p.name}` : r.error, !r.ok);
+  });
+  document.querySelectorAll('[data-lp-open]').forEach(b => b.onclick = () => { toolState.lp.corpId = Number(b.dataset.lpOpen); state.toolsTab = 't-lp'; go('tools'); });
+}

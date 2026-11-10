@@ -580,3 +580,9 @@ tr.xrow.open > td { border-bottom-color: transparent; background: color-mix(in s
 tr.xdetail > td { background: color-mix(in srgb, var(--bg-2) 60%, transparent); padding: 10px 14px 14px 28px; }
 tr.xdetail table { font-size: 12.5px; }
 tr.xdetail table th, tr.xdetail table td { padding: 4px 8px; }
+
+/* Streamer mode: hide who you are, what you have and where you are */
+html[data-streamer] .char-item .nm, html[data-streamer] .char-item img, html[data-streamer] .ccard-head .nm, html[data-streamer] .ccard-head .corp, html[data-streamer] .ccard-head img,
+html[data-streamer] [data-pilot], html[data-streamer] [data-private], html[data-streamer] img[src*="/characters/"], html[data-streamer] #crumb.pilot,
+html[data-streamer] .mail-row .from, html[data-streamer] .mail-view { filter: blur(7px); }
+#streamer-btn.on { color: var(--gold); border-color: var(--gold); }

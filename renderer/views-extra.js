@@ -226,11 +226,27 @@ function planetCard(p, pilot) {
           <td class="right num nowrap ${!exp || exp <= now ? 'neg' : (exp - now < 86400000 ? 'gold' : '')}" ${raw(exp && exp > now ? `data-countdown="${esc(e.expiry)}"` : '')}>${!exp ? 'Not running' : exp <= now ? 'Stopped' : fmtDuration(exp - now)}</td></tr>`;
       })}</tbody></table>` : ''}
     ${p.factories.length ? html`<div style="margin-top:10px" class="muted"><b>Factories (${p.factories.length}):</b> ${summariseFactories(p.factories)}</div>` : ''}
+    ${p.sim ? piWatchBlock(p) : ''}
     ${p.storage.length ? html`<details style="margin-top:8px"><summary class="muted" style="cursor:pointer">Storage contents${p.storageValue ? ' · ≈ ' + fmtCompact(p.storageValue) + ' ISK' : ''}</summary>
       ${p.storage.map(st => html`<div class="fit-group" style="margin-top:8px"><div class="k">${st.facility}</div>
         <div class="skill-rows" style="padding:0">${st.items.map(i => html`<div class="skill-row"><span>${icon(i.typeId, 16)}${i.name}</span><span class="num muted">${fmtNum(i.amount)}</span></div>`)}</div></div>`)}
     </details>` : ''}
   </div>`;
+}
+function piWatchBlock(p) {
+  const s = p.sim, now = Date.now();
+  const when = iso => { const t = Date.parse(iso); return t <= now ? 'now' : 'in ' + fmtDuration(t - now, true); };
+  const warn = [];
+  if (s.storage.fullAt) warn.push(html`<span class="badge ${Date.parse(s.storage.fullAt) - now < 6 * 3600000 ? 'red' : 'gold'}">Storage full ${when(s.storage.fullAt)}</span>`);
+  for (const d of s.dry.slice(0, 3)) warn.push(html`<span class="badge ${Date.parse(d.at) - now < 6 * 3600000 ? 'red' : 'gold'}">Out of ${d.item} ${when(d.at)}</span>`);
+  for (const f of s.idle.slice(0, 3)) if (!s.dry.length) warn.push(html`<span class="badge gold" title="No cycle started in two cycle lengths">${f} factory idle</span>`);
+  const snoozed = state.piSnooze && state.piSnooze[p.planetId] > now;
+  return html`<div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:6px;align-items:center">
+    <span class="dim" style="font-size:12px">Storage ${fmtNum(s.storage.used)} / ${fmtNum(s.storage.cap)} m³ (${s.storage.pct}%)</span>
+    ${warn.length ? warn : html`<span class="badge green">No problems in the next ${s.horizonH} h</span>`}
+    <span style="flex:1"></span>
+    <span class="dim" style="font-size:11.5px" title="ESI updates a colony only when you open it in game">From your last visit ${s.staleHours < 1 ? 'under an hour' : s.staleHours + ' h'} ago</span>
+    ${warn.length ? html`<button class="btn btn-ghost" style="padding:1px 8px;font-size:11.5px" data-pi-snooze="${p.planetId}" data-h="${snoozed ? 0 : 12}">${snoozed ? 'Unsnooze' : 'Snooze 12 h'}</button>` : ''}</div>`;
 }
 function summariseFactories(f) {
   const m = new Map();
@@ -250,6 +266,14 @@ function viewPlanets(d) {
       ${stat('Stored product value', fmtCompact(d.planets.reduce((n, p) => n + (p.storageValue || 0), 0)) + ' ISK', 'Command Center Upgrades ' + (ROMAN[d.ccUpgrades] || '0'))}
     </div>
     ${d.planets.length ? d.planets.map(p => planetCard(p)) : emptyBox('No planetary colonies')}`);
+  wirePiSnooze(() => viewPlanets(d));
+}
+function wirePiSnooze(redraw) {
+  document.querySelectorAll('[data-pi-snooze]').forEach(b => b.onclick = async () => {
+    const r = await api.piWatch.snooze(Number(b.dataset.piSnooze), Number(b.dataset.h));
+    if (!r.ok) return toast(r.error, true);
+    state.piSnooze = r.data; toast(Number(b.dataset.h) ? 'Alerts for this colony snoozed for 12 hours' : 'Alerts back on'); redraw();
+  });
 }
 
 function viewMining(d) {
@@ -594,6 +618,8 @@ async function renderPlanetsAll(stillCurrent) {
       ${stat('Stopped', stopped.length, stopped.map(e => e.planet).slice(0, 3).join(', '), stopped.length ? 'neg' : '')}
       ${stat('Stopping within 24h', soon.length, '', soon.length ? 'gold' : '')}
     </div>
+    ${(() => { const bad = all.filter(p => p.sim && (p.sim.storage.fullAt || p.sim.dry.length) && Math.min(...[p.sim.storage.fullAt, ...p.sim.dry.map(d => d.at)].filter(Boolean).map(Date.parse)) - now < 24 * 3600000);
+      return bad.length ? html`<div class="notice" style="margin-bottom:14px"><b>Needs a visit within a day:</b> ${bad.map(p => `${p.pilot}: ${p.name}`).join(' · ')}. Storage filling up or factories running out of inputs.</div>` : ''; })()}
     ${ex.length ? html`<div class="panel"><h3>Extractor run times</h3>${timeline(all.filter(p => p.extractors.length).map(p => ({
       label: `${p.pilot}: ${p.name}`,
       segs: p.extractors.filter(e => e.expiry && !e.expired).map(e => ({
@@ -602,4 +628,5 @@ async function renderPlanetsAll(stillCurrent) {
       }))
     })), { from, to })}</div>` : ''}
     ${all.length ? all.map(p => planetCard(p, p.pilot)) : emptyBox('No planetary colonies on any pilot')}`);
+  wirePiSnooze(() => renderPlanetsAll(() => true));
 }

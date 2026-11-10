@@ -410,6 +410,41 @@ async function zkillStats(ids) {
   return out;
 }
 
+// ---- D-scan: roles and things worth knowing ----
+const T1_LOGI = new Set(['Augoror', 'Osprey', 'Exequror', 'Scythe', 'Navitas', 'Bantam', 'Inquisitor', 'Burst', 'Augoror Navy Issue', 'Exequror Navy Issue', 'Osprey Navy Issue', 'Scythe Fleet Issue', 'Rodiva', 'Zarmazd']);
+function shipRole(group, type) {
+  if (group === 'Capsule' || /Capsule/i.test(group)) return 'Pods';
+  if (/Titan|Supercarrier|Carrier|Dreadnought|Force Auxiliary/i.test(group)) return 'Capitals';
+  if (/Logistics|Force Auxiliary/i.test(group) || T1_LOGI.has(type)) return 'Logistics';
+  if (/Hauler|Transport|Blockade Runner|Freighter|Industrial|Mining Barge|Exhumer|Expedition Frigate|Shuttle/i.test(group)) return 'Haulers & mining';
+  if (/Recon|Interdict|Interceptor|Electronic Attack|Covert Ops|Stealth Bomber|Black Ops/i.test(group)) return 'Tackle, recon & ewar';
+  return 'Combat';
+}
+// Highest priority first: [test on group, label, why]
+const DANGER = [
+  [/Titan|Supercarrier/i, 'Supercapital', 'Can wipe a small gang or doomsday a fleet.'],
+  [/Dreadnought/i, 'Dreadnought', 'Siege damage. Kills anything sub-capital it can hit.'],
+  [/Carrier|Force Auxiliary/i, 'Carrier or FAX', 'Capitals on scan usually mean a supported fleet.'],
+  [/Black Ops/i, 'Black Ops', 'Bridges stealth bombers and recons in.'],
+  [/Force Recon/i, 'Force recon', 'Cloaky and can light a covert cyno.'],
+  [/Combat Recon/i, 'Combat recon', 'Normally hidden from d-scan. If you can see it, it wants you to.'],
+  [/Heavy Interdiction/i, 'Heavy interdictor', 'Warp disruption bubble that stops even nullified ships.'],
+  [/^Interdictor/i, 'Interdictor', 'Launches warp disruption bubbles.'],
+  [/Stealth Bomber/i, 'Stealth bomber', 'Cloaky; bombs and torpedoes.'],
+  [/Strategic Cruiser/i, 'Strategic cruiser', 'T3 cruisers: often cloaky hunters or nullified.'],
+  [/Electronic Attack/i, 'Electronic attack frigate', 'Ewar: scrams, damps or points from range.'],
+  [/Interceptor/i, 'Interceptor', 'Fast tackle; can hold you for a fleet.']
+];
+const FIELD = [
+  [/cyno/i, 'Cynosural field', 'Someone can jump capitals or a black ops fleet in.'],
+  [/warp disrupt|interdiction sphere|interdict(or)? probe/i, 'Warp disruption bubble', 'Check your warp-in before you warp.'],
+  [/combat scanner|scanner probe/i, 'Probes', 'Someone is scanning. Combat probes can find ships.'],
+  [/tractor unit/i, 'Mobile tractor unit', 'Someone is running sites here.'],
+  [/mobile depot/i, 'Mobile depot', 'A refit point. Often a hunter or ratter nearby.'],
+  [/scan inhibitor/i, 'Scan inhibitor', 'Hides ships near it from d-scan.'],
+  [/cyno inhibitor/i, 'Cyno inhibitor', 'Stops cynos near it.']
+];
+
 function analyseDscan(text) {
   const rows = [];
   for (const line of String(text).split(/\r?\n/)) {
@@ -436,7 +471,19 @@ function analyseDscan(text) {
     byGroup.set(r.group, (byGroup.get(r.group) || 0) + 1);
   }
   const ships = rows.filter(r => r.categoryId === 6);
-  return { total: rows.length, ships: ships.length, onGridShips: ships.filter(r => r.km !== null && r.km <= 8000).length,
+  const roles = new Map();
+  for (const r of ships) { const k = shipRole(r.group, r.type); roles.set(k, (roles.get(k) || 0) + 1); }
+  const signals = [];
+  DANGER.forEach(([re, label, why], pri) => {
+    const hit = ships.filter(r => re.test(r.group));
+    if (hit.length) signals.push({ kind: 'ship', label, why, pri, count: hit.length, onGrid: hit.filter(r => r.km !== null && r.km <= 8000).length, types: [...new Set(hit.map(r => r.type))].slice(0, 4) });
+  });
+  for (const [re, label, why] of FIELD) {
+    const hit = rows.filter(r => r.categoryId !== 6 && (re.test(r.group) || re.test(r.type)));
+    if (hit.length) signals.push({ kind: 'field', label, why, pri: 50, count: hit.length, onGrid: hit.filter(r => r.km !== null && r.km <= 8000).length, nearest: Math.min(...hit.map(r => r.km ?? Infinity)) });
+  }
+  const ORDER = ['Capitals', 'Combat', 'Tackle, recon & ewar', 'Logistics', 'Haulers & mining', 'Pods'];
+  return { total: rows.length, roles: ORDER.filter(k => roles.has(k)).map(k => ({ role: k, count: roles.get(k) })), signals, ships: ships.length, onGridShips: ships.filter(r => r.km !== null && r.km <= 8000).length,
     types: [...byType.values()].sort((a, b) => b.count - a.count), groups: [...byGroup.entries()].sort((a, b) => b[1] - a[1]).map(([g, n]) => ({ group: g, count: n })),
     structures: rows.filter(r => [65, 23, 40].includes(r.categoryId)).map(r => ({ name: r.name, type: r.type, km: r.km })) };
 }
@@ -444,5 +491,5 @@ function analyseDscan(text) {
 module.exports = {
   setListener: fn => { listener = fn; }, start, stop, restartIfEnabled, cfg, reports: () => reports, positions, channelsSeen, logsRoot,
   analyseLocal, analyseDscan, zkillStats, resetCombat, checkSpikes, spikes: () => spikes, localEvents: () => localEvents,
-  _parseChatLine: parseChatLine, _findSystems: findSystems, _parseCombatLine: parseCombatLine, _isClear: isClear, _jumpsBetween: jumpsBetween, _decode: decode
+  _parseChatLine: parseChatLine, _findSystems: findSystems, _parseCombatLine: parseCombatLine, _isClear: isClear, _shipRole: shipRole, _jumpsBetween: jumpsBetween, _decode: decode
 };

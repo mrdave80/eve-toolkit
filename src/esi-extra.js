@@ -261,7 +261,15 @@ async function planets(charId) {
       }
     }
     const nextExpiry = extractors.filter(e => e.expiry).map(e => e.expiry).sort()[0] || null;
-    out.push({
+    let sim = null;
+    if (d) {
+      try {
+        const nm = { ...names };
+        for (const pin of d.pins) { const sid = (pin.factory_details && pin.factory_details.schematic_id) || pin.schematic_id; if (sid) nm['schematic:' + sid] = await schematicName(sid); }
+        sim = require('./piwatch').simulate(d.pins, nm, p.last_update, now);
+      } catch { sim = null; }
+    }
+    out.push({ sim,
       planetId: p.planet_id, name: await planetName(p.planet_id), type: p.planet_type,
       system: names[p.solar_system_id], upgradeLevel: p.upgrade_level, pins: p.num_pins,
       lastUpdate: p.last_update, extractors, factories, storage, launchpads,

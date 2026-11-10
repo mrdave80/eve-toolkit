@@ -94,6 +94,18 @@ const SHOTS = [
   ['95-asset-plan', `afState.data=null; afState.plan=null; state.toolsTab='t-assets'; go('tools')`, `(async()=>{document.getElementById('af-from').value='Jita'; document.getElementById('af-plan').click(); await new Promise(r=>setTimeout(r,600)); document.querySelector('#af-out tr.xrow td:nth-child(3)').click();})()`],
   ['96-ores', `oreState.data=null; state.toolsTab='t-ores'; go('tools')`, `(async()=>{document.getElementById('or-rate').value='42000'; document.getElementById('or-go').click(); await new Promise(r=>setTimeout(r,600)); document.querySelector('#or-out tr.xrow td:nth-child(3)').click();})()`],
   ['97-eve-settings', `state.toolsTab='t-eveset'; go('tools')`, `(async()=>{await new Promise(r=>setTimeout(r,500)); [...document.querySelectorAll('.es-to')].slice(1,4).forEach(c=>c.checked=true);})()`],
+  ['98-dscan', `state.toolsTab='t-local'; go('tools')`, `(async()=>{document.getElementById('ds-text').value='x'; document.getElementById('ds-go').click(); await new Promise(r=>setTimeout(r,600)); document.getElementById('ds-out').scrollIntoView();})()`],
+  ['99-orders', `ordState.list=null; state.toolsTab='t-orders'; go('tools')`],
+  ['A0-sys-heat', `go('dashboard')`, `openSystemCard('Tama')`, `(async()=>{await new Promise(r=>setTimeout(r,600)); document.getElementById('pop-sact')?.scrollIntoView();})()`],
+  ['A1-compare', `cmpState.data=null; state.toolsTab='t-compare'; go('tools')`, `document.getElementById('cmp-go').click()`],
+  ['A2-pi-watch', `go('planetsAll')`],
+  ['A3-shopping', `state.toolsTab='t-build'; toolState.build.productTypeId=2185; go('tools')`, `(async()=>{await new Promise(r=>setTimeout(r,800)); document.getElementById('bd-shop-go').click(); await new Promise(r=>setTimeout(r,600)); document.getElementById('bd-shop').scrollIntoView();})()`],
+  ['A4-what-to-build', `wtbState.data=null; state.toolsTab='t-wtb'; go('tools')`, `document.getElementById('wb-go').click()`],
+  ['A5-agents', `agState.tab='agents'; agState.data=null; state.toolsTab='t-agents'; go('tools')`, `(async()=>{await new Promise(r=>setTimeout(r,500)); document.getElementById('ag-from').value='Dodixie'; document.getElementById('ag-go').click();})()`],
+  ['A6-lp-search', `agState.tab='lp'; agState.lp=null; state.toolsTab='t-agents'; go('tools')`, `(async()=>{await new Promise(r=>setTimeout(r,500)); document.getElementById('lp-item').value='Federation Navy Hammerhead'; document.getElementById('lp-go').click();})()`],
+  ['A7-camps', `huntState.mode='camps'; huntState.result=null; state.toolsTab='t-hunt'; go('tools')`, `(async()=>{document.getElementById('hn-from').value='Jita'; document.getElementById('hn-go').click(); await new Promise(r=>setTimeout(r,600)); document.querySelector('#hn-out tr.xrow td:nth-child(3)').click();})()`],
+  ['A8-incursions', `state.toolsTab='t-pve'; go('tools')`, `(async()=>{await new Promise(r=>setTimeout(r,800)); [...document.querySelectorAll('#pv-rat h3')].find(h=>/Incursions/.test(h.textContent))?.scrollIntoView();})()`],
+  ['A9-streamer', `document.documentElement.setAttribute('data-streamer',''); go('dashboard')`],
   ['57-whinfo', `go('wormholes')`, `whState.sel = { type: 'sys', id: 31000101 }; drawCanvas(); drawSide()`],
   ['42-livemap', `go('liveMap')`, `mapState.sel = 30004765; mapState.heat = 'ship'; drawMap()`],
   ['43-livemap-sov', `mapState.heat = 'sov'; mapState.sel = null; drawMap()`],
@@ -121,7 +133,7 @@ app.whenReady().then(async () => {
   const only = process.env.ONLY ? process.env.ONLY.split(',') : null;
   for (const [name, ...steps] of SHOTS) {
     if (only && !only.some(o => name.startsWith(o))) continue;
-    await js(`typeof closeModal === 'function' && closeModal(); typeof closeSearch === 'function' && closeSearch(); document.getElementById('upd-banner')?.remove()`);
+    await js(`typeof closeModal === 'function' && closeModal(); typeof closeSearch === 'function' && closeSearch(); document.getElementById('upd-banner')?.remove(); document.documentElement.removeAttribute('data-streamer')`);
     for (const s of steps) { await js(s); await wait(900); }
     await snap(name);
   }

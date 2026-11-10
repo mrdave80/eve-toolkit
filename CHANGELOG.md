@@ -2,6 +2,17 @@
 
 ## Next release
 
+- D-scan: ships sorted by role (combat, tackle and ewar, logistics, capitals, haulers), and a "Worth knowing" list of dangerous hulls and objects in priority order: supercapitals, black ops, recons, interdictors and HICs, cynos, bubbles, probes, mobile tractor units and depots.
+- My Orders: "Update next order" copies a price that beats the best order (to EVE's four-digit rule) and opens the item's market in game. Ctrl+Alt+N does the same while you're in game.
+- System cards show when the system is busy: kills by day and hour, with the busiest and quietest times.
+- Compare Skills (Tools → Pilots): up to 10 pilots side by side, only where they differ if you like, with CSV export of skills and queues. The skill planner can drop already-trained skills from a plan.
+- Streamer mode (◐ in the top bar, or Ctrl+Shift+H): blurs pilot names, portraits, wallets and locations.
+- Incursion payouts show as their own income source, with sites and ISK per hour on Ratting & Abyss.
+- PI watchdog: works out when each colony's storage fills up and when factories run out of inputs, not just when extractors stop. Alerts a set number of hours ahead, reminds you twice if it isn't fixed, clears itself once you fix it, and can be snoozed per colony.
+- Build Calculator shopping list: takes what your pilots already own off the materials list, checks you have the blueprint, and copies the rest for EVE's Multibuy.
+- What to Build (Tools → Industry): ranks your own blueprints by profit per day, capped by how much the market really buys.
+- Agent Finder (Tools → Navigation): find agents by level, division, kind, faction and distance, with mission hubs. "Buy with LP" finds every NPC store selling an item and its nearest station. Needs a one-time game data update.
+- Hunting & Ratting has a Gate camps mode: active gate and undock camps near you, with the ships and pilots camping, for when you want a fight.
 - Daily goals: set today's goals once (they're the same for every pilot), then open any pilot to see each goal with a tip on doing it quickly and tick off the ones they've done. Two goals ticked marks the pilot done for the day and moves the monthly track on.
 
 ## 1.10.0

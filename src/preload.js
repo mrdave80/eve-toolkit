@@ -31,6 +31,7 @@ contextBridge.exposeInMainWorld('api', {
   industryFull: id => call('esi:industryFull', id),
   blueprints: id => call('esi:blueprints', id),
   planets: id => call('esi:planets', id),
+  piWatch: { snooze: (id, h) => call('pi:snooze', id, h), cfg: c => call('pi:watchCfg', c) },
   mining: id => call('esi:mining', id),
   research: id => call('esi:research', id),
   loyalty: id => call('esi:loyalty', id),
@@ -94,6 +95,8 @@ contextBridge.exposeInMainWorld('api', {
     history: (id, hub) => call('market:history', id, hub)
   },
   copy: text => call('clipboard:write', text),
+  skillsCompare: ids => call('skills:compare', ids), queuesCsv: ids => call('skills:queuesCsv', ids), saveCsv: (name, rows) => call('file:saveCsv', name, rows),
+  orderHelper: { hotkey: on => call('orders:hotkey', on), onNext: cb => ipcRenderer.on('orders:next', () => cb()) },
   plan: {
     list: charId => call('plan:list', charId),
     save: p => call('plan:save', p),
@@ -107,13 +110,15 @@ contextBridge.exposeInMainWorld('api', {
     skills: () => call('plan:skills')
   },
   ind: {
-    calc: o => call('ind:calc', o), invent: o => call('ind:invent', o), reprocess: (t, o) => call('ind:reprocess', t, o), ores: o => call('ind:ores', o),
+    calc: o => call('ind:calc', o), shopping: (o, so) => call('ind:shopping', o, so), whatToBuild: o => call('ind:whatToBuild', o), invent: o => call('ind:invent', o), reprocess: (t, o) => call('ind:reprocess', t, o), ores: o => call('ind:ores', o),
     structures: () => call('ind:structures'), pilotSkills: id => call('ind:pilotSkills', id)
   },
   appraise: (text, hub) => call('appraise', text, hub),
   fit: { check: text => call('fit:check', text), engineStatus: () => call('fit:engineStatus'), engineUpdate: () => call('fit:engineUpdate'), fromEsi: f => call('fit:fromEsi', f), fromKillmail: id => call('fit:fromKillmail', id), saveToGame: (charId, eft, name, desc) => call('fit:saveToGame', charId, eft, name, desc), onEngine: cb => ipcRenderer.on('fit:engine', (_e, d) => cb(d)) },
   items: { search: q => call('items:search', q), info: id => call('items:info', id) },
-  systemCard: q => call('sys:card', q),
+  agents: { options: () => call('agents:options'), find: o => call('agents:find', o), lpFor: (item, from) => call('agents:lpFor', item, from) },
+  camps: o => call('hunt:camps', o),
+  systemCard: q => call('sys:card', q), systemActivity: id => call('sys:activity', id),
   backup: { create: pw => call('backup:create', pw), pick: () => call('backup:pick'), describe: pw => call('backup:describe', pw), restore: pw => call('backup:restore', pw) },
   assetFinder: { search: o => call('assets:search', o), consolidate: o => call('assets:consolidate', o) },
   eveSettings: { list: () => call('eveprof:list'), copy: o => call('eveprof:copy', o), backups: () => call('eveprof:backups'), restore: (id, force) => call('eveprof:restore', id, force), label: (id, l) => call('eveprof:label', id, l) },

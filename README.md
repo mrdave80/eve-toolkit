@@ -19,6 +19,8 @@ A free Windows desktop app for EVE Online pilots, corporations and alliances. Sk
 | ![Price alerts](docs/screenshots/price-alerts.jpg) | ![One-click update](docs/screenshots/update.jpg) |
 | ![Mail for all pilots](docs/screenshots/mail-all-pilots.jpg) | ![Asset finder](docs/screenshots/asset-finder.jpg) |
 | ![Ore values](docs/screenshots/ore-values.jpg) | ![Copy EVE settings](docs/screenshots/copy-eve-settings.jpg) |
+| ![What to build](docs/screenshots/what-to-build.jpg) | ![Agent finder](docs/screenshots/agent-finder.jpg) |
+| ![D-scan roles and warnings](docs/screenshots/dscan.jpg) | ![PI watchdog](docs/screenshots/pi-watchdog.jpg) |
 
 Screenshots use demo data with made-up pilots.
 
@@ -145,6 +147,34 @@ Corp mode works much like AllianceAuth, but runs from this app with no server to
 **Live sharing without a server:** under Discord → Share & Backup, choose a shared OneDrive, Dropbox or Google Drive folder. Every officer's app merges everyone's changes, deletions included, each minute. Members can be linked to their main on the Members page.
 
 **Without a server**, corp records (ops, timers, fleets, SRP, applications, audits) live on the PC running the app. Officers share them with **Discord → Share & Backup → Export / Import**. Imports merge records, and the newest change wins. Background alerts and role sync run only while the app is open.
+
+## What to Build (Tools → Industry)
+
+Ranks the products of your own blueprints (the best ME/TE copy across your pilots) by profit per day. It prices each one with the Build Calculator's facility settings, takes off sales tax and broker fee, and caps what you'd sell at your chosen share of the hub's real daily sales, so a high-margin item nobody buys doesn't top the list. **Build ▸** opens the item in the Build Calculator. The calculator now has a **Shopping list**: it takes what your pilots already own (anywhere, or in the build system only) off the materials, checks you have the blueprint, and copies the rest for EVE's Multibuy window.
+
+## Agent Finder (Tools → Navigation)
+
+Find agents by level, division, kind (mission, research, storyline, faction warfare…), faction, name and distance from any system, highsec only if you like, with locator agents marked. Stations with lots of agents show as mission hubs. **Buy with LP** finds every NPC corporation whose LP store sells an item, what it costs in LP, ISK and other items, and the corporation's nearest station. The agent list needs a one-time game data update (Settings → Game data → Update).
+
+## Gate camps (Tools → Navigation → Hunting & Ratting)
+
+A third mode next to hunting grounds and safe ratting, for when you want a fight: it checks the busiest systems in range on zKillboard and lists active gate and undock camps, how many kills, how recent, who is camping and in what ships, with smartbombs and bubbles flagged.
+
+## D-scan warnings (Tools → Intel → Local & D-scan)
+
+Pasted d-scans are sorted by role and come with a **Worth knowing** list, most dangerous first: supercapitals, dreads, carriers, black ops, force and combat recons, heavy interdictors and interdictors, bombers, T3 cruisers, and objects like cynos, warp disruption bubbles, probes, mobile tractor units, depots and scan inhibitors, with how many are on grid.
+
+## PI watchdog (Planets board and each pilot's Planets tab)
+
+From each colony's last saved state, the app works out when its storage fills up and when factories run out of inputs, as well as when extractors stop. Colonies show their storage use and warnings; the Planets board lists colonies that need a visit within a day. Alerts go out a set number of hours ahead (Settings → Notifications), up to two reminders if nothing changes, and stop by themselves once you fix the colony. Snooze a colony for 12 hours from its card. ESI only updates a colony when you open it in game, so every projection starts from your last visit.
+
+## Updating market orders (Tools → Market → My Orders)
+
+**Update next order** copies a price that beats the best competing order (respecting EVE's four-significant-digit rule) and opens that item's market window in game. Find your order, Modify Order, paste, done. Tick the box to do the same with **Ctrl+Alt+N** while you're in game.
+
+## Compare skills and streamer mode
+
+**Tools → Pilots → Compare Skills** puts up to 10 pilots side by side, optionally only the skills where they differ, with **Skills CSV** and **Queues CSV** exports. The skill planner's **Remove trained** takes finished levels out of a plan. **Streamer mode** (the ◐ button in the top bar, or Ctrl+Shift+H) blurs pilot names, portraits, wallets and locations for streaming or screenshots. System cards now show **when it's busy**: kills by day of week and hour, with the busiest and quietest times in your time zone. Incursion payouts show as their own income source and on Ratting & Abyss with ISK per hour.
 
 ## Mail and calendar (sidebar → Mail)
 

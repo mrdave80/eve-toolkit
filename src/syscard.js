@@ -27,4 +27,16 @@ async function card(q) {
   };
 }
 
-module.exports = { card };
+/** Kills by day of week and hour from zKillboard, for "when is it busy here". */
+async function activity(id) {
+  id = Number(id); if (!Number.isInteger(id) || id < 30000000 || id > 33000000) throw new Error('Bad system');
+  const { zk } = require('./zkill');
+  const st = await zk(`/stats/solarSystemID/${id}/`, 6 * 3600000);
+  if (!st || !st.activity) return { activity: null };
+  const a = st.activity, grid = [];
+  for (let d = 0; d < 7; d++) { const row = a[d] || a[String(d)] || {}; grid.push(Array.from({ length: 24 }, (_, h) => Number(row[h] || row[String(h)] || 0))); }
+  return { activity: grid, days: Array.isArray(a.days) && a.days.length === 7 ? a.days : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+    kills: st.shipsDestroyed || 0, months: st.months ? Object.keys(st.months).length : null };
+}
+
+module.exports = { card, activity };

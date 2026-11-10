@@ -146,14 +146,14 @@ function renderTopbar() {
   const crumb = $('#crumb');
   if (state.view === 'char') {
     const c = state.characters.find(x => x.id === state.charId);
-    crumb.textContent = c ? c.name : '';
+    crumb.textContent = c ? c.name : ''; crumb.classList.add('pilot');
     const g = groupOf(state.tab);
     tabs.innerHTML = GROUPS.map(([name, items]) =>
       `<button class="tab ${g[0] === name ? 'active' : ''}" data-tab="${items[0][0]}" data-group="${name}">${name}</button>`).join('');
     sub.innerHTML = g[1].length > 1 ? g[1].map(([k, label]) =>
       `<button class="tab ${state.tab === k ? 'active' : ''}" data-tab="${k}">${label}</button>`).join('') : '';
   } else if (state.view === 'tools') {
-    crumb.textContent = 'Tools';
+    crumb.textContent = 'Tools'; crumb.classList.remove('pilot');
     const g = toolsGroupOf(state.toolsTab || 't-market');
     tabs.innerHTML = TOOLS_GROUPS.map(([name, items]) => `<button class="tab ${g[0] === name ? 'active' : ''}" data-ttab="${items[0][0]}" data-tgroup="${name}">${name}</button>`).join('');
     sub.innerHTML = g[1].length > 1 ? g[1].map(([k, label]) => `<button class="tab ${(state.toolsTab || 't-market') === k ? 'active' : ''}" data-ttab="${k}">${label}</button>`).join('') : '';
@@ -169,11 +169,11 @@ function renderTopbar() {
       `<button class="tab ${g[0] === name ? 'active' : ''}" data-ctab="${items[0][0]}" data-cgroup="${name}">${name}</button>`).join('');
     sub.innerHTML = g[1].length > 1 ? g[1].map(([k, label]) => `<button class="tab ${state.corpTab === k ? 'active' : ''}" data-ctab="${k}">${label}</button>`).join('') : '';
   } else if (state.view === 'piPlanner') {
-    crumb.textContent = 'Planetary interaction';
+    crumb.textContent = 'Planetary interaction'; crumb.classList.remove('pilot');
     tabs.innerHTML = '';
     sub.innerHTML = [['plan', 'Chain planner'], ['near', 'Nearby planets']].map(([k, l]) => `<button class="tab ${(state.piTab || 'plan') === k ? 'active' : ''}" data-pitab="${k}">${l}</button>`).join('');
   } else {
-    crumb.textContent = { mailAll: 'Mail, all pilots', wormholes: 'Wormhole mapper', liveMap: 'Live map', daily: 'Daily rewards and EVE news', piPlanner: 'Planetary interaction planner', corp: 'Corporation', settings: 'Settings', about: 'About & support', dashboard: 'All pilots', trainingAll: 'Training board', industryAll: 'Industry board', planetsAll: 'Planets board' }[state.view] || '';
+    crumb.classList.remove('pilot'); crumb.textContent = { mailAll: 'Mail, all pilots', wormholes: 'Wormhole mapper', liveMap: 'Live map', daily: 'Daily rewards and EVE news', piPlanner: 'Planetary interaction planner', corp: 'Corporation', settings: 'Settings', about: 'About & support', dashboard: 'All pilots', trainingAll: 'Training board', industryAll: 'Industry board', planetsAll: 'Planets board' }[state.view] || '';
     tabs.innerHTML = '';
     sub.innerHTML = '';
   }
@@ -243,7 +243,7 @@ async function renderDashboard(stillCurrent) {
       <div class="grid grid-3" style="margin-bottom:16px">
         <div class="stat"><div class="label">Pilots</div><div class="value">${state.characters.length}</div></div>
         <div class="stat"><div class="label">Combined skill points</div><div class="value">${fmtNum(total.sp)}</div></div>
-        <div class="stat"><div class="label">Combined wallets</div><div class="value">${fmtCompact(total.isk)} ISK</div><div class="hint">${fmtIsk(total.isk)}</div></div>
+        <div class="stat" data-private><div class="label">Combined wallets</div><div class="value">${fmtCompact(total.isk)} ISK</div><div class="hint">${fmtIsk(total.isk)}</div></div>
       </div>
       <div id="gs-slot"></div>
       ${cards()}`);
@@ -273,8 +273,8 @@ function charCard(c) {
     </div>
     <div class="ccard-body">
       <div><div class="k">Skill points</div><div class="num">${fmtNum(o.totalSp)}</div></div>
-      <div><div class="k">Wallet</div><div class="num">${fmtCompact(o.wallet)} ISK</div></div>
-      <div><div class="k">Location</div><div>${o.system || '—'}</div></div>
+      <div><div class="k">Wallet</div><div class="num" data-private>${fmtCompact(o.wallet)} ISK</div></div>
+      <div><div class="k">Location</div><div data-private>${o.system || '—'}</div></div>
       <div><div class="k">Ship</div><div>${o.ship ? o.ship.type : '—'}</div></div>
     </div>
     <div class="ccard-train">${trainingBlock(o)}</div>
@@ -340,6 +340,13 @@ function settingsFold(key, title, hint, body, forceOpen) {
   const open = forceOpen || settingsOpen[key];
   return html`<details class="sgroup sfold" data-sfold="${key}" ${raw(open ? 'open' : '')}><summary><span class="gname">${title}</span><span class="dim" style="font-size:12px">${hint}</span></summary><div class="sfold-body">${body}</div></details>`;
 }
+function setStreamer(on, save = true) {
+  document.documentElement.toggleAttribute('data-streamer', !!on);
+  const b = document.getElementById('streamer-btn'); if (b) b.classList.toggle('on', !!on);
+  if (save) { state.settings.streamer = !!on; api.setSettings({ streamer: !!on }); toast(on ? 'Streamer mode on: names, wallets and locations are hidden' : 'Streamer mode off'); }
+}
+document.addEventListener('keydown', e => { if (e.ctrlKey && e.shiftKey && (e.key === 'H' || e.key === 'h')) { e.preventDefault(); setStreamer(!document.documentElement.hasAttribute('data-streamer')); } });
+
 function openSettingsSection(key) { const d = document.querySelector(`[data-sfold="${key}"]`); if (d) { d.open = true; d.scrollIntoView(); } }
 
 async function renderSettings() {
@@ -361,6 +368,8 @@ async function renderSettings() {
         <label class="check"><input type="checkbox" id="s-notif" ${raw(st.notifications ? 'checked' : '')}> Windows notifications when a skill queue is empty, paused or has under 24 hours left</label>
  <label class="check"><input type="checkbox" id="s-ind" ${raw(st.notifyIndustry !== false ? 'checked' : '')}> Notify when industry jobs finish or all manufacturing slots are idle</label>
         <label class="check"><input type="checkbox" id="s-pi" ${raw(st.notifyPlanets !== false ? 'checked' : '')}> Notify when planetary extractors are about to stop</label>
+        <div style="padding-left:26px;margin:-4px 0 8px" class="dim">…and when PI storage will fill or factories will run out, <input type="number" id="s-piw-h" min="1" max="48" value="${(st.piWatch && st.piWatch.leadHours) || 6}" style="width:56px;background:var(--bg-2);border:1px solid var(--line-2);color:var(--text);border-radius:6px;padding:2px 6px;color-scheme:dark"> hours ahead
+          <label class="check" style="display:inline-flex;margin:0 0 0 12px"><input type="checkbox" id="s-piw-r" ${raw(!st.piWatch || st.piWatch.reminders !== false ? 'checked' : '')}> remind me twice if it isn't fixed</label></div>
         <div class="dim" style="margin:12px 0 6px">Also alert me about:</div>
         <div class="pi-chips" style="margin-bottom:12px">${[['wars', 'War declarations'], ['corpApps', 'Corp applications & membership'], ['contracts', 'Contracts'], ['orders', 'Orders filled / expired'], ['undercut', 'Undercuts (every 30 min)'], ['kills', 'Kill reports'], ['cloneJump', 'Jump clone ready'], ['fatigue', 'Jump fatigue cleared'], ['incursions', 'Incursions near my pilots']].map(([k, l]) => html`<label class="check" style="margin:0 14px 6px 0"><input type="checkbox" data-alert="${k}" ${raw((st.alerts || {})[k] !== false ? 'checked' : '')}> ${l}</label>`)}</div>
         <div class="field"><label for="s-incj">Incursion alert range (jumps from any pilot)</label><input id="s-incj" type="number" min="1" max="30" value="${st.incursionJumps || 10}" style="max-width:140px"></div>
@@ -451,7 +460,8 @@ async function renderSettings() {
       mutedPilots: [...document.querySelectorAll('[data-pmute]')].filter(c => !c.checked).map(c => Number(c.dataset.pmute))
     });
     if (!r.ok) return toast(r.error, true);
-    state.settings = r.data;
+    await api.piWatch.cfg({ leadHours: Number($('#s-piw-h').value), reminders: $('#s-piw-r').checked });
+    state.settings = (await api.getSettings()).data || r.data;
     toast('Settings saved');
     renderSettings();
   };
@@ -594,10 +604,10 @@ function viewSummary(o, c) {
       </div>
     </div>
     <div class="grid grid-3" style="margin-bottom:16px">
-      <div class="stat"><div class="label">Wallet</div><div class="value">${fmtCompact(o.wallet)} ISK</div><div class="hint">${fmtIsk(o.wallet)}</div></div>
+      <div class="stat" data-private><div class="label">Wallet</div><div class="value">${fmtCompact(o.wallet)} ISK</div><div class="hint">${fmtIsk(o.wallet)}</div></div>
       <div class="stat"><div class="label">Skill points</div><div class="value">${fmtNum(o.totalSp)}</div>
         <div class="hint">${o.unallocatedSp ? fmtNum(o.unallocatedSp) + ' unallocated' : 'No unallocated SP'}</div></div>
-      <div class="stat"><div class="label">Location</div><div class="value" style="font-size:18px">${o.system || '—'}</div>
+      <div class="stat" data-private><div class="label">Location</div><div class="value" style="font-size:18px">${o.system || '—'}</div>
         <div class="hint">${o.docked ? 'Docked: ' + o.docked : (o.system ? 'In space' : '')}</div></div>
     </div>
     <div class="grid grid-2">
@@ -1053,6 +1063,9 @@ api.onUpdate(showUpdateBanner);
   const [s, c] = await Promise.all([api.getSettings(), api.listCharacters()]);
   state.settings = s.ok ? s.data : {};
   applyTheme(state.settings.theme, state.settings.themeAccent);
+  setStreamer(!!state.settings.streamer, false);
+  if (api.piWatch) api.piWatch.cfg().then(r => { if (r.ok) state.piSnooze = r.data.snooze; });
+  { const b = document.getElementById('streamer-btn'); if (b) b.onclick = () => setStreamer(!document.documentElement.hasAttribute('data-streamer')); }
   state.characters = c.ok ? c.data : [];
   if (state.settings.themeAuto && state.settings.themeAuto.enabled) refreshTheme();
   renderSidebar();

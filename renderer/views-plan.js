@@ -67,7 +67,7 @@ async function viewPlanner(plans, c) {
       <button class="btn btn-ghost" id="pl-new">+ Plan</button><button class="btn btn-ghost" id="pl-rename">Rename</button>
       <span class="wh-sep"></span>
       <button class="btn btn-ghost" id="pl-import">Import text</button><button class="btn btn-ghost" id="pl-export" title="Copies 'Skill Name Level' lines you can paste into EVE's skill queue or another planner">Copy for EVE</button>
-      <button class="btn btn-ghost" id="pl-remap">Optimise remap</button>
+      <button class="btn btn-ghost" id="pl-remap">Optimise remap</button>${d.rows.some(r => r.trained) ? html`<button class="btn btn-ghost" id="pl-clean" title="Take skills this pilot has already trained out of the plan">Remove trained</button>` : ''}
       <span style="flex:1"></span><button class="btn btn-danger" id="pl-del">Delete plan</button>
     </div>
     <div class="grid grid-4" style="margin-bottom:16px">
@@ -102,6 +102,11 @@ async function viewPlanner(plans, c) {
 function bindPlanner(plan, c) {
   const reload = () => render();
   const save = async p => { const r = await api.plan.save(p); if (!r.ok) toast(r.error, true); return r.ok; };
+  const cl = $('#pl-clean'); if (cl) cl.onclick = async () => {
+    const done = new Set((planState.computed ? planState.computed.rows : []).filter(r => r.trained).map(r => r.skillId + ':' + r.level));
+    const before = plan.entries.length; plan.entries = plan.entries.filter(e => !done.has(e.skillId + ':' + e.level));
+    if (await save(plan)) { toast(`Removed ${before - plan.entries.length} trained level${before - plan.entries.length === 1 ? '' : 's'}`); reload(); }
+  };
   $('#pl-pick').onchange = e => { planState.planId = e.target.value; planState.remap = null; reload(); };
   $('#pl-new').onclick = () => openModal('New skill plan', field('Name', inputText('name', '', 'e.g. Ishtar ready')), { submit: 'Create', onSubmit: async d => {
     const r = await api.plan.save({ charId: c.id, name: d.name || 'Plan', entries: [] }); if (r.ok) { planState.planId = r.data.id; reload(); } } });

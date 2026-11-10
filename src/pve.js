@@ -13,12 +13,23 @@ const isAbyss = id => id >= 32000000 && id < 33000000;
 async function ratting(charIds, days = 14) {
   const since = Date.now() - days * 86400000;
   const chars = store.get().characters;
-  const sessions = [];
+  const sessions = [], incSessions = [];
   for (const id of charIds) {
     const j = await safe(() => getAllPages(`/characters/${id}/wallet/journal/`, id, 10));
     if (!ok(j)) continue;
     const ticks = j.filter(e => e.ref_type === 'bounty_prizes' && Date.parse(e.date) >= since).sort((a, b) => a.date.localeCompare(b.date));
     const ess = j.filter(e => e.ref_type === 'ess_escrow_transfer' && Date.parse(e.date) >= since);
+    const inc = j.filter(e => e.ref_type === 'corporate_reward_payout' && (e.first_party_id === 1000125 || /incursion/i.test(e.description || '')) && Date.parse(e.date) >= since && e.amount > 0)
+      .sort((a, b) => a.date.localeCompare(b.date));
+    let ic = null;
+    for (const e of inc) {
+      const time = Date.parse(e.date);
+      if (ic && time - ic.last > 45 * 60000) { incSessions.push(ic); ic = null; }
+      if (!ic) ic = { charId: id, charName: (chars.find(c => c.id === id) || {}).name, start: time, last: time, sites: 0, isk: 0, systems: new Map() };
+      ic.last = time; ic.sites++; ic.isk += e.amount;
+      if (e.context_id >= 30000000 && e.context_id < 32000000) ic.systems.set(e.context_id, (ic.systems.get(e.context_id) || 0) + 1);
+    }
+    if (ic) incSessions.push(ic);
     let cur = null;
     const close = () => { if (cur) { sessions.push(cur); cur = null; } };
     for (const t of ticks) {
@@ -47,7 +58,16 @@ async function ratting(charIds, days = 14) {
   const mins = out.reduce((n, s) => n + s.minutes, 0), isk = out.reduce((n, s) => n + s.isk, 0);
   const bySys = new Map();
   for (const s of out) if (s.system) { const x = bySys.get(s.system) || { system: s.system, minutes: 0, isk: 0 }; x.minutes += s.minutes; x.isk += s.isk; bySys.set(s.system, x); }
-  return { days, sessions: out.slice(0, 100), hours: mins / 60, isk, iskPerHour: mins ? Math.round(isk / mins * 60) : 0,
+  // Incursion sites: each payout is one site, about 8 minutes each, so a session starts one site before its first payout
+  const incOut = incSessions.map(s => {
+    const minutes = Math.max(8, Math.round((s.last - s.start) / 60000) + 8);
+    const sys = [...s.systems.entries()].sort((a, b) => b[1] - a[1])[0];
+    return { charId: s.charId, charName: s.charName, start: new Date(s.start - 8 * 60000).toISOString(), minutes, sites: s.sites, isk: s.isk, iskPerHour: Math.round(s.isk / minutes * 60),
+      system: sys && sde.ready() && sde.system(sys[0]) ? sde.system(sys[0]).name : null };
+  }).sort((a, b) => b.start.localeCompare(a.start));
+  const incMins = incOut.reduce((n, s) => n + s.minutes, 0), incIsk = incOut.reduce((n, s) => n + s.isk, 0);
+  const incursions = { sessions: incOut.slice(0, 60), hours: incMins / 60, isk: incIsk, sites: incOut.reduce((n, s) => n + s.sites, 0), iskPerHour: incMins ? Math.round(incIsk / incMins * 60) : 0 };
+  return { days, incursions, sessions: out.slice(0, 100), hours: mins / 60, isk, iskPerHour: mins ? Math.round(isk / mins * 60) : 0,
     systems: [...bySys.values()].map(x => ({ ...x, iskPerHour: Math.round(x.isk / x.minutes * 60) })).sort((a, b) => b.iskPerHour - a.iskPerHour).slice(0, 8) };
 }
 

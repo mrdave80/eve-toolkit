@@ -171,6 +171,10 @@ function drawDscan() {
   const d = intelState.dscan, box = $('#ds-out');
   if (!box) return;
   box.innerHTML = String(html`<div class="grid grid-4" style="margin:12px 0">${stat('Objects', d.total)}${stat('Ships', d.ships, '', d.ships ? 'gold' : '')}${stat('Ships on grid', d.onGridShips, 'Within 8,000 km', d.onGridShips ? 'neg' : '')}${stat('Structures', d.structures.length)}</div>
+    ${(d.signals || []).length ? html`<div class="panel" style="padding:10px 14px;margin-bottom:12px;border-color:var(--red)"><h3 class="mh" style="margin-top:0">Worth knowing</h3>
+      ${d.signals.map(s => html`<div class="skill-row" style="align-items:flex-start"><span><span class="badge ${s.kind === 'field' ? 'gold' : 'red'}">${s.count}× ${s.label}</span>${s.onGrid ? html` <span class="badge red">${s.onGrid} on grid</span>` : ''} <span class="dim" style="font-size:12px">${s.why}${s.types ? ' (' + s.types.join(', ') + ')' : ''}</span></span>
+        <span class="dim num" style="font-size:12px">${s.nearest !== undefined && isFinite(s.nearest) ? (s.nearest < 1e6 ? fmtNum(Math.round(s.nearest)) + ' km' : (s.nearest / 1.496e8).toFixed(1) + ' AU') : ''}</span></div>`)}</div>` : ''}
+    ${(d.roles || []).length ? html`<h3 class="mh">Ships by role</h3><div class="pi-chips" style="margin-bottom:12px">${d.roles.map(r => html`<span class="badge ${r.role === 'Capitals' || r.role === 'Tackle, recon & ewar' ? 'red' : r.role === 'Logistics' ? 'gold' : r.role === 'Combat' ? 'accent' : ''}">${r.count}× ${r.role}</span>`)}</div>` : ''}
     <h3 class="mh">By class</h3><div class="pi-chips" style="margin-bottom:12px">${d.groups.slice(0, 16).map(g => html`<span class="badge">${g.count}× ${g.group}</span>`)}</div>
     <table><tbody>${d.types.slice(0, 40).map(t => html`<tr><td>${icon(t.typeId, 18)}${t.type}</td><td class="muted">${t.group}</td><td class="right num"><b>${t.count}</b></td><td class="right dim">${t.onGrid ? t.onGrid + ' on grid' : ''}</td></tr>`)}</tbody></table>`);
 }

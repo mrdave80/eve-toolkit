@@ -53,6 +53,9 @@ const CATS = {
   skill_purchase: 'Skills', corporate_reward_payout: 'Corp payouts', project_discovery_reward: 'Project Discovery', daily_goal_payouts: 'Daily goals', structure_gate_jump: 'Travel'
 };
 
+// Incursion site payouts come from CONCORD as corporate reward payouts.
+const isIncursion = e => e.ref_type === 'corporate_reward_payout' && (e.first_party_id === 1000125 || /incursion/i.test(e.description || '') || /incursion/i.test(e.reason || ''));
+
 async function income(charIds, days = 30) {
   const since = Date.now() - days * 86400000;
   const rows = [];
@@ -63,7 +66,7 @@ async function income(charIds, days = 30) {
   const byCat = new Map(), byDay = new Map();
   let ticks = 0, tickIsk = 0;
   for (const e of rows) {
-    const cat = CATS[e.ref_type] || e.ref_type.replace(/_/g, ' ');
+    const cat = isIncursion(e) ? 'Incursions' : CATS[e.ref_type] || e.ref_type.replace(/_/g, ' ');
     const c = byCat.get(cat) || { category: cat, income: 0, expense: 0, count: 0 };
     if (e.amount >= 0) c.income += e.amount; else c.expense += e.amount;
     c.count++; byCat.set(cat, c);

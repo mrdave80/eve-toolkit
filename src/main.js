@@ -290,8 +290,51 @@ async function checkPlanets(c, data) {
         break;
       }
     }
+    piWatchAlerts(c, data, p);
   }
 }
+
+/* PI watchdog: storage filling and factories running dry, from the colony simulation.
+   Keys include the colony's last update, so an alert clears itself once you fix it in game.
+   Up to two reminders, six hours apart, while it stays unfixed. Colonies can be snoozed. */
+function piWatchAlerts(c, data, p) {
+  const sim = p.sim; if (!sim) return;
+  const cfg = { leadHours: 6, reminders: true, ...(data.settings.piWatch || {}) };
+  if (cfg.enabled === false) return;
+  const snooze = (data.settings.piSnooze || {})[p.planetId];
+  if (snooze && snooze > Date.now()) return;
+  const lead = Date.now() + cfg.leadHours * 3600000;
+  const issues = [];
+  if (sim.storage.fullAt && Date.parse(sim.storage.fullAt) <= lead) issues.push(['full', Date.parse(sim.storage.fullAt) <= Date.now() ? `Storage on ${p.name} is full.` : `Storage on ${p.name} fills up in ${Math.max(1, Math.round((Date.parse(sim.storage.fullAt) - Date.now()) / 3600000))} h.`]);
+  for (const d of sim.dry) if (Date.parse(d.at) <= lead) issues.push(['dry:' + d.item, Date.parse(d.at) <= Date.now() ? `Factories on ${p.name} have run out of ${d.item}.` : `Factories on ${p.name} run out of ${d.item} in ${Math.max(1, Math.round((Date.parse(d.at) - Date.now()) / 3600000))} h.`]);
+  for (const [kind, msg] of issues) {
+    const key = `piw:${p.planetId}:${kind}:${sim.lastUpdate}`;
+    const ev = data.seenEvents || {};
+    if (!seen(data, key)) { notify(c.name, msg, 'planets'); continue; }
+    if (!cfg.reminders) continue;
+    for (const r of [1, 2]) {
+      const prev = ev[r === 1 ? key : key + ':r1'];
+      if (prev && Date.now() - prev > 6 * 3600000 && !ev[key + ':r' + r]) { seen(data, key + ':r' + r); notify(c.name, msg + ' (reminder)', 'planets'); break; }
+    }
+  }
+}
+handle('pi:snooze', (planetId, hours) => {
+  const s = store.get().settings; s.piSnooze = s.piSnooze || {};
+  const h = Number(hours);
+  if (h > 0) s.piSnooze[Number(planetId)] = Date.now() + Math.min(168, h) * 3600000; else delete s.piSnooze[Number(planetId)];
+  for (const [k, v] of Object.entries(s.piSnooze)) if (v < Date.now()) delete s.piSnooze[k];
+  store.save(); return s.piSnooze;
+});
+handle('pi:watchCfg', cfg => {
+  const s = store.get().settings; const cur = { leadHours: 6, reminders: true, enabled: true, ...(s.piWatch || {}) };
+  if (cfg && typeof cfg === 'object') {
+    if (typeof cfg.enabled === 'boolean') cur.enabled = cfg.enabled;
+    if (typeof cfg.reminders === 'boolean') cur.reminders = cfg.reminders;
+    if (cfg.leadHours !== undefined) cur.leadHours = Math.max(1, Math.min(48, Number(cfg.leadHours) || 6));
+    s.piWatch = cur; store.save();
+  }
+  return { ...cur, snooze: s.piSnooze || {} };
+});
 
 // ---------- Extra alerts: wars, corp apps, contracts, orders ----------
 
@@ -485,6 +528,7 @@ handle('settings:set', s => {
   if (s.incursionJumps !== undefined) next.incursionJumps = Math.max(1, Math.min(30, Math.round(Number(s.incursionJumps) || 10)));
   if (s.alerts && typeof s.alerts === 'object') next.alerts = { ...(cur.alerts || {}), ...Object.fromEntries(Object.entries(s.alerts).filter(([, v]) => typeof v === 'boolean')) };
   if (typeof s.updateUrl === 'string') { const u = s.updateUrl.trim(); if (u && !/^https:\/\//.test(u)) throw new Error('The update feed must be an https:// address.'); next.updateUrl = u; }
+  if (typeof s.streamer === 'boolean') next.streamer = s.streamer;
   if (typeof s.theme === 'string' && /^[a-z0-9-]{1,32}$/.test(s.theme)) next.theme = s.theme;
   if (typeof s.themeAccent === 'string' && (s.themeAccent === '' || /^#[0-9a-fA-F]{6}$/.test(s.themeAccent))) next.themeAccent = s.themeAccent;
   if (typeof s.themeBg === 'string' && /^#[0-9a-fA-F]{6}$/.test(s.themeBg)) { next.themeBg = s.themeBg; if (win && !win.isDestroyed()) win.setBackgroundColor(s.themeBg); }
@@ -656,6 +700,41 @@ handle('plan:import', async (plan, text) => {
   for (const e of entries) skillplan.addToEntries(plan.entries, e.skillId, e.level, have);
   return { plan: skillplan.savePlan(plan), unknown };
 });
+// Compare trained skills across pilots, and CSV exports
+handle('skills:compare', async ids => {
+  const chars = (store.get().characters || []).filter(c => !c.needsReauth && (!ids || !ids.length || ids.map(Number).includes(c.id))).slice(0, 10);
+  const pilots = [], all = new Map(), errors = [];
+  for (const c of chars) {
+    try {
+      const s = await esi.skills(c.id);
+      const lv = {};
+      for (const g of s.groups) for (const k of g.skills) { lv[k.id] = k.level; if (!all.has(k.id)) all.set(k.id, { id: k.id, name: k.name, group: g.name }); }
+      pilots.push({ id: c.id, name: c.name, totalSp: s.totalSp, levels: lv });
+    } catch (e) { errors.push({ pilot: c.name, error: e.message }); }
+  }
+  const skills = [...all.values()].sort((a, b) => a.group.localeCompare(b.group) || a.name.localeCompare(b.name));
+  return { pilots, skills, errors };
+});
+handle('skills:queuesCsv', async ids => {
+  const chars = (store.get().characters || []).filter(c => !c.needsReauth && (!ids || !ids.length || ids.map(Number).includes(c.id)));
+  const rows = [['Pilot', 'Position', 'Skill', 'Level', 'Starts', 'Finishes']];
+  for (const c of chars) {
+    const q = await esi.safe(() => esi.skillQueue(c.id));
+    if (!esi.ok(q)) continue;
+    for (const e of q.queue) rows.push([c.name, e.queue_position + 1, e.name, e.finished_level, e.start_date || '', e.finish_date || '']);
+  }
+  return rows;
+});
+handle('file:saveCsv', async (name, rows) => {
+  if (!Array.isArray(rows)) throw new Error('Nothing to save');
+  const esc = v => { const t = String(v ?? ''); return /[",\n\r]/.test(t) || /^[=+\-@]/.test(t) ? '"' + t.replace(/^([=+\-@])/, "'$1").replace(/"/g, '""') + '"' : t; };
+  const text = '﻿' + rows.map(r => r.map(esc).join(',')).join('\r\n');
+  const safeName = String(name || 'export').replace(/[^\w .-]/g, '_').slice(0, 80);
+  const r = await dialog.showSaveDialog(win, { title: 'Save CSV', defaultPath: path.join(app.getPath('documents'), safeName + '.csv'), filters: [{ name: 'CSV', extensions: ['csv'] }] });
+  if (r.canceled || !r.filePath) return null;
+  fs.writeFileSync(r.filePath, text);
+  return { file: r.filePath, rows: rows.length };
+});
 handle('plan:export', plan => { const t = skillplan.exportText(plan.entries); clipboard.writeText(t); return t; });
 handle('plan:skills', () => sde.skillsByGroup());
 handle('canfly', typeId => skillplan.canFly(typeId, store.get().characters.filter(c => !c.needsReauth).map(c => c.id), workspace.get().audits));
@@ -663,6 +742,9 @@ handle('canfly', typeId => skillplan.canFly(typeId, store.get().characters.filte
 // ================= Industry & trading tools =================
 
 handle('ind:calc', o => industry.calculate(o));
+const buildplan = require('./buildplan');
+handle('ind:shopping', async (o, stockOpts) => buildplan.shoppingList(await industry.calculate(o), stockOpts || {}));
+handle('ind:whatToBuild', o => buildplan.whatToBuild(o || {}));
 handle('ind:invent', o => industry.invention(o));
 handle('ind:reprocess', (text, o) => industry.reprocess(appraise.parseItems(text).items, o));
 handle('ind:structures', () => ({ structures: industry.STRUCTURES, decryptors: industry.DECRYPTORS }));
@@ -859,6 +941,16 @@ handle('ui:open', async (charId, kind, id) => {
   await esi.rawRequest(path, { charId: c.id, method: 'POST' });
   return { pilot: c.name };
 });
+// Hotkey for stepping through outbid orders while EVE has focus
+const ORDER_KEY = 'Control+Alt+N';
+handle('orders:hotkey', on => {
+  const { globalShortcut } = require('electron');
+  if (globalShortcut.isRegistered(ORDER_KEY)) globalShortcut.unregister(ORDER_KEY);
+  if (!on) return false;
+  const ok = globalShortcut.register(ORDER_KEY, () => { if (win && !win.isDestroyed()) win.webContents.send('orders:next'); });
+  if (!ok) throw new Error('Ctrl+Alt+N is taken by another program.');
+  return true;
+});
 handle('ui:mail', async (charId, recipientId, subject, body) => {
   const c = uiPilot(charId, 'esi-ui.open_window.v1');
   await esi.rawRequest('/ui/openwindow/newmail/', { charId: c.id, method: 'POST', body: { recipients: [Number(recipientId)], subject: String(subject || '').slice(0, 1000), body: String(body || '').slice(0, 10000) } });
@@ -930,6 +1022,12 @@ setInterval(() => finance.snapshot(false).catch(() => {}), 6 * 3600000);
 setInterval(() => { if (app.isReady() && store.get().settings.notifications) daily.tick(notify).catch(() => {}); }, 60000);
 setInterval(() => { if (app.isReady()) { try { timers.tick(notify); } catch {} } }, 60000);
 handle('wh:info', q => whinfo.info(q));
+const agents = require('./agents');
+handle('agents:options', () => agents.options());
+handle('agents:find', o => agents.find(o || {}));
+handle('agents:lpFor', (item, from) => agents.lpFor(item, from));
+handle('hunt:camps', o => require('./hunting').camps(o || {}));
+handle('sys:activity', id => syscard.activity(id));
 handle('sys:card', q => syscard.card(q));
 // ---------- Price alerts ----------
 const iskShort = n => n >= 1e9 ? (n / 1e9).toFixed(2) + 'b' : n >= 1e6 ? (n / 1e6).toFixed(2) + 'm' : n >= 1e3 ? (n / 1e3).toFixed(1) + 'k' : n.toFixed(2);

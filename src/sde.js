@@ -19,7 +19,7 @@ const KEEP_ATTRS = new Set([
   633, 422, 1692                                                    // meta level, tech level, meta group
 ]);
 const REQ = [[182, 277], [183, 278], [184, 279], [1285, 1286], [1289, 1287], [1290, 1288]];
-const FILES = ['types', 'groups', 'categories', 'dogmaAttributes', 'typeDogma', 'blueprints', 'typeMaterials', 'mapSolarSystems', 'mapRegions', 'mapConstellations', 'mapStargates', 'mapSecondarySuns', 'mapPlanets', 'marketGroups'];
+const FILES = ['types', 'groups', 'categories', 'dogmaAttributes', 'typeDogma', 'blueprints', 'typeMaterials', 'mapSolarSystems', 'mapRegions', 'mapConstellations', 'mapStargates', 'mapSecondarySuns', 'mapPlanets', 'marketGroups', 'npcCharacters'];
 
 let db = null;          // loaded database
 let fullDb = null;      // item database attributes, loaded on first use
@@ -68,7 +68,8 @@ async function buildFromZip(file, build) {
   const out = {
     build, builtAt: new Date().toISOString(),
     types: {}, groups: {}, categories: {}, dogma: {}, blueprints: {}, products: {}, materials: {},
-    systems: {}, regions: {}, constellations: {}, gates: {}, suns: {}, planets: {}, marketGroups: {}
+    systems: {}, regions: {}, constellations: {}, gates: {}, suns: {}, planets: {}, marketGroups: {},
+    agents: [], stations: {}, npcCorps: {}, factions: {}, divisions: {}, agentTypes: {}
   };
   let step = 0;
   const tick = name => setStatus({ state: 'building', progress: Math.round((++step / FILES.length) * 100), message: `Reading ${name}…` });
@@ -147,6 +148,19 @@ async function buildFromZip(file, build) {
   });
   tick('market groups');
   if (entries.marketGroups) await eachLine(zip, entries.marketGroups, g => { out.marketGroups[g._key] = [en(g.name), g.parentGroupID || 0]; });
+  tick('agents');
+  // Agents for the agent finder. Field names vary a little between SDE builds, so read them loosely.
+  if (entries.npcStations) await eachLine(zip, entries.npcStations, st => { out.stations[st._key] = [st.solarSystemID || st.solarSystemId || 0, st.ownerID || st.corporationID || 0]; });
+  if (entries.npcCorporations) await eachLine(zip, entries.npcCorporations, c => { out.npcCorps[c._key] = [en(c.name), c.factionID || 0]; });
+  if (entries.factions) await eachLine(zip, entries.factions, f => { out.factions[f._key] = en(f.name); });
+  if (entries.npcCorporationDivisions) await eachLine(zip, entries.npcCorporationDivisions, d => { out.divisions[d._key] = en(d.displayName) || en(d.name) || ''; });
+  if (entries.agentTypes) await eachLine(zip, entries.agentTypes, a => { out.agentTypes[a._key] = typeof a.name === 'string' ? a.name : en(a.name); });
+  if (entries.npcCharacters) await eachLine(zip, entries.npcCharacters, c => {
+    const a = c.agent || (c.agentTypeID !== undefined ? c : null);
+    if (!a) return;
+    const loc = c.locationID || c.stationID || a.locationID || 0;
+    out.agents.push([c._key, en(c.name), c.corporationID || a.corporationID || 0, a.level || 0, a.divisionID || 0, a.agentTypeID || 0, loc, a.isLocator ? 1 : 0]);
+  });
   zip.close();
   return out;
 }
@@ -371,6 +385,8 @@ function system(id) {
 const systemIdByName = name => need().nameToSystem.get(String(name).trim().toLowerCase()) || null;
 const gates = id => need().gates[id] || [];
 const allSystems = () => need().systems;
+/** Agent finder data, or null when the game data predates it. */
+function agentData() { const d = need(); return d.agents && d.agents.length ? { agents: d.agents, stations: d.stations || {}, npcCorps: d.npcCorps || {}, factions: d.factions || {}, divisions: d.divisions || {}, agentTypes: d.agentTypes || {} } : null; }
 /** Every type id whose summary passes fn(type). */
 const typesWhere = fn => Object.keys(need().types).map(id => type(id)).filter(t => t && fn(t));
 const ready = () => !!db;
@@ -394,6 +410,6 @@ function wormholeTypes() {
 module.exports = {
   load, update, importZip, info, ready, check, setListener: fn => { onStatus = fn; },
   type, typeIdByName, attrs, fullAttrs, hasFull, usedIn, groupName, planetsIn, hasPlanets, requirements, allRequirements, skillMeta, search, skillsByGroup,
-  blueprintFor, blueprint, inventedFrom, wormholeTypes, reprocess, system, systemIdByName, gates, allSystems, typesWhere,
+  blueprintFor, blueprint, inventedFrom, wormholeTypes, reprocess, system, systemIdByName, gates, allSystems, typesWhere, agentData,
   _buildFromZip: buildFromZip, _install: install
 };

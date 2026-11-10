@@ -80,4 +80,39 @@ async function deepCheck(systemId, hours = 3) {
   return { systemId: Number(systemId), hours, kills: pvp.length, npcLosses: items.length - pvp.length, value: pvp.reduce((n, k) => n + (k.zkb.totalValue || 0), 0) };
 }
 
-module.exports = { find, deepCheck, within };
+/** Active gate camps near a system, for pilots who want a fight. Checks the busiest systems on zKillboard. */
+async function camps(opts = {}) {
+  if (!sde.ready()) throw new Error('Download the game data first (Settings → Game data).');
+  const from = typeof opts.from === 'number' ? opts.from : sde.systemIdByName(String(opts.from || ''));
+  if (!from) throw new Error(`Unknown system "${opts.from}".`);
+  const maxJ = Math.max(1, Math.min(15, Number(opts.jumps) || 8));
+  const hours = Math.max(1, Math.min(3, Number(opts.hours) || 1));
+  const zones = new Set((opts.zones && opts.zones.length ? opts.zones : ['hs', 'ls', 'ns']));
+  const st = await liveStats(false);
+  const dist = within(from, maxJ, !!opts.bridges);
+  const cand = [];
+  for (const [id, j] of dist) {
+    const z = zoneOf(id); if (!z || !zones.has(z)) continue;
+    const k = st.kills.get(id) || { ship: 0, pod: 0 };
+    if (k.ship + k.pod >= 2) cand.push({ id, j, k });
+  }
+  cand.sort((a, b) => (b.k.ship + b.k.pod) - (a.k.ship + a.k.pod) || a.j - b.j);
+  const { _systemReport } = require('./routewatch');
+  const rows = [];
+  for (const c of cand.slice(0, 14)) {
+    const rep = await _systemReport(c.id, hours).catch(() => null);
+    if (!rep) continue;
+    for (const h of rep.hazards.filter(h => h.type === 'camp' || h.type === 'undock')) {
+      const s = sde.system(c.id);
+      rows.push({ id: c.id, name: s.name, security: s.security, region: s.region, zone: zoneOf(c.id), jumps: c.j, where: h.where, kind: h.type, kills: h.count, latest: h.latest,
+        smartbomb: !!h.smartbomb, bubbles: !!h.bubbles, ships: rep.ships, groups: rep.groups, pilots: rep.topPilots, recent: rep.kills.slice(0, 4) });
+    }
+  }
+  rows.sort((a, b) => a.latest - b.latest || a.jumps - b.jumps);
+  const pids = [...new Set(rows.flatMap(r => r.pilots))];
+  const pn = pids.length ? await resolveNames(pids).catch(() => ({})) : {};
+  for (const r of rows) r.pilots = r.pilots.map(id => ({ id, name: pn[id] || String(id) }));
+  return { from: sde.system(from).name, jumps: maxJ, hours, checked: Math.min(cand.length, 14), candidates: cand.length, rows, updated: new Date(st.at).toISOString() };
+}
+
+module.exports = { find, deepCheck, within, camps };

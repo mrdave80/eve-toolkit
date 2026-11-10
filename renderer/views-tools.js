@@ -3,10 +3,11 @@
 
 const TOOLS_GROUPS = [
   ['Market', [['t-market', 'Browser'], ['t-appraisal', 'Appraisal'], ['t-orders', 'My Orders'], ['t-arbitrage', 'Hub Arbitrage'], ['t-lp', 'LP Store'], ['t-trade', 'Trade Profit'], ['t-prices', 'Price Alerts'], ['t-bargain', 'Contract Bargains'], ['t-items', 'Item Database']]],
-  ['Industry', [['t-build', 'Build Calculator'], ['t-invent', 'Invention'], ['t-reprocess', 'Reprocessing'], ['t-ores', 'Ore Values'], ['t-moon', 'Moon Scan'], ['t-assets', 'Asset Finder']]],
-  ['Navigation', [['t-route', 'Route Planner'], ['t-courier', 'Courier Contracts'], ['t-hunt', 'Hunting & Ratting'], ['t-jump', 'Jump Planner'], ['t-universe', 'Universe']]],
+  ['Industry', [['t-build', 'Build Calculator'], ['t-wtb', 'What to Build'], ['t-invent', 'Invention'], ['t-reprocess', 'Reprocessing'], ['t-ores', 'Ore Values'], ['t-moon', 'Moon Scan'], ['t-assets', 'Asset Finder']]],
+  ['Navigation', [['t-route', 'Route Planner'], ['t-courier', 'Courier Contracts'], ['t-hunt', 'Hunting & Ratting'], ['t-agents', 'Agent Finder'], ['t-jump', 'Jump Planner'], ['t-universe', 'Universe']]],
   ['Intel', [['t-pilot', 'Pilot Intel'], ['t-whres', 'Wormhole Residents'], ['t-shame', 'Wall of Shame'], ['t-intel', 'Intel Watch'], ['t-local', 'Local & D-scan'], ['t-combat', 'Combat Log']]],
   ['Fitting', [['t-fit', 'Fit Checker']]],
+  ['Pilots', [['t-compare', 'Compare Skills']]],
   ['Client', [['t-eveset', 'Copy EVE Settings']]],
   ['Finance', [['t-networth', 'Net Worth'], ['t-income', 'Income'], ['t-pve', 'Ratting & Abyss'], ['t-farm', 'Skill Farm'], ['t-charval', 'Character Value'], ['t-insure', 'Insurance']]]
 ];
@@ -31,7 +32,7 @@ const iskCell = (v, cls = '') => html`<span class="num ${cls}">${v === null || v
 
 async function renderTools(stillCurrent) {
   const tab = state.toolsTab || 't-market';
-  const needsSde = ['t-shame', 't-whres', 't-hunt', 't-courier', 't-market', 't-appraisal', 't-arbitrage', 't-build', 't-invent', 't-reprocess', 't-ores', 't-assets', 't-route', 't-jump', 't-intel', 't-local'];
+  const needsSde = ['t-shame', 't-whres', 't-hunt', 't-courier', 't-market', 't-appraisal', 't-arbitrage', 't-build', 't-invent', 't-reprocess', 't-ores', 't-assets', 't-wtb', 't-agents', 't-route', 't-jump', 't-intel', 't-local'];
   if (needsSde.includes(tab)) {
     const info = await api.sde.info();
     if (!info.ok || !info.data.ready) return setContent(needSdeView('This tool'));
@@ -43,7 +44,7 @@ async function renderTools(stillCurrent) {
     't-pilot': tPilot, 't-whres': () => tWhRes(), 't-shame': () => tShame(), 't-intel': () => (typeof tIntel === 'function' ? tIntel() : null), 't-local': () => (typeof tLocal === 'function' ? tLocal() : null), 't-combat': () => (typeof tCombat === 'function' ? tCombat() : null),
     't-fit': () => tFit(),
     't-items': () => tItems(), 't-bargain': () => tBargains(), 't-charval': () => tCharValue(stillCurrent),
-    't-trade': () => tTrade(stillCurrent), 't-assets': () => tAssetFinder(), 't-ores': () => tOres(), 't-eveset': () => tEveSettings(), 't-prices': () => tPriceWatch(), 't-moon': () => tMoon(),
+    't-trade': () => tTrade(stillCurrent), 't-assets': () => tAssetFinder(), 't-wtb': () => tWhatToBuild(), 't-agents': () => tAgents(), 't-ores': () => tOres(), 't-eveset': () => tEveSettings(), 't-compare': () => tCompareSkills(), 't-prices': () => tPriceWatch(), 't-moon': () => tMoon(),
     't-farm': () => tFarm(stillCurrent), 't-insure': () => tInsure(stillCurrent),
     't-pve': () => tPve(), 't-networth': () => (typeof tNetworth === 'function' ? tNetworth(stillCurrent) : null), 't-income': () => (typeof tIncome === 'function' ? tIncome(stillCurrent) : null)
   };
@@ -161,21 +162,69 @@ async function tAppraisal() {
 
 // ================= My orders (undercuts) =================
 
-async function tOrders() {
-  setContent(loadingView('Checking your orders against the market…'));
-  const r = await api.trade.myOrders();
-  if (!r.ok) return setContent(errorView(r));
-  const list = r.data;
+/** EVE allows four significant digits in a price. Return the next price that beats `best`. */
+function beatPrice(best, buy) {
+  if (!best || best <= 0) return null;
+  const step = Math.max(0.01, Math.pow(10, Math.floor(Math.log10(best)) - 3));
+  const round = v => Math.round(v * 100) / 100;
+  if (buy) return round((Math.floor(best / step + 1e-9) + 1) * step);
+  let p = (Math.ceil(best / step - 1e-9) - 1) * step;
+  if (p <= 0) return null;
+  // Dropping below a power of ten shrinks the step, e.g. 1,000 → 999.9
+  const step2 = Math.max(0.01, Math.pow(10, Math.floor(Math.log10(p)) - 3));
+  if (step2 < step) p = best - step2;
+  return round(p);
+}
+const ordState = { list: null, idx: -1, done: new Set(), hotkey: false };
+
+async function tOrders(refresh) {
+  if (!ordState.list || refresh) {
+    setContent(loadingView('Checking your orders against the market…'));
+    const r = await api.trade.myOrders();
+    if (!r.ok) return setContent(errorView(r));
+    ordState.list = r.data; ordState.idx = -1; ordState.done = new Set();
+  }
+  drawOrders();
+}
+
+function ordersToFix() { return (ordState.list || []).filter(o => o.check && o.check.beaten && !ordState.done.has(o.order_id)); }
+
+async function fixOrder(o) {
+  const price = beatPrice(o.check.best, o.is_buy_order);
+  if (price === null) return toast('No price to beat.', true);
+  await api.copy(String(price));
+  const w = await api.ui.open(o.charId, 'market', o.type_id);
+  ordState.done.add(o.order_id);
+  toast(w.ok ? `${fmtNum(price)} copied. ${o.typeName} market opened in game for ${w.data.pilot}: find your order, Modify, paste.` : `${fmtNum(price)} copied. Open the ${o.typeName} market in game (to open it from here, turn on In-game control in Settings).`);
+  drawOrders();
+}
+function ordersNext() {
+  const todo = ordersToFix();
+  if (!todo.length) return toast('No outbid orders left. Re-check to look again.');
+  fixOrder(todo[0]);
+}
+if (window.api && api.orderHelper) api.orderHelper.onNext(() => { if (state.view === 'tools' && state.toolsTab === 't-orders') ordersNext(); });
+
+function drawOrders() {
+  const list = ordState.list || [];
   const beaten = list.filter(o => o.check && o.check.beaten);
-  setContent(html`<div class="grid grid-4" style="margin-bottom:16px">${stat('Open orders', list.length)}${stat('Undercut / outbid', beaten.length, beaten.length ? 'Update these in game' : 'You are top of the book', beaten.length ? 'neg' : 'pos')}
+  const left = ordersToFix().length;
+  setContent(html`<div class="grid grid-4" style="margin-bottom:16px">${stat('Open orders', list.length)}${stat('Undercut / outbid', beaten.length, beaten.length ? `${left} still to update` : 'You are top of the book', beaten.length ? 'neg' : 'pos')}
       ${stat('Sell value', fmtCompact(list.filter(o => !o.is_buy_order).reduce((n, o) => n + o.price * o.volume_remain, 0)) + ' ISK')}${stat('Buy escrow', fmtCompact(list.filter(o => o.is_buy_order).reduce((n, o) => n + (o.escrow || 0), 0)) + ' ISK')}</div>
-    <div class="toolbar"><button class="btn btn-ghost" id="or-refresh">⟳ Re-check</button><span class="dim">Alerts for undercuts can be switched on in Settings.</span></div>
-    <div class="panel" style="padding:0">${list.length ? html`<table><thead><tr><th>Pilot</th><th>Item</th><th></th><th class="right">Your price</th><th class="right">Best other</th><th class="right">Difference</th><th class="right">Remaining</th><th>Location</th></tr></thead><tbody>
-      ${list.map(o => { const c = o.check; return html`<tr><td>${charImg(o.charId, 20)}${o.charName}</td><td>${icon(o.type_id, 18)}${o.typeName}</td><td><span class="badge">${o.is_buy_order ? 'Buy' : 'Sell'}</span></td>
+    <div class="toolbar"><button class="btn btn-primary" id="or-next" ${raw(left ? '' : 'disabled')}>Update next order ▸</button>
+      <label class="check" style="margin:0"><input type="checkbox" id="or-hot" ${raw(ordState.hotkey ? 'checked' : '')}> Ctrl+Alt+N does this while you're in game</label>
+      <button class="btn btn-ghost" id="or-refresh">⟳ Re-check</button></div>
+    <div class="dim" style="font-size:12px;margin:-4px 0 10px">Each step copies a price that beats the best order (to EVE's four-digit rule) and opens that item's market in game. In EVE: find your order, Modify Order, paste, OK.</div>
+    <div class="panel" style="padding:0">${list.length ? html`<table><thead><tr><th>Pilot</th><th>Item</th><th></th><th class="right">Your price</th><th class="right">Best other</th><th class="right">Difference</th><th class="right">New price</th><th class="right">Remaining</th><th>Location</th></tr></thead><tbody>
+      ${list.map(o => { const c = o.check; const np = c && c.beaten ? beatPrice(c.best, o.is_buy_order) : null; const done = ordState.done.has(o.order_id); return html`<tr style="${raw(done ? 'opacity:.55' : '')}"><td>${charImg(o.charId, 20)}${o.charName}</td><td>${icon(o.type_id, 18)}${o.typeName}</td><td><span class="badge">${o.is_buy_order ? 'Buy' : 'Sell'}</span></td>
         <td class="right num">${nf2.format(o.price)}</td><td class="right num">${c && c.best ? nf2.format(c.best) : '—'}</td>
         <td class="right">${c ? (c.beaten ? html`<span class="badge red">${o.is_buy_order ? 'Outbid' : 'Undercut'} by ${fmtCompact(c.by)}</span>` : raw('<span class="badge green">Top</span>')) : raw('<span class="dim">?</span>')}</td>
+        <td class="right nowrap">${np !== null ? html`<span class="num">${nf2.format(np)}</span> <button class="btn btn-ghost" style="padding:1px 8px;font-size:11.5px" data-or-fix="${o.order_id}">${done ? 'Again' : 'Update'}</button>` : ''}</td>
         <td class="right num">${fmtNum(o.volume_remain)}/${fmtNum(o.volume_total)}</td><td class="muted">${o.locationName}</td></tr>`; })}</tbody></table>` : emptyBox('No open market orders on your pilots.')}</div>`);
-  $('#or-refresh').onclick = () => tOrders();
+  $('#or-refresh').onclick = () => tOrders(true);
+  $('#or-next').onclick = () => ordersNext();
+  $('#or-hot').onchange = async e => { const r = await api.orderHelper.hotkey(e.target.checked); if (!r.ok) { toast(r.error, true); e.target.checked = false; return; } ordState.hotkey = e.target.checked; toast(e.target.checked ? 'Ctrl+Alt+N updates the next order' : 'Hotkey off'); };
+  document.querySelectorAll('[data-or-fix]').forEach(b => b.onclick = () => fixOrder(list.find(o => String(o.order_id) === b.dataset.orFix)));
 }
 
 // ================= Arbitrage =================
@@ -216,7 +265,7 @@ async function tLp() {
   const list = [...corps.values()].sort((a, b) => b.lp - a.lp);
   if (!toolState.lp.corpId && list[0]) toolState.lp.corpId = list[0].id;
   setContent(html`<div class="toolbar"><select id="lp-corp" class="crumb-select">${list.map(c => html`<option value="${c.id}" ${raw(c.id === toolState.lp.corpId ? 'selected' : '')}>${c.name}: ${fmtNum(c.lp)} LP</option>`)}</select>
-    <input type="number" id="lp-manual" placeholder="…or corporation ID" style="width:180px" class="crumb-select">${hubSelect('lp-hub', toolState.hub)}<button class="btn btn-primary" id="lp-go">Load store</button></div>
+    <input type="number" id="lp-manual" placeholder="…or corporation ID" style="width:180px" class="crumb-select" value="${toolState.lp.corpId && !corps.has(toolState.lp.corpId) ? toolState.lp.corpId : ''}">${hubSelect('lp-hub', toolState.hub)}<button class="btn btn-primary" id="lp-go">Load store</button></div>
     <div id="lp-out">${list.length ? '' : emptyBox('None of your pilots have loyalty points. Enter an NPC corporation ID to browse its store.')}</div>`);
   const go = async () => {
     const id = Number($('#lp-manual').value) || Number($('#lp-corp').value);
@@ -296,13 +345,71 @@ async function runBuild() {
     <div class="grid grid-2" style="margin-top:16px">
       <div class="panel"><h3>Job cost</h3><div class="kv"><span class="k">Estimated item value</span><span class="num">${fmtIsk(d.eiv)}</span><span class="k">System cost index</span><span class="num">${(d.costIndex * 100).toFixed(2)}%${b.systemName ? '' : ' (default, set a system)'}</span>
         <span class="k">Facility tax + SCC</span><span class="num">${(b.facilityTax + 4).toFixed(1)}%</span><span class="k">Installation cost</span><span class="num">${fmtIsk(d.jobCost)}</span><span class="k">Materials</span><span class="num">${fmtIsk(d.materialCost)}</span></div></div>
-      <div class="panel"><h3>Required skills</h3>${d.skills.length ? d.skills.map(s => html`<div class="skill-row"><span>${pilotLv ? ((pilotLv[s.id] || 0) >= s.level ? raw('<span class="pos">✓</span> ') : raw('<span class="neg">✗</span> ')) : ''}${s.name} ${ROMAN[s.level]}</span><span class="dim">${pilotLv ? 'has ' + (ROMAN[pilotLv[s.id] || 0] || '0') : ''}</span></div>`) : html`<div class="muted">None</div>`}</div></div>`);
+      <div class="panel"><h3>Required skills</h3>${d.skills.length ? d.skills.map(s => html`<div class="skill-row"><span>${pilotLv ? ((pilotLv[s.id] || 0) >= s.level ? raw('<span class="pos">✓</span> ') : raw('<span class="neg">✗</span> ')) : ''}${s.name} ${ROMAN[s.level]}</span><span class="dim">${pilotLv ? 'has ' + (ROMAN[pilotLv[s.id] || 0] || '0') : ''}</span></div>`) : html`<div class="muted">None</div>`}</div></div>
+    <div class="panel" style="margin-top:16px" id="bd-shop"><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><h3 style="margin:0;flex:1">Shopping list</h3>
+      <label class="dim" style="font-size:12.5px">Count stock <select id="bd-shop-where" class="crumb-select" style="width:auto"><option value="">in every hangar</option>${b.systemName ? html`<option value="sys" ${raw(b.shopWhere === 'sys' ? 'selected' : '')}>in ${b.systemName} only</option>` : ''}</select></label>
+      <button class="btn btn-ghost" id="bd-shop-go">${b.shop ? '⟳ Check hangars' : 'Check my hangars'}</button></div>
+      <div id="bd-shop-out">${html`<div class="dim" style="font-size:12px;margin-top:6px">Takes what your pilots already own off the materials list, checks for the blueprint, and gives you a multibuy list for the rest.</div>`}</div></div>`);
+  $('#bd-shop-go').onclick = () => runShopping();
+  if (b.shop) runShopping();
   document.querySelectorAll('[data-bd-build]').forEach(c => c.onchange = () => {
     const id = Number(c.dataset.bdBuild);
     b.build = c.checked ? [...b.build, id] : b.build.filter(x => x !== id);
     runBuild();
   });
 }
+
+async function runShopping() {
+  const b = toolState.build, out = $('#bd-shop-out'); if (!out) return;
+  b.shop = true; b.shopWhere = $('#bd-shop-where').value;
+  out.innerHTML = String(loadingView('Checking every pilot\'s hangars…'));
+  const sys = b.systemName ? await api.nav.systemId(b.systemName) : null;
+  const r = await api.ind.shopping({ ...b, systemId: sys && sys.ok ? sys.data : null, hub: toolState.hub, skills: await pilotSkillOpts(b.pilotId) }, { system: b.shopWhere === 'sys' ? b.systemName : null });
+  if (!r.ok) { out.innerHTML = String(errorView(r)); return; }
+  const d = r.data;
+  out.innerHTML = String(html`<div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0">
+      ${d.ready ? html`<span class="badge green">You have every material</span>` : html`<span class="badge gold">${d.items.filter(i => i.buy).length} to buy · ${fmtNum(Math.round(d.buyVolume))} m³</span>`}
+      ${d.blueprint.have ? html`<span class="badge green" title="${d.blueprint.places.map(p => p.pilot + ': ' + p.location).join('\n')}">Blueprint: ${d.blueprint.places[0].pilot}, ${d.blueprint.places[0].location}</span>` : html`<span class="badge red">No ${d.blueprint.name} found in your hangars</span>`}
+      <span style="flex:1"></span>${d.multibuy ? html`<button class="btn btn-ghost" style="padding:2px 10px;font-size:12px" id="bd-multibuy" title="Paste into EVE's Multibuy window">Copy multibuy</button>` : ''}</div>
+    <table><thead><tr><th>Material</th><th class="right">Need</th><th class="right">You have</th><th class="right">To buy</th><th class="right">Cost</th><th>Where it is</th></tr></thead><tbody>
+    ${d.items.map(i => html`<tr><td>${icon(i.typeId, 18)}${i.name}</td><td class="right num">${fmtNum(i.need)}</td><td class="right num ${i.have >= i.need ? 'pos' : ''}">${fmtNum(i.have)}</td>
+      <td class="right num"><b>${i.buy ? fmtNum(i.buy) : '—'}</b></td><td class="right num muted">${i.buy && i.unit ? fmtCompact(i.buy * i.unit) : ''}</td>
+      <td class="dim" style="font-size:12px">${i.places.map(p => `${p.pilot}: ${fmtNum(p.qty)} in ${p.system || p.location}`).join(' · ')}</td></tr>`)}</tbody></table>`);
+  const mb = $('#bd-multibuy'); if (mb) mb.onclick = async () => { await api.copy(d.multibuy); toast('Copied. In EVE: Market → Multibuy → paste.'); };
+}
+
+// ================= What to build =================
+
+const wtbState = { data: null, share: 10, salesTax: 3.37, brokerFee: 1.5 };
+async function tWhatToBuild() {
+  const o = wtbState, b = toolState.build;
+  setContent(html`<div class="panel" style="margin-bottom:14px"><div class="grid grid-4" style="align-items:end">
+      ${field('Sell at', hubSelect('wb-hub', toolState.hub))}
+      ${field('Sales tax + broker fee %', html`<div style="display:flex;gap:6px"><input type="number" id="wb-tax" step="0.01" value="${o.salesTax}"><input type="number" id="wb-fee" step="0.01" value="${o.brokerFee}"></div>`)}
+      ${field('Your share of daily sales %', html`<input type="number" id="wb-share" min="1" max="100" value="${o.share}">`)}
+      <div><button class="btn btn-primary" id="wb-go" style="width:100%">Rank my blueprints</button></div></div>
+    <div class="dim" style="font-size:12px;margin-top:6px">Uses your pilots' blueprints (best ME/TE of each), the facility from the Build Calculator (${b.structure}, ${b.rig} rig, ${b.security}), and the hub's last 30 days of sales. Profit per day assumes one job slot running non-stop, capped at your share of what the market actually buys.</div></div>
+    <div id="wb-out">${o.data ? wtbView(o.data) : emptyBox('Find out which of your blueprints are worth running right now.')}</div>`);
+  $('#wb-go').onclick = async () => {
+    Object.assign(o, { salesTax: Number($('#wb-tax').value), brokerFee: Number($('#wb-fee').value), share: Number($('#wb-share').value) });
+    toolState.hub = $('#wb-hub').value;
+    const out = $('#wb-out'); out.innerHTML = String(loadingView('Pricing your blueprints… this takes a minute the first time'));
+    const r = await api.ind.whatToBuild({ ...b, hub: toolState.hub, salesTax: o.salesTax, brokerFee: o.brokerFee, share: o.share, skills: await pilotSkillOpts(b.pilotId) });
+    if (!r.ok) { out.innerHTML = String(errorView(r)); return; }
+    o.data = r.data; out.innerHTML = String(wtbView(r.data)); wireWtb();
+  };
+  wireWtb();
+}
+function wtbView(d) {
+  if (!d.rows.length) return emptyBox('None of your blueprints could be priced.');
+  return html`<div class="panel" style="padding:0"><table><thead><tr><th>Product</th><th>Blueprint</th><th class="right">Cost each</th><th class="right">Sells for</th><th class="right">Profit each</th><th class="right">Market buys / day</th><th class="right">You make / day</th><th class="right">Profit / day</th><th></th></tr></thead><tbody>
+    ${d.rows.map(r => html`<tr><td>${icon(r.typeId, 18)}${r.name}</td><td class="muted" style="font-size:12px">${r.original ? 'BPO' : 'BPC'} ${r.me}/${r.te}${r.original ? '' : ` · ${r.runs} runs`}<div class="dim">${r.pilot}</div></td>
+      <td class="right num">${fmtCompact(r.unitCost)}</td><td class="right num">${fmtCompact(r.sell)}</td><td class="right num ${r.unitProfit >= 0 ? 'pos' : 'neg'}">${fmtCompact(r.unitProfit)}<div class="dim" style="font-size:11px">${pct(r.margin)}</div></td>
+      <td class="right num">${fmtNum(r.marketPerDay)}</td><td class="right num">${fmtNum(r.makePerDay)}${r.capped ? html` <span class="badge gold" title="The market buys less than you could make">capped</span>` : ''}</td>
+      <td class="right num"><b class="${r.perDaySlot >= 0 ? 'pos' : 'neg'}">${fmtCompact(r.perDaySlot)}</b></td><td><button class="btn btn-ghost" style="padding:1px 8px;font-size:11.5px" data-wb-open="${r.typeId}">Build ▸</button></td></tr>`)}</tbody></table></div>
+    <div class="dim" style="font-size:12px;margin-top:6px">${d.rows.length} of ${d.total} products priced at ${d.hub}, after ${d.tax.toFixed(2)}% tax and fees.</div>`;
+}
+function wireWtb() { document.querySelectorAll('[data-wb-open]').forEach(b => b.onclick = () => { toolState.build.productTypeId = Number(b.dataset.wbOpen); state.toolsTab = 't-build'; go('tools'); }); }
 
 // ================= Invention =================
 
