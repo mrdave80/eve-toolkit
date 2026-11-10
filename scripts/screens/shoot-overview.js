@@ -83,7 +83,7 @@ const SHOTS = [
   ['76-pop-wsystem', `closeModal()`, `openSystemCard('J152701')`],
   ['86-prices', `state.toolsTab='t-prices'; go('tools')`, `(async()=>{await new Promise(r=>setTimeout(r,500)); document.querySelector('tr.xrow td:nth-child(2)').click();})()`],
   ['87-price-add', `state.toolsTab='t-prices'; go('tools')`, `openPriceAlertModal({ typeId: 44992, name: 'PLEX', hub: 'Jita', side: 'sell' })`],
-  ['85-update', `go('dashboard'); showUpdateBanner({ version: '1.9.1', canInstall: true, url: 'https://github.com/mrdave80/eve-toolkit/releases/latest', notes: '## EVE Toolkit 1.9.1\\n- Fit checker: damage, tank and capacitor with your skills\\n- Price alerts: a watchlist with Windows and phone alerts\\n- One-click updates' })`, `openUpdateModal({ version: '1.9.1', canInstall: true, url: 'https://github.com/mrdave80/eve-toolkit/releases/latest', notes: '## EVE Toolkit 1.9.1\\n- Fit checker: damage, tank and capacitor with your skills\\n- Price alerts: a watchlist with Windows and phone alerts\\n- One-click updates' }, false).then(() => { updState.st = { phase: 'downloading', pct: 62 }; drawUpdateProgress(); })`],
+  ['85-update', `go('dashboard'); showUpdateBanner({ version: '1.10.1', canInstall: true, url: 'https://github.com/mrdave80/eve-toolkit/releases/latest', notes: '## EVE Toolkit 1.10.1\\n- Fit checker: damage, tank and capacitor with your skills\\n- Price alerts: a watchlist with Windows and phone alerts\\n- One-click updates' })`, `openUpdateModal({ version: '1.10.1', canInstall: true, url: 'https://github.com/mrdave80/eve-toolkit/releases/latest', notes: '## EVE Toolkit 1.10.1\\n- Fit checker: damage, tank and capacitor with your skills\\n- Price alerts: a watchlist with Windows and phone alerts\\n- One-click updates' }, false).then(() => { updState.st = { phase: 'downloading', pct: 62 }; drawUpdateProgress(); })`],
   ['88-mail-all', `go('mailAll')`, `(async()=>{await new Promise(r=>setTimeout(r,500)); document.querySelector('[data-imail]').click();})()`],
   ['89-compose', `go('mailAll')`, `openComposeMail({ charId: ${R}, to: 'Mike Hunt, Hugh Jayness', subject: 'Moon pop Saturday', body: 'Athanor chunk lands Saturday 19:00 EVE. Bring Hulks and an Orca.\\n\\nRichard' })`],
   ['90-calendar', `go('char', { charId: ${R}, tab: 'calendar' })`],
@@ -121,7 +121,7 @@ app.whenReady().then(async () => {
   const only = process.env.ONLY ? process.env.ONLY.split(',') : null;
   for (const [name, ...steps] of SHOTS) {
     if (only && !only.some(o => name.startsWith(o))) continue;
-    await js(`typeof closeModal === 'function' && closeModal(); typeof closeSearch === 'function' && closeSearch()`);
+    await js(`typeof closeModal === 'function' && closeModal(); typeof closeSearch === 'function' && closeSearch(); document.getElementById('upd-banner')?.remove()`);
     for (const s of steps) { await js(s); await wait(900); }
     await snap(name);
   }
@@ -132,6 +132,6 @@ app.whenReady().then(async () => {
     await ov.webContents.executeJavaScript(`S.reports = [{ at: new Date(Date.now()-60e3).toISOString(), text: 'Kedama  Ben Dover Loki +3 gate to Tama', alert: true, closest: { name: 'K-6K16', near: { jumps: 2 } }, top: { name: 'Ben Dover', level: 'Extreme', tone: 'red' } }, { at: new Date(Date.now()-9*60e3).toISOString(), text: 'Y-2ANO clr', closest: { name: 'Y-2ANO', near: { jumps: 3 } } }]; S.local=[{ at: new Date().toISOString(), system: '1DQ1-A', level: 'High', alert: true, pilot: { name: 'Hugh Mungus', tone: 'red' } }]; S.spikes=[{ system: 'QY6-RK', security: -0.85, zone: 'ns', shipKills: 12, near: { jumps: 2 } }]; render();`);
     await wait(1000); fs.writeFileSync(path.join(out, '51-overlay.png'), (await ov.webContents.capturePage()).toPNG()); console.log('shot 51-overlay');
   }
-  if (!only) for (const t of THEMES) { await js(`applyTheme('${t}'); go('char', { charId: ${R}, tab: 'summary' })`); await snap('theme-' + t); }
+  if (!only) for (const t of THEMES) { await js(`document.getElementById('upd-banner')?.remove(); applyTheme('${t}'); go('char', { charId: ${R}, tab: 'summary' })`); await snap('theme-' + t); }
   app.quit();
 });

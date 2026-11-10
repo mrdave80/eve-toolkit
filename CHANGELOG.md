@@ -1,7 +1,10 @@
 # Changelog
 
-## Next release
+## 1.10.0
 
+- Fit checker: damage, tank and capacitor. DPS and volley, EHP and resists per layer, active and passive tank, capacitor stability with and without the prop module, speed, align, signature and targeting, for all skills at V or any of your pilots. Calculated with EVEShip.fit's open-source engine; the first check downloads its game data (about 10 MB).
+- One-click updates: Update now downloads the new version, checks it against the release checksum, and restarts on it. Works for the portable exe and the unzipped folder, and keeps all your data.
+- Price alerts: watch items at any trade hub and get a Windows or phone alert when the price drops below or rises above the prices you set. Price history for each item, and a Price alert button on item cards and in the item database.
 - Mail for all pilots: one inbox across every pilot, with reply, reply to all, forward and new mail from the app. Answer calendar invites (Accept, Maybe, Decline) from each pilot's Calendar.
 - Fits to and from the game: Save to game from the fit checker, and Check fit on saved in-game fittings, Wall of Shame losses and kills.
 - Sending is opt-in (Settings → In-game control and sending) and needs four extra scopes on your app registration.
@@ -14,9 +17,7 @@
 - Privacy and permissions on the About page: what each permission is for and which outside services the app talks to.
 - Linux: an AppImage build, and the intel and combat logs are found in the Steam/Proton folder.
 - Fixed: a wormhole map code pasted with chat text after it sometimes failed to import.
-- Fit checker: damage, tank and capacitor. DPS and volley, EHP and resists per layer, active and passive tank, capacitor stability with and without the prop module, speed, align, signature and targeting, for all skills at V or any of your pilots. Calculated with EVEShip.fit's open-source engine; the first check downloads its game data (about 10 MB).
-- One-click updates: Update now downloads the new version, checks it against the release checksum, and restarts on it. Works for the portable exe and the unzipped folder, and keeps all your data.
-- Price alerts: watch items at any trade hub and get a Windows or phone alert when the price drops below or rises above the prices you set. Price history for each item, and a Price alert button on item cards and in the item database.
+- Fixed: Trade Profit didn't load in the app since 1.8.8.
 
 ## 1.9.0
 

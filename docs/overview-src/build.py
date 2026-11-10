@@ -6,17 +6,17 @@ SRC = '/home/claude/eve-companion/scripts/screens/out/overview'
 OUT = '/home/claude/overview'
 IMG = os.path.join(OUT, 'img'); os.makedirs(IMG, exist_ok=True)
 
-def jpg(name, width=1500):
+def jpg(name, width=1400):
     src = os.path.join(SRC, name + '.png')
     dst = os.path.join(IMG, name + '.jpg')
     if not os.path.exists(dst):
         im = Image.open(src).convert('RGB')
         if im.width > width: im = im.resize((width, round(im.height * width / im.width)), Image.LANCZOS)
-        im.save(dst, quality=70, optimize=True, progressive=True)
+        im.save(dst, quality=64, optimize=True, progressive=True)
     return 'img/' + name + '.jpg'
 
 LOGO = '<svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="13" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".35"/><path d="M16 3a13 13 0 0 1 12.6 9.8" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><circle cx="16" cy="16" r="4.2" fill="currentColor"/></svg>'
-VERSION = '1.9.0'
+VERSION = '1.10.0'
 
 pages = []
 def page(body, cls=''):
@@ -48,9 +48,9 @@ page(f"""
 
 # ---------- At a glance ----------
 groups = [
-  ('Pilots &amp; training', ['Wallet, SP, location and ship for each pilot', 'Skill queue with per-level detail', 'Skill planner, remaps and “Can I fly…?”', 'Fit checker with each pilot’s skills']),
-  ('Industry &amp; PI', ['Jobs and free slots across your pilots', 'Build, invention and reprocessing calculators', 'Extractor timers for each colony', 'PI chain planner and moon scan value']),
-  ('Market &amp; finance', ['Hub order books, price history, appraisal', 'Trade profit, contract bargains, item database', 'Net worth history and income by source', 'Ratting, Abyss, skill farm and character value']),
+  ('Pilots &amp; training', ['Wallet, SP, location and ship for each pilot', 'Skill queue with per-level detail', 'Skill planner, remaps and “Can I fly…?”', 'Fit checker with DPS, tank and capacitor']),
+  ('Industry &amp; PI', ['Jobs and free slots across your pilots', 'Build, invention and reprocessing calculators', 'Asset finder across every pilot', 'Ore, ice and gas ISK per m³', 'PI chain planner and moon scan value']),
+  ('Market &amp; finance', ['Hub order books, price history, appraisal', 'Trade profit, price alerts, contract bargains', 'Net worth history and income by source', 'Ratting, Abyss, skill farm and character value']),
   ('Navigation', ['Routes through gates, wormholes and Thera/Turnur', 'Gate camp and gank check on each route', 'Live region map with kill heat and intel', 'Hunting grounds, safe ratting, jump bridges']),
   ('Intel', ['Pilot lookup with a 0–100 threat grade', 'Intel channel watch with graded alerts', 'Local and d-scan analysis, clipboard watch', 'Wormhole residents and the Wall of Shame']),
   ('Corporation', ['Members, structures, moons and fuel', 'Doctrines, op calendar, fleet tracking', 'SRP, timerboard, recruit spy check', 'Daily reset, clone jump, fatigue and incursion alerts']),
@@ -62,12 +62,33 @@ page(f"""
 <div class="ggrid">{cards}</div>
 <div class="facts">
   <div><b>Data stays on your PC</b><span>You log in with CCP’s EVE SSO. The app encrypts your tokens and keeps them on your PC.</span></div>
-  <div><b>Read-only</b><span>The app can’t move ISK or items. Setting waypoints in game is an opt-in extra.</span></div>
-  <div><b>Portable</b><span>One Windows .exe in a zip. No installer, account or server.</span></div>
+  <div><b>Read-only by default</b><span>The app can’t move ISK or items. Waypoints, sending mail and saving fits are opt-in extras.</span></div>
+  <div><b>Portable</b><span>One Windows .exe or a Linux AppImage. No installer, account or server. Updates in one click.</span></div>
   <div><b>Free</b><span>All features are free to use. ISK or PLEX donations to Mr Frank are optional.</span></div>
 </div>""")
 
-# ---------- New in 1.9 ----------
+# ---------- New in 1.10 ----------
+S = 'New in 1.10'
+feature(S, 'Mail and calendar for every pilot', 'One inbox for all your pilots, newest first. Read, reply, reply to all, forward and write new mail from any pilot, and answer calendar invites without logging in.',
+  ['Filter by pilot or unread, and search subjects and senders', 'Mail sent to several of your pilots shows once', 'Accept, Maybe or Decline on each calendar invite', 'Sending is opt-in and needs extra permissions you grant'],
+  [('88-mail-all', 'Mail for all pilots'), ('90-calendar', 'Calendar answers')], 'two')
+feature(S, 'Fit stats, and fits to and from the game', 'The fit checker now works out damage, tank and capacitor with all skills at V or any of your pilots, using EVEShip.fit’s open-source engine.',
+  ['DPS and volley, EHP and resists per layer, active and passive tank', 'Capacitor stability, speed, align time and targeting', 'Save to game puts a fit in the pilot’s in-game fittings', 'Check fit on saved fittings, kills and Wall of Shame losses'],
+  [('64-fit', 'Fit checker with stats')])
+feature(S, 'Price alerts', 'Watch items at any trade hub and get a Windows or phone alert when the price drops below or rises above your line.',
+  ['Lowest sell or highest buy, at Jita, Amarr, Dodixie, Rens or Hek', 'Each alert fires once and re-arms when the price moves back', 'Price history for every item on the list', 'Price alert button on item cards and in the item database'],
+  [('86-prices', 'Price alert watchlist'), ('87-price-add', 'Adding an alert')], 'two')
+feature(S, 'Asset finder', 'Search every pilot’s hangars at once by item, group, station or system. Sort by jumps from any system, or make a plan for gathering it all in one place.',
+  ['Pilot, system, security, region, m³ and value for each place', 'Open a place to see every stack there', 'Gather plan: nearest first, with volume and a ship-size hint', 'Places with no gate route listed separately'],
+  [('94-asset-finder', 'Asset search, sorted by jumps'), ('95-asset-plan', 'Gather plan')], 'two')
+feature(S, 'Ore values and copying EVE settings', 'Ore values shows what ore, moon ore, ice and gas earn per m³ mined: raw, compressed or reprocessed at your yield. Copy EVE settings copies a pilot’s window layout or an account’s hotkeys to your others.',
+  ['ISK per hour from your own mining rate', 'What one batch reprocesses into', 'Settings copies are backed up first, with one-click undo', 'Warns you if EVE is still running'],
+  [('96-ores', 'Ore values'), ('97-eve-settings', 'Copy EVE settings')], 'two')
+feature(S, 'Quiet hours, updates and backups', 'Quiet hours silence alerts overnight, with exceptions for being attacked or hostiles near you. Updates install in one click, and a password-locked backup moves everything to a new PC.',
+  ['Alerts on or off for each pilot', 'Under-attack alert from the combat log, with an overlay flash', 'Updates checked against the release checksum, data kept', 'Privacy page: what each permission is for and who the app talks to'],
+  [('93-quiet-hours', 'Quiet hours and per-pilot alerts'), ('85-update', 'One-click update')], 'two')
+
+# ---------- Quick looks ----------
 S = 'Quick looks'
 feature(S, 'Pilot and system cards', 'Click a pilot or system name almost anywhere and a card opens over the page, so you don’t lose your place.',
   ['Pilot card: threat grade and reasons, kills, ships flown, recent activity', 'System card: kills and jumps this hour, sov, planets and gates', 'Wormholes show class, effect and statics', 'Buttons for the full profile, a route, the live map or zKillboard'],
@@ -241,7 +262,7 @@ page(f"""
 <h3 class="sub">Made with AI</h3>
 <p>Built with help from Claude, Anthropic’s AI assistant. I looked deep into my soul and found I don’t give a shit whether you like AI. It’s very good at jobs like this one. Complaints by EVE mail, please. Your tears fuel me. <i>Mr Frank</i></p>
 </div><div><figure class="hero about-shot"><img src="{jpg('39-about')}"><figcaption>About &amp; support</figcaption></figure><div class="gs"><h3 class="sub">Getting started</h3>
-<ol><li>Unzip and run the portable .exe on Windows 10 or 11.</li><li>Register a free application on developers.eveonline.com. The app shows you how.</li><li>Add your pilots with EVE SSO.</li><li>Download the game data once in Settings.</li></ol>
+<ol><li>Unzip and run the portable .exe on Windows 10 or 11, or the AppImage on Linux.</li><li>Register a free application on developers.eveonline.com. The app shows you how.</li><li>Add your pilots with EVE SSO.</li><li>Download the game data once in Settings.</li></ol>
 </div></div></div>
 <div class="legal">EVE Online and the EVE logo are the registered trademarks of CCP hf. All rights are reserved worldwide. All other trademarks are the property of their respective owners. EVE Online, the EVE logo, EVE and all associated logos and designs are the intellectual property of CCP hf. EVE Toolkit is a third-party application and is not affiliated with or endorsed by CCP hf. Screenshots show demo data with fictional pilots.</div>""")
 
