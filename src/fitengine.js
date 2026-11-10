@@ -172,6 +172,35 @@ async function stats(fit, skills) {
   return out;
 }
 
+/** EFT text from an in-game saved fitting (as ESI returns it). */
+async function eftFromEsi(fitting) {
+  const e = await load();
+  const f = e.load_esi_fitting({ name: String(fitting.name || 'Fit').slice(0, 50), description: String(fitting.description || ''), ship_type_id: Number(fitting.ship_type_id), items: (fitting.items || []).map(i => ({ flag: String(i.flag), quantity: Number(i.quantity) || 1, type_id: Number(i.type_id) })) });
+  return e.save_eft({ ...f, name: fitting.name || f.name });
+}
+
+/** EFT text for the ship that died in a killmail. */
+async function eftFromKillmail(killId) {
+  const { zk } = require('./zkill');
+  const { get } = require('./esi');
+  const z = await zk(`/killID/${Number(killId)}/`, 3600000);
+  const hash = Array.isArray(z) && z[0] && z[0].zkb && z[0].zkb.hash;
+  if (!hash) throw new Error('zKillboard doesn’t have that killmail.');
+  const km = await get(`/killmails/${Number(killId)}/${hash}/`);
+  const e = await load();
+  const f = e.load_killmail(km);
+  const ship = (sde.ready() && sde.type(km.victim.ship_type_id) || {}).name || 'Ship';
+  return e.save_eft({ ...f, name: `${ship} lost ${String(km.killmail_time || '').slice(0, 10)}` });
+}
+
+/** The engine's ESI fitting for a parsed fit, ready to save in game. */
+async function toEsiFitting(fit, name, description) {
+  const e = await load();
+  const f = { ...toFit(fit), name: String(name || fit.name || 'Fit').slice(0, 50) };
+  const out = e.save_esi_fitting(f);
+  return { name: f.name, description: String(description || '').slice(0, 500), ship_type_id: out.ship_type_id, items: out.items };
+}
+
 const status = () => ({ ...dl, meta: readMeta(), build: loadedBuild, ready: !!engine });
 
-module.exports = { stats, load, ensureData, status, toFit, setListener: fn => { listener = fn; }, _untarOne: untarOne };
+module.exports = { stats, eftFromEsi, eftFromKillmail, toEsiFitting, load, ensureData, status, toFit, setListener: fn => { listener = fn; }, _untarOne: untarOne };

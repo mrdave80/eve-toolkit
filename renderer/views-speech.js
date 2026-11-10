@@ -1,13 +1,22 @@
 'use strict';
 /* Spoken alerts through Windows' built-in voices (Web Speech API). */
 
-const SPEECH_DEFAULTS = { enabled: false, voice: '', rate: 1.1, volume: 1, intel: true, local: true, spike: true, abyss: false, route: true };
+const SPEECH_DEFAULTS = { enabled: false, voice: '', rate: 1.1, volume: 1, intel: true, local: true, spike: true, abyss: false, route: true, attack: true };
+// Same rule as the main process: during quiet hours only the allowed kinds speak.
+function quietNow(kind) {
+  const q = (state.settings || {}).quiet; if (!q || !q.enabled) return false;
+  const m = s => { const [h, mm] = String(s).split(':').map(Number); return h * 60 + mm; };
+  const d = new Date(), cur = d.getHours() * 60 + d.getMinutes(), a = m(q.from), b = m(q.to);
+  const inside = a === b ? false : a < b ? cur >= a && cur < b : cur >= a || cur < b;
+  const map = { intel: 'intel', local: 'intel', spike: 'intel', attack: 'attack' };
+  return inside && !(q.allow || []).includes(map[kind] || kind);
+}
 const speechCfg = () => ({ ...SPEECH_DEFAULTS, ...((state.settings || {}).speech || {}) });
 let lastSaid = { text: '', at: 0 };
 
 function say(text, kind, force) {
   const c = speechCfg();
-  if (!force && (!c.enabled || (kind && c[kind] === false))) return;
+  if (!force && (!c.enabled || (kind && c[kind] === false) || quietNow(kind))) return;
   if (!('speechSynthesis' in window)) return;
   if (text === lastSaid.text && Date.now() - lastSaid.at < 20000) return; // don't repeat the same line within 20 s
   lastSaid = { text, at: Date.now() };
@@ -43,7 +52,7 @@ function drawSpeechPanel() {
       ${field('Voice', html`<select id="sp-voice" class="crumb-select"><option value="">Windows default</option>${voices.filter(v => /^en/i.test(v.lang) || v.name === c.voice).map(v => html`<option value="${v.name}" ${raw(v.name === c.voice ? 'selected' : '')}>${v.name}</option>`)}</select>`)}
       ${field('Speed', html`<input type="range" id="sp-rate" min="0.6" max="1.8" step="0.1" value="${c.rate}">`)}
       ${field('Volume', html`<input type="range" id="sp-vol" min="0.1" max="1" step="0.1" value="${c.volume}">`)}</div>
-    <div class="pi-chips">${[['intel', 'Intel reports near my pilots'], ['local', 'Threats in Local'], ['spike', 'Kill spikes'], ['abyss', 'Abyss run finished']].map(([k, l]) => html`<label class="check" style="margin:0 14px 6px 0"><input type="checkbox" data-sp="${k}" ${raw(c[k] !== false ? 'checked' : '')}> ${l}</label>`)}</div>
+    <div class="pi-chips">${[['intel', 'Intel reports near my pilots'], ['local', 'Threats in Local'], ['spike', 'Kill spikes'], ['abyss', 'Abyss run finished'], ['attack', 'Under attack']].map(([k, l]) => html`<label class="check" style="margin:0 14px 6px 0"><input type="checkbox" data-sp="${k}" ${raw(c[k] !== false ? 'checked' : '')}> ${l}</label>`)}</div>
     <div class="toolbar" style="margin-top:8px"><button class="btn btn-primary" id="sp-save">Save spoken alerts</button><button class="btn btn-ghost" id="sp-test">▶ Test voice</button></div>`);
   const read = () => ({ enabled: $('#sp-on').checked, voice: $('#sp-voice').value, rate: Number($('#sp-rate').value), volume: Number($('#sp-vol').value), ...Object.fromEntries([...document.querySelectorAll('[data-sp]')].map(x => [x.dataset.sp, x.checked])) });
   $('#sp-test').onclick = () => { const prev = state.settings.speech; state.settings.speech = read(); lastSaid = { text: '', at: 0 }; say('Hostile, 2 jumps, Tama. Extreme threat Ben Dover', null, true); state.settings.speech = prev; };

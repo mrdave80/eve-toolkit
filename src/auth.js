@@ -45,6 +45,8 @@ const SCOPES = [
 // Extra scopes requested only for "Add director / FC" logins.
 // Opt-in (Settings → In-game control): the user must also tick these on their CCP app registration, or login fails.
 const UI_SCOPES = ['esi-ui.write_waypoint.v1', 'esi-ui.open_window.v1'];
+// Opt-in (Settings → In-game control): sending mail, marking it read, answering calendar invites, saving fits to the game.
+const WRITE_SCOPES = ['esi-mail.send_mail.v1', 'esi-mail.organize_mail.v1', 'esi-calendar.respond_calendar_events.v1', 'esi-fittings.write_fittings.v1'];
 
 const CORP_SCOPES = [
   'esi-corporations.read_corporation_membership.v1',
@@ -106,7 +108,7 @@ let pending = null;
  * Opens the browser for EVE login, waits for the localhost callback,
  * exchanges the code and returns { tokens, info }.
  */
-function login({ clientId, port, corp = false, ui = false }) {
+function login({ clientId, port, corp = false, ui = false, write = false }) {
   if (!clientId) return Promise.reject(new Error('Set your EVE developer Client ID in Settings first.'));
   if (pending) pending.cancel('A new login was started.');
 
@@ -172,7 +174,7 @@ function login({ clientId, port, corp = false, ui = false }) {
         response_type: 'code',
         redirect_uri: redirectUri,
         client_id: clientId,
-        scope: [...SCOPES, ...(corp ? CORP_SCOPES : []), ...(ui ? UI_SCOPES : [])].join(' '),
+        scope: [...SCOPES, ...(corp ? CORP_SCOPES : []), ...(ui ? UI_SCOPES : []), ...(write ? WRITE_SCOPES : [])].join(' '),
         code_challenge: challenge,
         code_challenge_method: 'S256',
         state
@@ -186,4 +188,4 @@ function refresh({ clientId, refreshToken }) {
   return tokenRequest({ grant_type: 'refresh_token', refresh_token: refreshToken, client_id: clientId });
 }
 
-module.exports = { login, refresh, parseAccessToken, SCOPES, CORP_SCOPES, UI_SCOPES, USER_AGENT };
+module.exports = { login, refresh, parseAccessToken, SCOPES, CORP_SCOPES, UI_SCOPES, WRITE_SCOPES, USER_AGENT };

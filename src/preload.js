@@ -21,6 +21,7 @@ contextBridge.exposeInMainWorld('api', {
   wallet: id => call('esi:wallet', id),
   mail: id => call('esi:mail', id),
   mailBody: (id, mailId) => call('esi:mailBody', id, mailId),
+  comms: { send: (charId, m) => call('comms:send', charId, m), markRead: (charId, mailId, read) => call('comms:markRead', charId, mailId, read), respond: (charId, eventId, r) => call('comms:respond', charId, eventId, r), inbox: () => call('comms:inbox') },
   contracts: id => call('esi:contracts', id),
   clones: id => call('esi:clones', id),
   industry: id => call('esi:industry', id),
@@ -110,7 +111,7 @@ contextBridge.exposeInMainWorld('api', {
     structures: () => call('ind:structures'), pilotSkills: id => call('ind:pilotSkills', id)
   },
   appraise: (text, hub) => call('appraise', text, hub),
-  fit: { check: text => call('fit:check', text), engineStatus: () => call('fit:engineStatus'), engineUpdate: () => call('fit:engineUpdate'), onEngine: cb => ipcRenderer.on('fit:engine', (_e, d) => cb(d)) },
+  fit: { check: text => call('fit:check', text), engineStatus: () => call('fit:engineStatus'), engineUpdate: () => call('fit:engineUpdate'), fromEsi: f => call('fit:fromEsi', f), fromKillmail: id => call('fit:fromKillmail', id), saveToGame: (charId, eft, name, desc) => call('fit:saveToGame', charId, eft, name, desc), onEngine: cb => ipcRenderer.on('fit:engine', (_e, d) => cb(d)) },
   items: { search: q => call('items:search', q), info: id => call('items:info', id) },
   systemCard: q => call('sys:card', q),
   priceWatch: { list: () => call('pw:list'), add: p => call('pw:add', p), update: (id, p) => call('pw:update', id, p), remove: id => call('pw:remove', id), check: () => call('pw:check'), onUpdate: cb => ipcRenderer.on('pw:update', (_e, d) => cb(d)) },
@@ -151,7 +152,7 @@ contextBridge.exposeInMainWorld('api', {
     config: () => call('intel:config'), setConfig: c => call('intel:setConfig', c), pickFolder: () => call('intel:pickFolder'), reports: () => call('intel:reports'),
     local: t => call('intel:local', t), zkill: ids => call('intel:zkill', ids), dscan: t => call('intel:dscan', t), resetCombat: () => call('intel:resetCombat'),
     onReport: cb => ipcRenderer.on('intel:report', (_e, d) => cb(d)), onPilots: cb => ipcRenderer.on('intel:pilots', (_e, d) => cb(d)),
-    onStatus: cb => ipcRenderer.on('intel:status', (_e, d) => cb(d)), onCombat: cb => ipcRenderer.on('combat:update', (_e, d) => cb(d)),
+    onStatus: cb => ipcRenderer.on('intel:status', (_e, d) => cb(d)), onCombat: cb => ipcRenderer.on('combat:update', (_e, d) => cb(d)), onAttack: cb => ipcRenderer.on('combat:attack', (_e, d) => cb(d)),
     onLocal: cb => ipcRenderer.on('intel:local', (_e, d) => cb(d)), onSpike: cb => ipcRenderer.on('intel:spike', (_e, d) => cb(d)), onSpikes: cb => ipcRenderer.on('intel:spikes', (_e, d) => cb(d)), checkSpikes: () => call('intel:checkSpikes')
   },
   fin: { snapshot: () => call('fin:snapshot'), history: () => call('fin:history'), income: (ids, days) => call('fin:income', ids, days) },

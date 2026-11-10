@@ -529,7 +529,7 @@ async function fittings(charId) {
     })).filter(g => g.items.length);
     const other = f.items.filter(i => !SLOT_ORDER.some(([k]) => String(i.flag).startsWith(k)));
     if (other.length) groups.push({ label: 'Other', items: other.map(i => ({ name: names[i.type_id], typeId: i.type_id, quantity: i.quantity })) });
-    return { id: f.fitting_id, name: f.name, description: f.description, shipTypeId: f.ship_type_id, ship: names[f.ship_type_id], groups };
+    return { id: f.fitting_id, name: f.name, description: f.description, shipTypeId: f.ship_type_id, ship: names[f.ship_type_id], groups, raw: { name: f.name, description: f.description || '', ship_type_id: f.ship_type_id, items: f.items } };
   }).sort((a, b) => a.ship.localeCompare(b.ship) || a.name.localeCompare(b.name));
 }
 

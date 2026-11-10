@@ -15,6 +15,7 @@ const CATEGORIES = {
   corp: 'Wars and corp applications',
   timers: 'Jump clone ready, jump fatigue cleared, incursions nearby',
   daily: 'Daily reset, login rewards, EVE news and server status',
+  attack: 'Under attack (from the combat log)',
   app: 'App updates'
 };
 const DEFAULTS = { enabled: false, ntfy: '', webhook: '', onlyAway: true, categories: { skills: true, industry: true, planets: true, intel: true, structures: true, ops: true, daily: true, prices: true } };

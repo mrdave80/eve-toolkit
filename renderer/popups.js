@@ -188,6 +188,32 @@ async function openWhResCard(name) {
 
 // ---------- Fit check ----------
 
+document.addEventListener('click', e => { const b = e.target.closest('[data-killfit]'); if (b) { e.preventDefault(); openKillFit(b.dataset.killfit); } });
+async function openKillFit(killId) {
+  popShell('Fit check', 'pop-fit', { loading: 'Reading the killmail…' });
+  const r = await api.fit.fromKillmail(killId);
+  if (!r.ok) { const b = popBox('pop-fit'); if (b) b.innerHTML = String(errorView(r)); return; }
+  openFitCard(r.data);
+}
+async function openEsiFit(raw) {
+  const r = await api.fit.fromEsi(raw);
+  if (!r.ok) return toast(r.error, true);
+  openFitCard(r.data);
+}
+
+function openSaveFitModal(d) {
+  const pilots = state.characters.filter(c => !c.needsReauth);
+  const ok = pilots.filter(c => c.canSaveFits);
+  openModal('Save fit to the game', html`${field('Pilot', select('charId', pilots.map(c => [c.id, c.name + (c.canSaveFits ? '' : ' (not allowed yet)')]), (ok[0] || pilots[0] || {}).id))}
+    ${field('Fitting name', inputText('name', d.name || d.ship, 'Up to 50 characters'))}${field('Description (optional)', textarea('description', '', 3))}
+    ${ok.length ? '' : html`<div class="notice" style="margin:0">Saving fits needs the Sending option in Settings → In-game control, then re-authorising your pilots.</div>`}
+    <div class="dim" style="font-size:12px">It appears in the pilot's saved fittings in game (Fitting window → Personal).</div>`, {
+    submit: 'Save to game',
+    onSubmit: async v => { const r = await api.fit.saveToGame(Number(v.charId), d.eft, v.name, v.description); if (!r.ok) { toast(r.error, true); return true; } toast(`Saved to ${r.data.pilot}'s fittings`); }
+  });
+}
+
+
 async function openFitCard(eft) {
   popShell('Fit check', 'pop-fit', { loading: 'Checking the fit against your pilots…' });
   popFootButton('Open in fit checker', () => { fitState.text = eft; fitState.data = null; fitState.pending = true; state.toolsTab = 't-fit'; go('tools'); }, true);

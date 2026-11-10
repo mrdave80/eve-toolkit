@@ -85,3 +85,13 @@ api.intel.onLocal(e => { S.local.unshift(e); S.local.length = Math.min(S.local.l
 api.intel.onSpikes(s => { S.spikes = s; render(); });
 api.overlay.onRoute(r => { S.route = r; loadStats().then(render); });
 api.overlay.onState(st => { S.locked = st.locked; S.opacity = st.opacity; render(); });
+
+// Under attack: flash the overlay red for a few seconds.
+api.intel.onAttack(a => {
+  const ov = document.getElementById('ov'); if (!ov) return;
+  let b = document.getElementById('ov-attack');
+  if (!b) { b = document.createElement('div'); b.id = 'ov-attack'; ov.prepend(b); }
+  b.textContent = `⚠ ${a.who} UNDER ATTACK${a.player ? ' · ' + a.attacker : ''}`;
+  ov.classList.remove('ov-hit'); void ov.offsetWidth; ov.classList.add('ov-hit');
+  clearTimeout(b._t); b._t = setTimeout(() => { b.remove(); ov.classList.remove('ov-hit'); }, 8000);
+});

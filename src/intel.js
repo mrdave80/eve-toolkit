@@ -8,7 +8,7 @@ const store = require('./store');
 const { get, rawRequest, safe, ok, resolveNames } = require('./esi');
 
 const DEFAULTS = { enabled: false, channels: [], jumps: 5, sound: true, notify: true, folder: '', combat: false,
-  grade: true, clipboard: false, localThreat: 'High', spike: false, spikeJumps: 2, spikeHs: 3, spikeLow: 5 };
+  grade: true, attackAlert: 'players', clipboard: false, localThreat: 'High', spike: false, spikeJumps: 2, spikeHs: 3, spikeLow: 5 };
 const LEVEL_RANK = { Minimal: 0, Low: 1, Moderate: 2, High: 3, Extreme: 4 };
 let pilotintel = null; // loaded lazily to avoid a require cycle
 const pi = () => pilotintel || (pilotintel = require('./pilotintel'));
@@ -279,6 +279,7 @@ function channelsSeen() {
 
 const combat = new Map();   // listener -> { events: [], totals }
 const combatOffsets = new Map();
+const lastAttack = new Map();
 const CL = /^\[\s*(\d{4})\.(\d{2})\.(\d{2})\s+(\d{2}):(\d{2}):(\d{2})\s*\]\s*\(combat\)\s*(.+)$/;
 
 function parseCombatLine(line) {
@@ -317,9 +318,11 @@ function tickCombat() {
     combatOffsets.set(full, st.size);
     const who = (fileMeta.get(full) || {}).listener || f;
     const c = combat.get(who) || { events: [], totals: { out: 0, in: 0, repOut: 0, repIn: 0 }, targets: {}, weapons: {}, started: Date.now() };
+    let hit = null;
     for (const line of buf.toString('utf8').split(/\r?\n/)) {
       const e = parseCombatLine(line);
       if (!e) continue;
+      if (e.kind === 'in' && e.amount > 0) { const player = /\[[^\]]+\]\s*\(/.test(e.other) || /\[[^\]]+\]$/.test(e.other); if (!hit || (player && !hit.player)) hit = { ...e, player }; }
       e.at = Date.now();   // use arrival time for live DPS
       c.events.push(e);
       if (c.totals[e.kind] !== undefined) c.totals[e.kind] += e.amount;
@@ -327,6 +330,11 @@ function tickCombat() {
     }
     c.events = c.events.filter(e => Date.now() - e.at < 120000);
     combat.set(who, c);
+    const mode = cfg().attackAlert;
+    if (hit && mode !== 'off' && (mode === 'all' || hit.player) && Date.now() - (lastAttack.get(who) || 0) > 90000) {
+      lastAttack.set(who, Date.now());
+      listener('combat:attack', { who, attacker: hit.other.replace(/\s*\(.*\)\s*$/, ''), ship: (/\(([^)]+)\)/.exec(hit.other) || [])[1] || '', weapon: hit.weapon, amount: hit.amount, player: hit.player });
+    }
   }
   const now = Date.now();
   const snap = [...combat.entries()].map(([who, c]) => {

@@ -53,7 +53,14 @@ async function drawIngamePanel() {
       <li>Turn this on, then click <b>Re-authorise</b> for each pilot under Pilots below.</li></ol>
     <label class="check"><input type="checkbox" id="ig-on" ${raw(st.uiScopes ? 'checked' : '')}> Ask for in-game control when pilots log in</label>
     <div class="pi-chips" style="margin-top:8px">${pilots.map(c => html`<span class="badge ${c.canWaypoint ? 'green' : ''}">${c.name}: ${c.canWaypoint ? 'allowed' : 'not yet'}</span>`)}</div>
-    <div class="dim" style="font-size:12px;margin-top:6px">Turn it off again if logins start failing with "invalid scope". That means the app registration is missing the two scopes.</div>`);
+    <div class="dim" style="font-size:12px;margin-top:6px">Turn it off again if logins start failing with "invalid scope". That means the app registration is missing the two scopes.</div>
+    <h3 class="mh" style="margin-top:18px">Sending</h3>
+    <div class="muted" style="margin-bottom:10px">Lets EVE Toolkit send and reply to EVE mail, mark mail read, answer calendar invites and save fits to your in-game fittings. Off by default.</div>
+    <ol class="steps" style="margin-bottom:10px"><li>On your app at <a href="#" data-link="https://developers.eveonline.com/applications">developers.eveonline.com</a>, also tick <code>esi-mail.send_mail.v1</code>, <code>esi-mail.organize_mail.v1</code>, <code>esi-calendar.respond_calendar_events.v1</code> and <code>esi-fittings.write_fittings.v1</code>. Save.</li>
+      <li>Turn this on, then re-authorise each pilot under Pilots.</li></ol>
+    <label class="check"><input type="checkbox" id="wr-on" ${raw(st.writeScopes ? 'checked' : '')}> Ask for sending when pilots log in</label>
+    <div class="pi-chips" style="margin-top:8px">${pilots.map(c => html`<span class="badge ${c.canWrite ? 'green' : ''}">${c.name}: ${c.canWrite ? 'allowed' : 'not yet'}</span>`)}</div>`);
+  $('#wr-on').onchange = async e => { const r = await api.setSettings({ writeScopes: e.target.checked }); if (!r.ok) return toast(r.error, true); state.settings = r.data; toast(e.target.checked ? 'On. Now re-authorise your pilots.' : 'Off'); };
   $('#ig-on').onchange = async e => { const r = await api.setSettings({ uiScopes: e.target.checked }); if (!r.ok) return toast(r.error, true); state.settings = r.data; toast(e.target.checked ? 'On. Now re-authorise your pilots.' : 'Off'); };
 }
 

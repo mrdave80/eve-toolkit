@@ -85,7 +85,8 @@ function killDetail(k, loss) {
     <div><div class="dim" style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">Attacker ships</div>
       ${(k.fleet || []).length ? k.fleet.map(f => html`<div style="font-size:12.5px;padding:1px 0">${icon(f.typeId, 16)}${f.name || f.typeId} <span class="dim">×${f.n}</span></div>`) : html`<div class="dim" style="font-size:12px">Refresh the profile to see this.</div>`}</div>
     <div><div class="dim" style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">Pilots by damage</div>
-      ${(k.pilots || []).length ? k.pilots.map(p => html`<div style="font-size:12.5px;padding:1px 0;display:flex;gap:6px;align-items:center"><img src="${portrait(p.id, 32)}" width="16" height="16" style="border-radius:3px" alt=""><a href="#" data-pilot="${p.id}">${p.name || (p.id === pilotState.profile?.id ? 'this pilot' : 'Pilot ' + p.id)}</a> <span class="dim">${p.shipName || ''}</span><span class="num dim" style="margin-left:auto">${fmtNum(p.damage)}</span>${p.finalBlow ? raw('<span class="badge" style="font-size:10px">final blow</span>') : ''}</div>`) : html`<div class="dim" style="font-size:12px">No player attackers.</div>`}</div></div>`;
+      ${(k.pilots || []).length ? k.pilots.map(p => html`<div style="font-size:12.5px;padding:1px 0;display:flex;gap:6px;align-items:center"><img src="${portrait(p.id, 32)}" width="16" height="16" style="border-radius:3px" alt=""><a href="#" data-pilot="${p.id}">${p.name || (p.id === pilotState.profile?.id ? 'this pilot' : 'Pilot ' + p.id)}</a> <span class="dim">${p.shipName || ''}</span><span class="num dim" style="margin-left:auto">${fmtNum(p.damage)}</span>${p.finalBlow ? raw('<span class="badge" style="font-size:10px">final blow</span>') : ''}</div>`) : html`<div class="dim" style="font-size:12px">No player attackers.</div>`}</div></div>
+    <div style="margin-top:8px"><button type="button" class="btn btn-ghost" style="padding:2px 10px;font-size:12px" data-killfit="${k.id}">Check the ${loss ? 'lost' : 'victim\u2019s'} fit</button></div>`;
 }
 
 function killRows(list, loss) {
@@ -265,7 +266,7 @@ function shameCard(k, rank) {
       <div class="muted" style="font-size:12px">${k.corp || ''}${k.alliance ? ' · ' + k.alliance : ''} · ${k.system || ''} ${k.security !== null ? secBadge(k.security) : ''} · ${timeAgo(k.time)}${k.npc ? ' · killed by NPCs' : k.attackers === 1 && k.finalShip ? ` · solo by a ${k.finalShip}` : ` · ${k.attackers} attackers`}</div>
       <div style="margin-top:5px">${k.tags.map(t => html`<span class="badge ${t.pts >= 25 ? 'red' : 'gold'}" title="${t.why}">${t.label}</span> `)}${k.slots ? html`<span class="dim" style="font-size:11px">${k.fitted}/${k.slots} slots fitted</span>` : ''}</div></div>
     <div style="text-align:right;font-size:12px;white-space:nowrap"><div style="font-family:var(--font-num);font-size:18px">${k.score}</div><div class="dim">shame</div>
-      <a href="#" data-link="https://zkillboard.com/kill/${k.id}/">zKill ↗</a>${k.victimId ? html` · <a href="#" data-pilot="${k.victimId}">Pilot</a>` : ''}<br><a href="#" data-sh-copy="${k.id}">Copy for Discord</a></div>
+      <a href="#" data-link="https://zkillboard.com/kill/${k.id}/">zKill ↗</a>${k.victimId ? html` · <a href="#" data-pilot="${k.victimId}">Pilot</a>` : ''}<br><a href="#" data-killfit="${k.id}">Check fit</a> · <a href="#" data-sh-copy="${k.id}">Copy for Discord</a></div>
     <details class="shame-more" style="grid-column:1/-1"><summary class="dim" style="cursor:pointer;font-size:12px">Why it's here${k.fit ? ' and the fit' : ''}</summary>${shameDetail(k)}</details></div>`;
 }
 

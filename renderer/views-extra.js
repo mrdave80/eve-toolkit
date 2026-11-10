@@ -361,15 +361,17 @@ function viewNotifications(list) {
   $('#n-q').oninput = e => { q = e.target.value.trim().toLowerCase(); draw(); };
 }
 
-function viewCalendar(list) {
+function viewCalendar(list, c) {
   const now = Date.now();
   const upcoming = list.filter(e => Date.parse(e.date) >= now - 3600000);
   setContent(html`<div class="panel" style="padding:0">${upcoming.length ? html`<table><thead><tr><th>When</th><th>Event</th><th>Owner</th><th>Duration</th><th>Response</th><th class="right">Starts in</th></tr></thead><tbody>
     ${upcoming.map(e => html`<tr><td class="nowrap">${fmtDate(e.date)}</td>
       <td>${e.importance ? raw('<span class="badge gold">important</span> ') : ''}${e.title}${e.text ? html`<div class="dim" style="max-width:520px">${String(e.text).replace(/<[^>]+>/g, ' ').slice(0, 200)}</div>` : ''}</td>
-      <td>${e.owner || ''}</td><td>${e.duration ? e.duration + ' min' : ''}</td><td>${humanize(e.response)}</td>
+      <td>${e.owner || ''}</td><td>${e.duration ? e.duration + ' min' : ''}</td><td>${calendarResponseCell(e, c)}</td>
       <td class="right num nowrap" data-countdown="${e.date}">${fmtDuration(Date.parse(e.date) - now)}</td></tr>`)}</tbody></table>`
-    : emptyBox('No upcoming calendar events')}</div>`);
+    : emptyBox('No upcoming calendar events')}</div>
+    ${c && !c.canRespond ? html`<div class="dim" style="font-size:12px;margin-top:6px">To accept or decline invites here, turn on Sending in Settings → In-game control and re-authorise.</div>` : ''}`);
+  wireCalendarResponses(list, c);
 }
 
 // ================= Character =================
@@ -468,12 +470,14 @@ function viewFittings(list) {
     <div class="grid grid-2" id="fit-grid">${list.map(f => html`<div class="panel" data-fit="${(f.name + ' ' + f.ship).toLowerCase()}">
       <div style="display:flex;gap:12px;align-items:center;margin-bottom:10px">
         <img src="${typeRender(f.shipTypeId, 64)}" width="52" height="52" style="border-radius:5px;background:var(--bg-2)" alt="">
-        <div><div style="font-size:15px">${f.name}</div><div class="muted">${f.ship}</div></div></div>
+        <div style="flex:1"><div style="font-size:15px">${f.name}</div><div class="muted">${f.ship}</div></div>
+        <button class="btn btn-ghost" style="padding:3px 10px;font-size:12px" data-esifit="${f.id}">Check fit</button></div>
       ${f.description ? html`<div class="dim" style="margin-bottom:8px">${f.description}</div>` : ''}
       ${f.groups.map(g => html`<div class="fit-group"><div class="k">${g.label}</div>
         ${g.items.map(i => html`<div style="font-size:12.5px">${icon(i.typeId, 16)}${i.name}${i.quantity > 1 ? html` <span class="dim">×${fmtNum(i.quantity)}</span>` : ''}</div>`)}</div>`)}
     </div>`)}</div>`);
   if (!list.length) setContent(emptyBox('No saved fittings'));
+  document.querySelectorAll('[data-esifit]').forEach(b => b.onclick = () => openEsiFit(list.find(f => String(f.id) === b.dataset.esifit).raw));
   const q = $('#fit-q');
   if (q) q.oninput = e => { const v = e.target.value.trim().toLowerCase(); document.querySelectorAll('[data-fit]').forEach(p => { p.style.display = !v || p.dataset.fit.includes(v) ? '' : 'none'; }); };
 }

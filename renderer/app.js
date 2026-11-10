@@ -173,7 +173,7 @@ function renderTopbar() {
     tabs.innerHTML = '';
     sub.innerHTML = [['plan', 'Chain planner'], ['near', 'Nearby planets']].map(([k, l]) => `<button class="tab ${(state.piTab || 'plan') === k ? 'active' : ''}" data-pitab="${k}">${l}</button>`).join('');
   } else {
-    crumb.textContent = { wormholes: 'Wormhole mapper', liveMap: 'Live map', daily: 'Daily rewards and EVE news', piPlanner: 'Planetary interaction planner', corp: 'Corporation', settings: 'Settings', about: 'About & support', dashboard: 'All pilots', trainingAll: 'Training board', industryAll: 'Industry board', planetsAll: 'Planets board' }[state.view] || '';
+    crumb.textContent = { mailAll: 'Mail, all pilots', wormholes: 'Wormhole mapper', liveMap: 'Live map', daily: 'Daily rewards and EVE news', piPlanner: 'Planetary interaction planner', corp: 'Corporation', settings: 'Settings', about: 'About & support', dashboard: 'All pilots', trainingAll: 'Training board', industryAll: 'Industry board', planetsAll: 'Planets board' }[state.view] || '';
     tabs.innerHTML = '';
     sub.innerHTML = '';
   }
@@ -206,6 +206,7 @@ async function render(force = false) {
     if (state.view === 'trainingAll') return await renderTrainingAll(stillCurrent);
     if (state.view === 'industryAll') return await renderIndustryAll(stillCurrent);
     if (state.view === 'planetsAll') return await renderPlanetsAll(stillCurrent);
+    if (state.view === 'mailAll') return await renderMailAll(stillCurrent);
     if (state.view === 'corp') return await renderCorp(stillCurrent);
     if (state.view === 'piPlanner') return state.piTab === 'near' ? await renderNearbyPlanets(stillCurrent) : await renderPiPlanner(stillCurrent);
     if (state.view === 'wormholes') return await renderWormholes(stillCurrent);
@@ -364,6 +365,13 @@ async function renderSettings() {
         <div class="pi-chips" style="margin-bottom:12px">${[['wars', 'War declarations'], ['corpApps', 'Corp applications & membership'], ['contracts', 'Contracts'], ['orders', 'Orders filled / expired'], ['undercut', 'Undercuts (every 30 min)'], ['kills', 'Kill reports'], ['cloneJump', 'Jump clone ready'], ['fatigue', 'Jump fatigue cleared'], ['incursions', 'Incursions near my pilots']].map(([k, l]) => html`<label class="check" style="margin:0 14px 6px 0"><input type="checkbox" data-alert="${k}" ${raw((st.alerts || {})[k] !== false ? 'checked' : '')}> ${l}</label>`)}</div>
         <div class="field"><label for="s-incj">Incursion alert range (jumps from any pilot)</label><input id="s-incj" type="number" min="1" max="30" value="${st.incursionJumps || 10}" style="max-width:140px"></div>
         <label class="check"><input type="checkbox" id="s-tray" ${raw(st.minimizeToTray ? 'checked' : '')}> Keep running in the system tray when the window is closed</label>
+        <div class="dim" style="margin:14px 0 6px">Quiet hours (no Windows, phone or spoken alerts):</div>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:8px"><label class="check" style="margin:0"><input type="checkbox" id="s-qon" ${raw(st.quiet && st.quiet.enabled ? 'checked' : '')}> From</label>
+          <input type="time" id="s-qfrom" value="${(st.quiet && st.quiet.from) || '23:00'}" style="background:var(--bg-2);border:1px solid var(--line-2);color:var(--text);border-radius:6px;padding:5px 8px;color-scheme:dark"> to
+          <input type="time" id="s-qto" value="${(st.quiet && st.quiet.to) || '07:00'}" style="background:var(--bg-2);border:1px solid var(--line-2);color:var(--text);border-radius:6px;padding:5px 8px;color-scheme:dark">
+          <span class="dim">but still alert me about</span>${[['attack', 'being attacked'], ['intel', 'intel near my pilots'], ['structures', 'structure attacks']].map(([k, l]) => html`<label class="check" style="margin:0"><input type="checkbox" data-qallow="${k}" ${raw(((st.quiet && st.quiet.allow) || ['attack']).includes(k) ? 'checked' : '')}> ${l}</label>`)}</div>
+        ${state.characters.length ? html`<div class="dim" style="margin:12px 0 6px">Alerts for each pilot (untick a pilot to silence their skill, industry, PI, market and other pilot alerts):</div>
+          <div class="pi-chips" style="margin-bottom:12px">${state.characters.map(c => html`<label class="check" style="margin:0 12px 6px 0"><input type="checkbox" data-pmute="${c.id}" ${raw((st.mutedPilots || []).includes(c.id) ? '' : 'checked')}> ${c.name}</label>`)}</div>` : ''}
         <div class="field"><label for="s-refresh">Background check interval (minutes)</label><input id="s-refresh" type="number" min="5" max="240" value="${st.refreshMinutes}" style="max-width:140px"></div>
       </div>`)}
       <button class="btn btn-primary" id="s-save" style="margin:4px 0 12px">Save settings</button>
@@ -375,7 +383,7 @@ async function renderSettings() {
         <button class="btn btn-ghost" id="s-updcheck">Check now</button> <span class="muted">This is version ${info.ok ? info.data.version : ''}.</span></div>`)}
       ${settingsFold('speech', 'Spoken alerts', 'Read alerts aloud', raw('<div class="panel" id="speech-panel"></div>'))}
       ${settingsFold('phone', 'Phone alerts', 'Send alerts to your phone', raw('<div class="panel" id="phone-panel"></div>'))}
-      ${settingsFold('ingame', 'In-game control', 'Set destinations and open info windows in the game', raw('<div class="panel" id="ingame-panel"></div>'))}
+      ${settingsFold('ingame', 'In-game control and sending', 'Waypoints, in-game windows, sending mail, calendar replies, saving fits', raw('<div class="panel" id="ingame-panel"></div>'))}
       ${settingsFold('sde', 'Game data', 'Item, system and planet data from CCP', raw(`<div class="panel"><h3>Game data</h3><div id="sde-panel">${loadingView('Checking…')}</div></div>`))}
       ${settingsFold('pilots', 'Pilots', `${nPilots} pilot${nPilots === 1 ? '' : 's'}${reauth ? ` · ${reauth} need${reauth === 1 ? 's' : ''} re-authorising` : ''}`, html`<div class="panel"><h3>Pilots</h3>
         ${state.characters.length ? html`<table><tbody>${state.characters.map(c => html`<tr>
@@ -417,7 +425,9 @@ async function renderSettings() {
       incursionJumps: Number($('#s-incj').value),
       alerts: Object.fromEntries([...document.querySelectorAll('[data-alert]')].map(c => [c.dataset.alert, c.checked])),
       updateUrl: $('#s-upd').value,
-      refreshMinutes: $('#s-refresh').value
+      refreshMinutes: $('#s-refresh').value,
+      quiet: { enabled: $('#s-qon').checked, from: $('#s-qfrom').value, to: $('#s-qto').value, allow: [...document.querySelectorAll('[data-qallow]')].filter(c => c.checked).map(c => c.dataset.qallow) },
+      mutedPilots: [...document.querySelectorAll('[data-pmute]')].filter(c => !c.checked).map(c => Number(c.dataset.pmute))
     });
     if (!r.ok) return toast(r.error, true);
     state.settings = r.data;
@@ -752,7 +762,7 @@ function eveMailToText(body) {
 
 function viewMail(d, c) {
   const mails = [...d.mails].sort((a, b) => b.timestamp.localeCompare(a.timestamp));
-  setContent(html`<div class="mail-layout">
+  setContent(html`<div class="toolbar"><button class="btn btn-primary" id="ml-new">✎ New mail</button><span class="dim" style="font-size:12px">${c.canSendMail ? '' : 'Sending from the app needs the Sending option in Settings → In-game control.'}</span></div><div class="mail-layout">
     <div class="mail-list">${mails.length ? mails.map(m => html`<div class="mail-row ${m.is_read ? '' : 'unread'}" data-mail="${m.mail_id}">
       <div class="from">${m.fromName} · ${fmtDate(m.timestamp)}</div><div class="subj">${m.subject || '(no subject)'}</div></div>`)
       : html`<div class="empty">No mail</div>`}</div>
@@ -763,18 +773,9 @@ function viewMail(d, c) {
     el.classList.add('active');
     const id = Number(el.dataset.mail);
     state.mailSel = id;
-    const v = $('#mail-view');
-    v.innerHTML = String(loadingView('Loading message…'));
-    const r = await api.mailBody(c.id, id);
-    if (state.mailSel !== id) return;
-    if (!r.ok) { v.innerHTML = String(errorView(r)); return; }
-    const m = r.data;
-    v.innerHTML = String(html`<h2>${m.subject || '(no subject)'}</h2>
-      <div class="muted">From <b>${m.fromName}</b> · ${fmtDate(m.timestamp)}</div>
-      <div class="dim" style="font-size:12px">To: ${m.recipientNames.join(', ')}</div>
-      <div class="mail-body"></div>`);
-    v.querySelector('.mail-body').textContent = eveMailToText(m.body);
+    showMailMessage($('#mail-view'), c.id, id, d.mails.find(m => m.mail_id === id));
   });
+  $('#ml-new').onclick = () => openComposeMail({ charId: c.id });
 }
 
 const CONTRACT_STATUS = { outstanding: 'accent', in_progress: 'accent', finished: 'green', finished_issuer: 'green', finished_contractor: 'green', expired: 'gold', rejected: 'red', failed: 'red', deleted: 'red', reversed: 'red', cancelled: 'red' };

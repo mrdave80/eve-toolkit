@@ -46,6 +46,7 @@ api.clip.onDscan(m => {
   if (onLocalTab()) { const t = $('#ds-text'); if (t) t.value = m.text; drawDscan(); }
   else toast(`D-scan copied: ${m.data.ships} ships${m.data.onGridShips ? `, ${m.data.onGridShips} on grid` : ''}.`, m.data.onGridShips > 0);
 });
+api.intel.onAttack(a => { if (intelState.cfg && intelState.cfg.sound !== false && !quietNow('attack')) { beep(); setTimeout(beep, 250); } say(`${a.who.split(' ')[0]} under attack${a.player ? ' by ' + a.attacker.replace(/\[.*$/, '') : ''}`, 'attack'); });
 api.intel.onCombat(c => { intelState.combat = c; if (state.view === 'tools' && state.toolsTab === 't-combat') drawCombat(); });
 
 async function tIntel() {
@@ -180,9 +181,12 @@ async function tCombat() {
   const c = await api.intel.config();
   const cfg = c.ok ? c.data : {};
   setContent(html`<div class="toolbar"><label class="check" style="margin:0"><input type="checkbox" id="cb-on" ${raw(cfg.combat ? 'checked' : '')}> <b>Read combat logs</b> (Documents\\EVE\\logs\\Gamelogs)</label>
-      <button class="btn btn-ghost" id="cb-reset">Reset totals</button><span class="dim">Live damage per pilot from EVE's game logs. Logging must be on in game.</span></div>
+      <button class="btn btn-ghost" id="cb-reset">Reset totals</button>
+      <label class="dim" style="font-size:12.5px">Under-attack alert <select id="cb-attack" class="crumb-select" style="width:auto">${[['players', 'When players shoot me'], ['all', 'When anything shoots me'], ['off', 'Off']].map(([v, l]) => html`<option value="${v}" ${raw((cfg.attackAlert || 'players') === v ? 'selected' : '')}>${l}</option>`)}</select></label>
+      <span class="dim">Live damage per pilot from EVE's game logs. Logging must be on in game.</span></div>
     <div id="cb-out"></div>`);
   $('#cb-on').onchange = async e => { const r = await api.intel.setConfig({ combat: e.target.checked }); if (r.ok) toast(e.target.checked ? 'Reading combat logs' : 'Stopped'); drawCombat(); };
+  $('#cb-attack').onchange = async e => { const r = await api.intel.setConfig({ attackAlert: e.target.value }); toast(r.ok ? 'Saved' : r.error, !r.ok); };
   $('#cb-reset').onclick = async () => { await api.intel.resetCombat(); intelState.combat = []; drawCombat(); };
   drawCombat();
 }

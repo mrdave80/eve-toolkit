@@ -229,7 +229,19 @@ async function checkQueues(manual = false) {
   if (win && !win.isDestroyed()) win.webContents.send('overview:update', results);
 }
 
+// Quiet hours: local time window, overnight windows allowed (23:00 → 07:00).
+function inQuietHours(q, now = new Date()) {
+  if (!q || !q.enabled) return false;
+  const m = s => { const [h, mm] = String(s).split(':').map(Number); return h * 60 + mm; };
+  const cur = now.getHours() * 60 + now.getMinutes(), a = m(q.from), b = m(q.to);
+  return a === b ? false : a < b ? cur >= a && cur < b : cur >= a || cur < b;
+}
 function notify(title, body, category = 'general') {
+  const st = store.get().settings;
+  const q = st.quiet;
+  if (inQuietHours(q) && !(q.allow || []).includes(category)) return;
+  const muted = (st.mutedPilots || []).map(id => (store.get().characters.find(c => c.id === id) || {}).name).filter(Boolean);
+  if (muted.some(n => String(title).startsWith(n))) return;
   phone.forward(category, title, body);
   if (!Notification.isSupported()) return;
   const n = new Notification({ title, body, icon: ICON });
@@ -405,7 +417,7 @@ function publicCharacters() {
     missingScopes: auth.SCOPES.filter(s => s !== 'publicData' && !(c.scopes || []).includes(s)),
     corpScopes: auth.CORP_SCOPES.filter(s => (c.scopes || []).includes(s)).length,
     isDirector: auth.CORP_SCOPES.some(s => (c.scopes || []).includes(s)),
-    canWaypoint: (c.scopes || []).includes('esi-ui.write_waypoint.v1'), canOpenWindow: (c.scopes || []).includes('esi-ui.open_window.v1')
+    canWaypoint: (c.scopes || []).includes('esi-ui.write_waypoint.v1'), canWrite: auth.WRITE_SCOPES.every(x => (c.scopes || []).includes(x)), canSendMail: (c.scopes || []).includes('esi-mail.send_mail.v1'), canSaveFits: (c.scopes || []).includes('esi-fittings.write_fittings.v1'), canRespond: (c.scopes || []).includes('esi-calendar.respond_calendar_events.v1'), canOpenWindow: (c.scopes || []).includes('esi-ui.open_window.v1')
   }));
 }
 
@@ -447,9 +459,16 @@ handle('settings:set', s => {
   }
   if (typeof s.notifications === 'boolean') next.notifications = s.notifications;
   if (typeof s.uiScopes === 'boolean') next.uiScopes = s.uiScopes;
+  if (typeof s.writeScopes === 'boolean') next.writeScopes = s.writeScopes;
+  if (s.quiet && typeof s.quiet === 'object') {
+    const t = v => (/^([01]\d|2[0-3]):[0-5]\d$/.test(String(v)) ? String(v) : null);
+    next.quiet = { enabled: !!s.quiet.enabled, from: t(s.quiet.from) || '23:00', to: t(s.quiet.to) || '07:00',
+      allow: Array.isArray(s.quiet.allow) ? s.quiet.allow.filter(x => ['intel', 'structures', 'attack'].includes(x)) : ['attack'] };
+  }
+  if (Array.isArray(s.mutedPilots)) next.mutedPilots = s.mutedPilots.map(Number).filter(Boolean).slice(0, 200);
   if (s.speech && typeof s.speech === 'object') {
     const sp = { ...(cur.speech || {}) };
-    for (const k of ['enabled', 'intel', 'local', 'spike', 'abyss', 'route']) if (typeof s.speech[k] === 'boolean') sp[k] = s.speech[k];
+    for (const k of ['enabled', 'intel', 'local', 'spike', 'abyss', 'route', 'attack']) if (typeof s.speech[k] === 'boolean') sp[k] = s.speech[k];
     if (typeof s.speech.voice === 'string') sp.voice = s.speech.voice.slice(0, 200);
     if (s.speech.rate !== undefined) sp.rate = Math.max(0.6, Math.min(1.8, Number(s.speech.rate) || 1));
     if (s.speech.volume !== undefined) sp.volume = Math.max(0.1, Math.min(1, Number(s.speech.volume) || 1));
@@ -484,7 +503,7 @@ handle('settings:set', s => {
 handle('characters:list', () => publicCharacters());
 handle('characters:add', async (corp = false) => {
   const s = store.get().settings;
-  const { tokens, info } = await auth.login({ clientId: s.clientId, port: s.callbackPort, corp: !!corp, ui: !!s.uiScopes });
+  const { tokens, info } = await auth.login({ clientId: s.clientId, port: s.callbackPort, corp: !!corp, ui: !!s.uiScopes, write: !!s.writeScopes });
   store.upsertCharacter(info.id, info.name, info.scopes, tokens.refresh_token);
   showWindow();
   return publicCharacters();
@@ -504,6 +523,11 @@ handle('esi:skills', id => esi.skills(id));
 handle('esi:wallet', id => esi.wallet(id));
 handle('esi:mail', id => esi.mailList(id));
 handle('esi:mailBody', (id, mailId) => esi.mailBody(id, mailId));
+const comms = require('./comms');
+handle('comms:send', (charId, m) => comms.send(Number(charId), m || {}));
+handle('comms:markRead', (charId, mailId, read) => comms.markRead(Number(charId), mailId, read !== false));
+handle('comms:respond', (charId, eventId, response) => comms.respond(Number(charId), eventId, String(response)));
+handle('comms:inbox', () => comms.inbox());
 handle('esi:contracts', id => esi.contracts(id));
 handle('esi:clones', id => esi.clones(id));
 handle('esi:industry', id => esi.industry(id));
@@ -667,6 +691,7 @@ intel.setListener((ch, data) => {
     const threat = t ? ` · ${t.name}: ${(t.zoneScore || t).level} threat${t.flags && t.flags[0] ? ', ' + t.flags[0].label.toLowerCase() : ''}` : '';
     notify(`Intel: ${data.closest.name} (${data.closest.near.jumps} jump${data.closest.near.jumps === 1 ? '' : 's'} from ${data.closest.near.pilot})${threat}`, `${data.who}: ${data.text}`.slice(0, 200), 'intel');
   }
+  if (ch === 'combat:attack') notify(`${data.who} is under attack`, `${data.attacker}${data.weapon ? ' with ' + data.weapon : ''}: ${data.amount} damage`, 'attack');
   if (ch === 'intel:local' && data.alert && canNotify) {
     const f = data.pilot.flags && data.pilot.flags.length ? ` (${data.pilot.flags.slice(0, 2).map(x => x.label.toLowerCase()).join(', ')})` : '';
     notify(`${data.level} threat in Local${data.system ? ' ' + data.system : ''}`, `${data.pilot.name}${f} is in Local with ${data.listener || 'your pilot'}.`, 'intel');
@@ -683,6 +708,7 @@ handle('intel:setConfig', c => {
   const next = { ...cur };
   if (Array.isArray(c.channels)) next.channels = c.channels.map(String).slice(0, 20);
   for (const k of ['enabled', 'sound', 'notify', 'combat', 'grade', 'spike', 'clipboard']) if (typeof c[k] === 'boolean') next[k] = c[k];
+  if (['off', 'players', 'all'].includes(c.attackAlert)) next.attackAlert = c.attackAlert;
   if (['off', 'Moderate', 'High', 'Extreme'].includes(c.localThreat)) next.localThreat = c.localThreat;
   if (c.spikeJumps !== undefined) next.spikeJumps = Math.max(0, Math.min(6, Number(c.spikeJumps) || 2));
   if (c.spikeHs !== undefined) next.spikeHs = Math.max(1, Math.min(50, Number(c.spikeHs) || 3));
@@ -877,6 +903,16 @@ const fitengine = require('./fitengine');
 fitengine.setListener(st => { if (win && !win.isDestroyed()) win.webContents.send('fit:engine', st); });
 handle('fit:engineStatus', () => fitengine.status());
 handle('fit:engineUpdate', () => fitengine.ensureData({ force: true }));
+handle('fit:fromEsi', f => fitengine.eftFromEsi(f || {}));
+handle('fit:fromKillmail', id => fitengine.eftFromKillmail(id));
+handle('fit:saveToGame', async (charId, eft, name, description) => {
+  const c = store.get().characters.find(x => x.id === Number(charId));
+  if (!c) throw new Error('Unknown pilot.');
+  if (!(c.scopes || []).includes('esi-fittings.write_fittings.v1')) throw new Error(`${c.name} hasn't allowed saving fits yet. Turn on Sending in Settings → In-game control, then re-authorise.`);
+  const body = await fitengine.toEsiFitting(fitcheck.parse(String(eft || '')), name, description);
+  const r = await esi.rawRequest(`/characters/${c.id}/fittings/`, { charId: c.id, method: 'POST', body });
+  return { pilot: c.name, fittingId: r.body && r.body.fitting_id };
+});
 handle('fit:check', text => fitcheck.check(String(text || ''), { audits: workspace.get().audits }));
 handle('moon:value', (text, o) => moonscan.value(String(text || ''), o || {}));
 // Keep the trade ledger growing past ESI's 30 days even when the page isn't opened.

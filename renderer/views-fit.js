@@ -81,7 +81,7 @@ function drawFit(box = $('#ft-out'), d = fitState.data) {
   box.innerHTML = String(html`<div class="panel"><div style="display:flex;gap:14px;align-items:center">
       <img src="https://images.evetech.net/types/${d.shipTypeId}/render?size=128" width="72" height="72" style="border-radius:8px;border:1px solid var(--line-2)" alt="">
       <div style="flex:1"><div style="font-size:20px;font-weight:600">${d.name}</div><div class="muted">${d.ship} · ${fmtCompact(d.cost.total)} ISK <span class="dim">(hull ${fmtCompact(d.cost.hull)}, fittings ${fmtCompact(d.cost.fittings)})</span></div></div>
-      <div style="display:flex;flex-direction:column;gap:6px"><button class="btn btn-primary" id="ft-pyfa">Open in Pyfa</button><button class="btn btn-ghost" id="ft-appraise">Appraise</button></div></div>
+      <div style="display:flex;flex-direction:column;gap:6px"><button class="btn btn-primary" id="ft-pyfa">Open in Pyfa</button><button class="btn btn-ghost" id="ft-appraise">Appraise</button><button class="btn btn-ghost" id="ft-save">Save to game</button></div></div>
       ${d.unknown.length ? html`<div class="notice" style="margin-top:10px">Not recognised: ${d.unknown.join(', ')}</div>` : ''}
       ${sc.problems.length ? html`<div class="notice" style="margin-top:10px">Too many modules: ${sc.problems.map(p => `${p.over} over in ${p.slot === 'turrets' ? 'turret hardpoints' : p.slot === 'launchers' ? 'launcher hardpoints' : SLOT_LABEL[p.slot].toLowerCase()}`).join(', ')}.</div>` : ''}</div>
     <div id="ft-stats">${fitStatsPanel(d, box)}</div>
@@ -114,6 +114,7 @@ function drawFit(box = $('#ft-out'), d = fitState.data) {
   const er = box.querySelector('#ft-engine-retry'); if (er) er.onclick = async () => { er.disabled = true; er.textContent = 'Downloading…'; const r = await api.fit.engineUpdate(); if (!r.ok) { toast(r.error, true); er.disabled = false; er.textContent = 'Try again'; return; } const c = await api.fit.check(d.eft); if (c.ok) { if (box.id === 'ft-out') fitState.data = c.data; drawFit(box, c.data); } };
   box.querySelector('#ft-pyfa').onclick = async () => { await api.copy(d.eft); toast('Fit copied. In Pyfa, import it from the clipboard.'); };
   box.querySelector('#ft-appraise').onclick = () => appraiseFitModal(d);
+  box.querySelector('#ft-save').onclick = () => openSaveFitModal(d);
 }
 
 async function appraiseFitModal(d) {
