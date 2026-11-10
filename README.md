@@ -16,6 +16,7 @@ A free Windows desktop app for EVE Online pilots, corporations and alliances. Sk
 | ![System card popup](docs/screenshots/system-card.jpg) | ![Fit checker](docs/screenshots/fit-checker.jpg) |
 | ![Contract bargains](docs/screenshots/contract-bargains.jpg) | ![Settings](docs/screenshots/settings.jpg) |
 | ![Liquid Glass theme](docs/screenshots/liquid-glass.jpg) | ![Gunmetal Glass theme](docs/screenshots/gunmetal-glass.jpg) |
+| ![Price alerts](docs/screenshots/price-alerts.jpg) | ![One-click update](docs/screenshots/update.jpg) |
 
 Screenshots use demo data with made-up pilots.
 
