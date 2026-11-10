@@ -120,7 +120,6 @@ contextBridge.exposeInMainWorld('api', {
   priceWatch: { list: () => call('pw:list'), add: p => call('pw:add', p), update: (id, p) => call('pw:update', id, p), remove: id => call('pw:remove', id), check: () => call('pw:check'), onUpdate: cb => ipcRenderer.on('pw:update', (_e, d) => cb(d)) },
   charValue: () => call('charvalue'),
   bargains: { scan: o => call('bargains:scan', o) },
-  trade: { report: o => call('trade:report', o) },
   moon: { value: (text, o) => call('moon:value', text, o) },
   farm: { calc: () => call('farm:calc'), save: c => call('farm:save', c), insurance: names => call('farm:insurance', names) },
   daily: {
@@ -128,7 +127,7 @@ contextBridge.exposeInMainWorld('api', {
     track: (id, v) => call('daily:track', id, v), save: c => call('daily:save', c), news: () => call('daily:news')
   },
   appraiseSetPrice: (typeId, price) => call('appraise:setPrice', typeId, price),
-  trade: { lp: (c, hub) => call('trade:lp', c, hub), arbitrage: (n, f, t, tax) => call('trade:arbitrage', n, f, t, tax), watchlist: () => call('trade:watchlist'), myOrders: () => call('trade:myOrders') },
+  trade: { report: o => call('trade:report', o), lp: (c, hub) => call('trade:lp', c, hub), arbitrage: (n, f, t, tax) => call('trade:arbitrage', n, f, t, tax), watchlist: () => call('trade:watchlist'), myOrders: () => call('trade:myOrders') },
   nav: {
     systemId: n => call('nav:systemId', n), route: (a, b, o) => call('nav:route', a, b, o), routeCheck: (p, o) => call('nav:routeCheck', p, o), jump: (a, b, o) => call('nav:jump', a, b, o),
     range: (n, ly) => call('nav:range', n, ly), universe: () => call('nav:universe'), ships: () => call('nav:ships'), pilotLocations: () => call('nav:pilotLocations')
