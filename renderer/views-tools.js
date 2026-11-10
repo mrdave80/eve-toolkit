@@ -2,7 +2,7 @@
 /* Tools: market, industry, navigation, intel, finance. Helpers from app.js & friends. */
 
 const TOOLS_GROUPS = [
-  ['Market', [['t-market', 'Browser'], ['t-appraisal', 'Appraisal'], ['t-orders', 'My Orders'], ['t-arbitrage', 'Hub Arbitrage'], ['t-lp', 'LP Store'], ['t-trade', 'Trade Profit'], ['t-bargain', 'Contract Bargains'], ['t-items', 'Item Database']]],
+  ['Market', [['t-market', 'Browser'], ['t-appraisal', 'Appraisal'], ['t-orders', 'My Orders'], ['t-arbitrage', 'Hub Arbitrage'], ['t-lp', 'LP Store'], ['t-trade', 'Trade Profit'], ['t-prices', 'Price Alerts'], ['t-bargain', 'Contract Bargains'], ['t-items', 'Item Database']]],
   ['Industry', [['t-build', 'Build Calculator'], ['t-invent', 'Invention'], ['t-reprocess', 'Reprocessing'], ['t-moon', 'Moon Scan']]],
   ['Navigation', [['t-route', 'Route Planner'], ['t-courier', 'Courier Contracts'], ['t-hunt', 'Hunting & Ratting'], ['t-jump', 'Jump Planner'], ['t-universe', 'Universe']]],
   ['Intel', [['t-pilot', 'Pilot Intel'], ['t-whres', 'Wormhole Residents'], ['t-shame', 'Wall of Shame'], ['t-intel', 'Intel Watch'], ['t-local', 'Local & D-scan'], ['t-combat', 'Combat Log']]],
@@ -42,7 +42,7 @@ async function renderTools(stillCurrent) {
     't-pilot': tPilot, 't-whres': () => tWhRes(), 't-shame': () => tShame(), 't-intel': () => (typeof tIntel === 'function' ? tIntel() : null), 't-local': () => (typeof tLocal === 'function' ? tLocal() : null), 't-combat': () => (typeof tCombat === 'function' ? tCombat() : null),
     't-fit': () => tFit(),
     't-items': () => tItems(), 't-bargain': () => tBargains(), 't-charval': () => tCharValue(stillCurrent),
-    't-trade': () => tTrade(stillCurrent), 't-moon': () => tMoon(),
+    't-trade': () => tTrade(stillCurrent), 't-prices': () => tPriceWatch(), 't-moon': () => tMoon(),
     't-farm': () => tFarm(stillCurrent), 't-insure': () => tInsure(stillCurrent),
     't-pve': () => tPve(), 't-networth': () => (typeof tNetworth === 'function' ? tNetworth(stillCurrent) : null), 't-income': () => (typeof tIncome === 'function' ? tIncome(stillCurrent) : null)
   };

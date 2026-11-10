@@ -113,6 +113,7 @@ contextBridge.exposeInMainWorld('api', {
   fit: { check: text => call('fit:check', text) },
   items: { search: q => call('items:search', q), info: id => call('items:info', id) },
   systemCard: q => call('sys:card', q),
+  priceWatch: { list: () => call('pw:list'), add: p => call('pw:add', p), update: (id, p) => call('pw:update', id, p), remove: id => call('pw:remove', id), check: () => call('pw:check'), onUpdate: cb => ipcRenderer.on('pw:update', (_e, d) => cb(d)) },
   charValue: () => call('charvalue'),
   bargains: { scan: o => call('bargains:scan', o) },
   trade: { report: o => call('trade:report', o) },

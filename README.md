@@ -147,6 +147,10 @@ Corp mode works much like AllianceAuth, but runs from this app with no server to
 
 Settings has toggles for war declarations, corp applications, contracts, orders filled or expired, undercuts and kill reports. Set an **update feed URL** (a small JSON file you host) and the app will tell you when a newer version is out.
 
+## Updating
+
+When a new version is out, a banner shows at the top of the app. **Update now** downloads it from this GitHub page, checks it against the release's SHA256SUMS.txt, then closes the app and opens it again on the new version. Your pilots, settings and data stay where they are. It works for both the portable exe and the unzipped folder. If the app can't write to the folder it runs from (Program Files, say), it says so and links to the download instead.
+
 ## Pilot Intel and threat grades (Tools → Intel)
 
 - **Pilot Intel:** look up any pilot by name. The profile shows their corp and alliance, age, security status, corp history and bio (from ESI), plus kills, losses, ships flown, active hours and recent kills and losses (from zKillboard), with EveWho and zKillboard links.
@@ -250,6 +254,10 @@ EVE doesn't share login rewards or Daily Goals through ESI, so the app can't see
 - **EVE news.** The app reads CCP's news feed every 30 minutes and alerts on new login campaigns, skill point events, free items, events and (if you want) sales, with the end date where the article gives one.
 
 Phone alerts for all of these are under the "Daily reset, login rewards, EVE news and server status" category.
+
+## Price alerts (Tools → Market → Price Alerts)
+
+Keep a watchlist of items with a price to alert below, above, or both, at any of the five trade hubs, on the lowest sell order or the highest buy order. Prices are checked every 15 minutes while the app runs. When an item crosses your price you get a Windows alert, and a phone alert if you've set those up. Each alert fires once and is ready again once the price moves back past your line. Open a row for its price history and the lowest and highest seen. You can also set an alert from any item card or the item database.
 
 ## Trade profit (Tools → Market → Trade Profit)
 

@@ -1,5 +1,10 @@
 # Changelog
 
+## Next release
+
+- One-click updates: Update now downloads the new version, checks it against the release checksum, and restarts on it. Works for the portable exe and the unzipped folder, and keeps all your data.
+- Price alerts: watch items at any trade hub and get a Windows or phone alert when the price drops below or rises above the prices you set. Price history for each item, and a Price alert button on item cards and in the item database.
+
 ## 1.9.0
 
 - Fit checker: paste an EFT fit to see its slots, CPU, powergrid and calibration with each pilot's skills, who can fly it, what it costs and the hull's base stats, with Open in Pyfa. Doctrine fits have a Check button.

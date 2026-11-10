@@ -78,7 +78,7 @@ async function openItemCard(typeId) {
       <img src="https://images.evetech.net/types/${d.id}/${raw(d.category === 'Ship' ? 'render' : 'icon')}?size=128" width="64" height="64" style="border-radius:8px;border:1px solid var(--line-2)" alt="">
       <div style="flex:1"><div class="muted">${d.group} · ${d.category}${d.meta ? ' · ' + d.meta : ''}</div>
         <div class="dim" style="font-size:12px;margin-top:3px">Volume ${fmtNum(d.volume)} m³ · type ID ${d.id}</div>
-        <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">${popBtn('Who can use it?', 'id="pop-ifly"')}${popBtn('Copy name', 'id="pop-icopy"')}${popBtn('EVE Ref ↗', `data-link="https://everef.net/type/${d.id}"`)}</div></div></div>
+        <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">${popBtn('Who can use it?', 'id="pop-ifly"')}${d.onMarket ? popBtn('Price alert', 'id="pop-ialert"') : ''}${popBtn('Copy name', 'id="pop-icopy"')}${popBtn('EVE Ref ↗', `data-link="https://everef.net/type/${d.id}"`)}</div></div></div>
     <div id="pop-ifly-out"></div>
     <div class="grid grid-2" style="align-items:start;margin-top:14px">
       <div>
@@ -91,6 +91,7 @@ async function openItemCard(typeId) {
           ${cats.reduce((n, [, l]) => n + l.length, 0) > keyStats.length ? html`<div class="dim" style="font-size:12px;margin-top:6px">More in the item database.</div>` : ''}`
         : d.hasStats ? '' : html`<div class="dim" style="font-size:12px">Item stats need a game data refresh (Settings → Game data).</div>`}</div>
     </div>`);
+  const al = box.querySelector('#pop-ialert'); if (al) al.onclick = () => openPriceAlertModal({ typeId: d.id, name: d.name });
   box.querySelector('#pop-icopy').onclick = async () => { await api.copy(d.name); toast('Name copied.'); };
   box.querySelector('#pop-ifly').onclick = async () => {
     const out = box.querySelector('#pop-ifly-out'); out.innerHTML = String(loadingView('Checking your pilots…'));

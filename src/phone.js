@@ -7,6 +7,7 @@ const CATEGORIES = {
   industry: 'Industry jobs finished or slots idle',
   planets: 'PI extractors stopping',
   market: 'Orders, undercuts and contracts',
+  prices: 'Price alerts from your watchlist',
   intel: 'Intel threats, Local threats and kill spikes',
   structures: 'Corp structure attacks and fuel',
   ops: 'Ops and timers starting soon',
@@ -16,7 +17,7 @@ const CATEGORIES = {
   daily: 'Daily reset, login rewards, EVE news and server status',
   app: 'App updates'
 };
-const DEFAULTS = { enabled: false, ntfy: '', webhook: '', onlyAway: true, categories: { skills: true, industry: true, planets: true, intel: true, structures: true, ops: true, daily: true } };
+const DEFAULTS = { enabled: false, ntfy: '', webhook: '', onlyAway: true, categories: { skills: true, industry: true, planets: true, intel: true, structures: true, ops: true, daily: true, prices: true } };
 const cfg = () => { const s = store.get().settings.phone || {}; return { ...DEFAULTS, ...s, categories: { ...DEFAULTS.categories, ...(s.categories || {}) } }; };
 
 const recent = new Map();

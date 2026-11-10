@@ -42,6 +42,7 @@ const couriers = require('./couriers');
 const bridges = require('./bridges');
 const livemap = require('./livemap');
 const syscard = require('./syscard');
+const pricewatch = require('./pricewatch');
 const hunting = require('./hunting');
 const whresidents = require('./whresidents');
 const pve = require('./pve');
@@ -848,6 +849,24 @@ setInterval(() => { if (app.isReady() && store.get().settings.notifications) dai
 setInterval(() => { if (app.isReady()) { try { timers.tick(notify); } catch {} } }, 60000);
 handle('wh:info', q => whinfo.info(q));
 handle('sys:card', q => syscard.card(q));
+// ---------- Price alerts ----------
+const iskShort = n => n >= 1e9 ? (n / 1e9).toFixed(2) + 'b' : n >= 1e6 ? (n / 1e6).toFixed(2) + 'm' : n >= 1e3 ? (n / 1e3).toFixed(1) + 'k' : n.toFixed(2);
+async function checkPrices() {
+  const r = await pricewatch.check();
+  for (const a of r.alerts) {
+    const line = a.dir === 'below' ? a.row.below : a.row.above;
+    notify(`${a.row.name} ${a.dir === 'below' ? 'dropped' : 'rose'} to ${iskShort(a.price)}`, `${a.row.hub} ${a.row.side} price is ${a.dir} your ${iskShort(line)} alert.${a.row.note ? ' ' + a.row.note : ''}`, 'prices');
+  }
+  if (win && !win.isDestroyed()) win.webContents.send('pw:update', r.rows);
+  return r.rows;
+}
+handle('pw:list', () => pricewatch.status());
+handle('pw:add', p => { const row = pricewatch.add(p || {}); checkPrices().catch(() => {}); return row; });
+handle('pw:update', (id, p) => pricewatch.update(String(id), p || {}));
+handle('pw:remove', id => pricewatch.remove(String(id)));
+handle('pw:check', () => checkPrices());
+setInterval(() => { if ((store.get().priceWatch || []).length) checkPrices().catch(e => diag.warn('prices', e.message)); }, 15 * 60000);
+setTimeout(() => { if ((store.get().priceWatch || []).length) checkPrices().catch(() => {}); }, 45000);
 handle('trade:report', o => trade.report(o || {}));
 handle('items:search', q => items.search(String(q || '')));
 handle('items:info', id => items.info(Number(id)));

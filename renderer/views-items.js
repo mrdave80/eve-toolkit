@@ -35,7 +35,7 @@ function drawItem() {
       <div style="flex:1"><div style="font-size:20px;font-weight:600">${d.name}</div><div class="muted">${d.group} · ${d.category}${d.meta ? ' · ' + d.meta : ''}</div>
         <div class="dim" style="font-size:12px;margin-top:3px">Volume ${fmtNum(d.volume)} m³${d.portion > 1 ? ` · portion ${fmtNum(d.portion)}` : ''} · type ID ${d.id}</div></div>
       <div style="display:flex;gap:6px;flex-direction:column"><button class="btn btn-ghost" id="it-fly" style="font-size:12px;padding:4px 10px">Who can use it?</button>
-        <button class="btn btn-ghost" data-link="https://everef.net/type/${d.id}" style="font-size:12px;padding:4px 10px">EVE Ref ↗</button></div></div>
+        <button class="btn btn-ghost" data-link="https://everef.net/type/${d.id}" style="font-size:12px;padding:4px 10px">EVE Ref ↗</button>${d.onMarket ? html`<button class="btn btn-ghost" id="it-alert" style="font-size:12px;padding:4px 10px">Price alert</button>` : ''}</div></div>
       <div id="it-fly-out"></div></div>
     <div class="grid grid-2" style="align-items:start">
       <div>
@@ -54,6 +54,7 @@ function drawItem() {
     </div>`);
   document.querySelectorAll('[data-goitem]').forEach(a => a.onclick = e => { e.preventDefault(); openItem(Number(a.dataset.goitem)); });
   document.querySelectorAll('#it-out [data-link]').forEach(a => a.onclick = e => { e.preventDefault(); api.openLink(a.dataset.link); });
+  const ia = $('#it-alert'); if (ia) ia.onclick = () => openPriceAlertModal({ typeId: d.id, name: d.name });
   $('#it-fly').onclick = async () => {
     const out = $('#it-fly-out'); out.innerHTML = String(loadingView('Checking your pilots…'));
     const r = await api.canFly(d.id);
