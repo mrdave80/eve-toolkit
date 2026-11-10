@@ -9,7 +9,8 @@
   "scripts": {
     "start": "electron .",
     "dist:win": "electron-builder --win zip portable --x64",
-    "dist:win-installer": "electron-builder --win nsis --x64"
+    "dist:win-installer": "electron-builder --win nsis --x64",
+    "dist:linux": "electron-builder --linux AppImage --x64"
   },
   "build": {
     "appId": "net.evetoolkit.desktop",
@@ -42,7 +43,16 @@
         "from": "LICENSE",
         "to": "LICENSE.txt"
       }
-    ]
+    ],
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "category": "Game",
+      "icon": "build/icon.png",
+      "artifactName": "EVE-Toolkit-${version}-linux-x86_64.${ext}",
+      "synopsis": "All-in-one companion for EVE Online"
+    }
   },
   "devDependencies": {
     "@resvg/resvg-js": "^2.6.2",

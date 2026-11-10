@@ -13,7 +13,14 @@ const LEVEL_RANK = { Minimal: 0, Low: 1, Moderate: 2, High: 3, Extreme: 4 };
 let pilotintel = null; // loaded lazily to avoid a require cycle
 const pi = () => pilotintel || (pilotintel = require('./pilotintel'));
 const cfg = () => ({ ...DEFAULTS, ...(store.get().settings.intel || {}) });
-const logsRoot = () => cfg().folder || path.join(app.getPath('documents'), 'EVE', 'logs');
+// On Linux, EVE runs through Steam's Proton, which keeps its own Documents folder.
+const PROTON_DOCS = () => path.join(app.getPath('home'), '.local', 'share', 'Steam', 'steamapps', 'compatdata', '8500', 'pfx', 'drive_c', 'users', 'steamuser', 'Documents');
+const logsRoot = () => {
+  if (cfg().folder) return cfg().folder;
+  const normal = path.join(app.getPath('documents'), 'EVE', 'logs');
+  if (process.platform === 'linux' && !fs.existsSync(normal) && fs.existsSync(path.join(PROTON_DOCS(), 'EVE', 'logs'))) return path.join(PROTON_DOCS(), 'EVE', 'logs');
+  return normal;
+};
 
 let listener = () => {};
 const offsets = new Map();          // file -> byte offset

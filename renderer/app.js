@@ -385,6 +385,9 @@ async function renderSettings() {
       ${settingsFold('phone', 'Phone alerts', 'Send alerts to your phone', raw('<div class="panel" id="phone-panel"></div>'))}
       ${settingsFold('ingame', 'In-game control and sending', 'Waypoints, in-game windows, sending mail, calendar replies, saving fits', raw('<div class="panel" id="ingame-panel"></div>'))}
       ${settingsFold('sde', 'Game data', 'Item, system and planet data from CCP', raw(`<div class="panel"><h3>Game data</h3><div id="sde-panel">${loadingView('Checking…')}</div></div>`))}
+      ${settingsFold('backup', 'Backup and restore', 'Move everything to another PC', html`<div class="panel"><h3>Backup and restore</h3>
+        <div class="muted" style="margin-bottom:10px">A backup holds your pilots and their logins, settings, watchlists, notes, trade history, maps and corp tools, locked with a password you choose. Restore it on another PC to carry on where you left off. Keep the file safe: anyone with the file and the password can use your logins.</div>
+        <button class="btn btn-primary" id="bk-make">Make a backup…</button> <button class="btn btn-ghost" id="bk-restore">Restore from a backup…</button></div>`)}
       ${settingsFold('pilots', 'Pilots', `${nPilots} pilot${nPilots === 1 ? '' : 's'}${reauth ? ` · ${reauth} need${reauth === 1 ? 's' : ''} re-authorising` : ''}`, html`<div class="panel"><h3>Pilots</h3>
         ${state.characters.length ? html`<table><tbody>${state.characters.map(c => html`<tr>
           <td style="width:44px"><img src="${portrait(c.id, 32)}" width="32" height="32" style="border-radius:4px" alt=""></td>
@@ -408,6 +411,24 @@ async function renderSettings() {
   document.querySelectorAll('[data-sfold]').forEach(d => d.addEventListener('toggle', () => { settingsOpen[d.dataset.sfold] = d.open; try { localStorage.setItem('settingsOpen', JSON.stringify(settingsOpen)); } catch {} }));
   $('#s-openall').onclick = e => { e.preventDefault(); document.querySelectorAll('[data-sfold]').forEach(d => { d.open = true; }); };
   $('#s-closeall').onclick = e => { e.preventDefault(); document.querySelectorAll('[data-sfold]').forEach(d => { d.open = false; }); };
+  $('#bk-make').onclick = () => openModal('Make a backup', html`${field('Password', html`<input type="password" name="pw" autocomplete="new-password">`, 'At least 8 characters. There is no way to recover a backup without it.')}${field('Password again', html`<input type="password" name="pw2" autocomplete="new-password">`)}`, {
+    submit: 'Choose where to save', onSubmit: async d => { if (d.pw !== d.pw2) { toast('The passwords don’t match.', true); return true; } const r = await api.backup.create(d.pw); if (!r.ok) { toast(r.error, true); return true; } if (r.data) toast('Backup saved to ' + r.data.file); } });
+  $('#bk-restore').onclick = async () => {
+    const p = await api.backup.pick(); if (!p.ok) return toast(p.error, true); if (!p.data) return;
+    openModal('Restore from a backup', html`<div class="dim" style="margin-bottom:10px;word-break:break-all">${p.data.file}</div>${field('Password', html`<input type="password" name="pw">`)}<div id="bk-peek"></div>
+      <div class="notice" style="margin:10px 0 0">Restoring replaces this PC’s EVE Toolkit data with the backup, then restarts the app. A copy of the current data is kept in the data folder first.</div>`, {
+      submit: 'Check the backup', onSubmit: async d => {
+        const peek = document.getElementById('bk-peek'), btn = document.querySelector('#modal [type=submit]');
+        if (!peek.dataset.ok) {
+          const r = await api.backup.describe(d.pw); if (!r.ok) { toast(r.error, true); return true; }
+          peek.dataset.ok = '1'; btn.textContent = 'Restore and restart';
+          peek.innerHTML = String(html`<div class="kv" style="font-size:12.5px;margin-top:6px"><span class="k">Made</span><span>${fmtDate(r.data.created)} with version ${r.data.app}</span><span class="k">Pilots</span><span>${r.data.pilots.join(', ') || 'none'}</span><span class="k">Corp tools</span><span>${r.data.hasWorkspace ? 'included' : 'none'}</span></div>`);
+          return true;
+        }
+        const r = await api.backup.restore(d.pw); if (!r.ok) { toast(r.error, true); return true; }
+        toast('Restored. EVE Toolkit is restarting…');
+      } });
+  };
   drawAppearance();
   drawSpeechPanel();
   drawPhonePanel();

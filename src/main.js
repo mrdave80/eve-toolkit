@@ -434,7 +434,9 @@ handle('app:info', () => ({
   os: `${require('os').version ? require('os').version() : 'Windows'} (${require('os').release()})`,
   userData: app.getPath('userData'),
   scopes: auth.SCOPES,
-  corpScopes: auth.CORP_SCOPES
+  corpScopes: auth.CORP_SCOPES,
+  uiScopes: auth.UI_SCOPES,
+  writeScopes: auth.WRITE_SCOPES
 }));
 handle('settings:get', () => store.get().settings);
 handle('app:checkUpdate', () => checkForUpdate());
@@ -528,6 +530,32 @@ handle('comms:send', (charId, m) => comms.send(Number(charId), m || {}));
 handle('comms:markRead', (charId, mailId, read) => comms.markRead(Number(charId), mailId, read !== false));
 handle('comms:respond', (charId, eventId, response) => comms.respond(Number(charId), eventId, String(response)));
 handle('comms:inbox', () => comms.inbox());
+
+// ---------- Backup and restore ----------
+const backup = require('./backup');
+handle('backup:create', async password => {
+  const text = backup.create(password);
+  const r = await dialog.showSaveDialog(win, { title: 'Save EVE Toolkit backup', defaultPath: `EVE-Toolkit-backup-${new Date().toISOString().slice(0, 10)}.evetk`, filters: [{ name: 'EVE Toolkit backup', extensions: ['evetk'] }] });
+  if (r.canceled || !r.filePath) return null;
+  fs.writeFileSync(r.filePath, text);
+  return { file: r.filePath, size: text.length };
+});
+let pickedBackup = null;
+handle('backup:pick', async () => {
+  const r = await dialog.showOpenDialog(win, { title: 'Open EVE Toolkit backup', properties: ['openFile'], filters: [{ name: 'EVE Toolkit backup', extensions: ['evetk', 'json'] }] });
+  if (r.canceled || !r.filePaths[0]) return null;
+  const st = fs.statSync(r.filePaths[0]); if (st.size > 200 * 1024 * 1024) throw new Error('That file is too big to be a backup.');
+  pickedBackup = { file: r.filePaths[0], text: fs.readFileSync(r.filePaths[0], 'utf8') };
+  return { file: pickedBackup.file };
+});
+handle('backup:describe', password => { if (!pickedBackup) throw new Error('Pick a backup file first.'); return backup.describe(pickedBackup.text, password); });
+handle('backup:restore', password => {
+  if (!pickedBackup) throw new Error('Pick a backup file first.');
+  const r = backup.restore(pickedBackup.text, password);
+  pickedBackup = null;
+  setTimeout(() => { app.relaunch(); app.exit(0); }, 800);
+  return r;
+});
 handle('esi:contracts', id => esi.contracts(id));
 handle('esi:clones', id => esi.clones(id));
 handle('esi:industry', id => esi.industry(id));
