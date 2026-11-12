@@ -30,6 +30,7 @@ const bargains = require('./bargains');
 const planets = require('./planets');
 const fitcheck = require('./fitcheck');
 const whshare = require('./whshare');
+const whimport = require('./whimport');
 const tradetools = require('./tradetools');
 const nav = require('./nav');
 const intel = require('./intel');
@@ -426,7 +427,7 @@ async function checkForUpdate() {
   const custom = store.get().settings.updateUrl;
   const url = custom && /^https:\/\//.test(custom) ? custom : RELEASES_API;
   try {
-    const r = await fetch(url, { headers: { 'User-Agent': 'EVE-Toolkit-Desktop', Accept: 'application/vnd.github+json, application/json' } });
+    const r = await fetch(url, { headers: { 'User-Agent': 'EVE-Toolkit-Desktop', Accept: 'application/vnd.github+json, application/json' }, signal: AbortSignal.timeout(20000) });
     if (!r.ok) return updateInfo;
     const j = await r.json();
     // GitHub release ("tag_name": "v1.8.9") or a simple feed ({ "version": "1.8.9", "url": "...", "notes": "..." })
@@ -1132,9 +1133,19 @@ handle('wh:import', async (source, opts) => {
     text = fs.readFileSync(r.filePaths[0], 'utf8');
   } else if (source === 'clipboard') text = clipboard.readText();
   else text = String(source || '');
-  const res = whshare.importMap(text, opts || {});
-  return { ...res, from: { name: res.from.name, exportedAt: res.from.exportedAt, app: res.from.app } };
+  let res;
+  if (String(text || '').includes(whshare.PREFIX) || /"format"\s*:\s*"eve-toolkit-wormhole-map"/.test(text || '')) res = whshare.importMap(text, opts || {});
+  else {
+    // Pathfinder, Wanderer, Nexum or a plain list of systems
+    const parsed = await whimport.build(whimport.parseForeign(text), { lookup: wormhole.systemByName, info: wormhole.systemInfo });
+    if (!parsed.systems.length) throw new Error(parsed.unknown.length ? `Couldn't find these systems: ${parsed.unknown.slice(0, 6).join(', ')}` : 'No systems found to import.');
+    res = whshare.importParsed(parsed, opts || {});
+    res.foreign = parsed.source; res.unknown = parsed.unknown;
+  }
+  return { ...res, from: { name: res.from.name, exportedAt: res.from.exportedAt, app: res.from.app || res.foreign } };
 });
+handle('wh:roll', o => require('./whroll').plan(o));
+handle('wh:rollPresets', () => require('./whroll').PRESETS);
 handle('wh:track', (mapId, pilots) => wormhole.startTracking(mapId, pilots));
 handle('wh:untrack', () => wormhole.stopTracking());
 handle('wh:status', async () => {

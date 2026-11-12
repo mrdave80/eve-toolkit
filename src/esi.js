@@ -44,7 +44,48 @@ async function getAccessToken(charId) {
   try { return await p; } finally { refreshing.delete(charId); }
 }
 
-async function rawRequest(path, { charId, method = 'GET', body, page } = {}) {
+// Tranquility up/down. While it's down, requests fail fast (or return the last copy we have)
+// instead of each one waiting through retries; one request every 30 s still goes through as a probe.
+const tq = { online: null, since: null, checkedAt: 0, reason: '' };
+const PROBE_MS = 30000;
+function setOnline(up, reason = '') {
+  if (tq.online !== up) { tq.since = new Date().toISOString(); try { require('./diag').info('esi', up ? 'Tranquility is back' : `Tranquility offline (${reason})`); } catch {} }
+  tq.online = up; tq.reason = up ? '' : reason; tq.checkedAt = Date.now();
+}
+const offlineError = () => new EsiError(tq.reason === 'network' ? 'Can\'t reach EVE\'s servers. Check your internet connection; this page will load once they can be reached.' : 'Tranquility is offline (daily downtime starts at 11:00 EVE time). This page will load by itself when the server is back.', 503, 'offline');
+
+async function rawRequest(path, opts = {}) {
+  const { charId, method = 'GET', body, page } = opts;
+  const probe = path === '/status/' || Date.now() - tq.checkedAt > PROBE_MS;
+  if (tq.online === false && !probe) {
+    const stale = method === 'GET' ? responseCache.get((charId || 0) + ' ' + method + ' ' + ESI + path + (path.includes('?') ? '&' : '?') + 'datasource=tranquility' + (page ? `&page=${page}` : '')) : null;
+    if (stale) return stale;
+    const e = offlineError(); e.offline = true; throw e;
+  }
+  try {
+    const r = await rawRequestOnce(path, opts);
+    if (tq.online !== true && path !== '/status/') setOnline(true);
+    return r;
+  } catch (e) {
+    const net = e.name === 'TimeoutError' || e.name === 'AbortError' || /fetch failed|ENOTFOUND|ECONN|EAI_AGAIN|network/i.test(e.message || '');
+    const ssoDown = /Could not refresh login/.test(e.message || '') && ![400, 401].includes(e.status);
+    if (net || ssoDown || [502, 503, 504].includes(e.status)) {
+      // One endpoint can fail on its own; only call the server offline if /status/ fails too
+      if (path !== '/status/') {
+        let down = true;
+        try { const st = await rawRequestOnce('/status/', {}); down = !!(st.body && st.body.vip); } catch {}
+        if (!down) throw e;
+      }
+      setOnline(false, net ? 'network' : 'downtime');
+      const hit = method === 'GET' && path !== '/status/' && e.stale;
+      if (hit) return hit;
+      const err = offlineError(); err.offline = true; throw err;
+    }
+    throw e;
+  }
+}
+
+async function rawRequestOnce(path, { charId, method = 'GET', body, page } = {}) {
   let url = ESI + path + (path.includes('?') ? '&' : '?') + 'datasource=tranquility';
   if (page) url += `&page=${page}`;
   const headers = {
@@ -62,8 +103,11 @@ async function rawRequest(path, { charId, method = 'GET', body, page } = {}) {
 
   let res;
   for (let attempt = 0; attempt < 3; attempt++) {
-    res = await fetch(url, { method, headers, body: body ? JSON.stringify(body) : undefined });
+    try {
+      res = await fetch(url, { method, headers, body: body ? JSON.stringify(body) : undefined, signal: AbortSignal.timeout(20000) });
+    } catch (e) { e.stale = hit || null; throw e; }
     if (res.status === 502 || res.status === 503 || res.status === 504) {
+      if (attempt === 2 || tq.online === false) break;
       await new Promise(r => setTimeout(r, 800 * (attempt + 1)));
       continue;
     }
@@ -86,7 +130,9 @@ async function rawRequest(path, { charId, method = 'GET', body, page } = {}) {
     try { const j = await res.json(); msg = j.error || msg; } catch {}
     if (res.status === 401 || res.status === 403) accessTokens.delete(charId);
     try { require('./diag').warn('esi', `${res.status} ${method} ${path.split('?')[0]}: ${msg}`); } catch {}
-    throw new EsiError(`ESI ${path}: ${msg}`, res.status, path);
+    const err = new EsiError(`ESI ${path}: ${msg}`, res.status, path);
+    err.stale = hit || null;
+    throw err;
   }
   const text = res.status === 204 ? '' : await res.text();
   const entry = {
@@ -234,9 +280,19 @@ async function skillInfo(typeId) {
 
 // ---------- High-level loaders ----------
 
+/** Server status; never throws. online false = downtime (or VIP mode) or EVE unreachable. */
 async function serverStatus() {
-  return get('/status/');
+  try {
+    const b = await get('/status/');
+    const up = !b.vip;
+    setOnline(up, up ? '' : 'downtime');
+    return { ...b, online: up, since: tq.since };
+  } catch (e) {
+    if (!e.offline) setOnline(false, e.status ? 'downtime' : 'network');
+    return { online: false, reason: tq.reason || 'downtime', since: tq.since, players: 0 };
+  }
 }
+const tqState = () => ({ ...tq });
 
 async function overview(charId) {
   const [pub, skills, queue, wallet, loc, ship, online] = await Promise.all([
@@ -479,6 +535,6 @@ function clearCaches() {
 module.exports = {
   marketPrices, typeIdsByName, skillInfo,
   get, getAllPages, safe, ok, rawRequest,
-  getAccessToken, serverStatus, overview, skillQueue, skills, wallet, mailList, mailBody,
+  getAccessToken, serverStatus, tqState, overview, skillQueue, skills, wallet, mailList, mailBody,
   contracts, clones, industry, orders, assets, clearCaches, resolveNames
 };

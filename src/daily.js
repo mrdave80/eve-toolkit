@@ -27,7 +27,8 @@ const GOALS = [
   { id: 'fwDefend', name: 'Defend a contested FW complex', tip: 'Needs faction warfare enlistment.' }
 ];
 const goalById = id => GOALS.find(g => g.id === id) || (String(id).startsWith('custom:') ? { id, name: String(id).slice(7), tip: '', custom: true } : null);
-const NEWS_URL = 'https://www.eveonline.com/rss/news';
+// /rss/news has been returning HTTP 500; /rss is the main feed (news, dev blogs and patch notes)
+const NEWS_URLS = ['https://www.eveonline.com/rss', 'https://www.eveonline.com/rss/news'];
 const NEWS_EVERY = 30 * 60000;
 const UA = 'EVE-Toolkit-Desktop (in-game contact: Mr Frank)';
 
@@ -130,7 +131,7 @@ function parseRss(xml) {
     const x = m[1];
     const link = decode(tag(x, 'link')) || (/<link[^>]*href="([^"]+)"/i.exec(x) || [])[1] || '';
     const pub = Date.parse(decode(tag(x, 'pubDate')) || decode(tag(x, 'published')) || decode(tag(x, 'updated'))) || 0;
-    return { id: decode(tag(x, 'guid')) || link, title: decode(tag(x, 'title')), link, pub, text: decode(tag(x, 'description')).slice(0, 600) };
+    return { id: decode(tag(x, 'guid')) || link, title: decode(tag(x, 'title')), link, pub, text: decode(tag(x, 'description')).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 600) };
   }).filter(i => i.title);
 }
 
@@ -172,12 +173,26 @@ const activeLogin = () => newsItems().filter(i => i.active && i.kinds.includes('
 async function fetchNews(force = false) {
   const s = state();
   if (!force && Date.now() - (s.news.at || 0) < NEWS_EVERY - 5000) return { items: newsItems(), fresh: [] };
-  const res = await fetch(NEWS_URL, { headers: { 'User-Agent': UA, Accept: 'application/rss+xml, application/xml, text/xml' } });
-  if (!res.ok) throw new Error(`EVE news feed returned ${res.status}`);
-  const items = parseRss(await res.text()).slice(0, 30).map(i => ({ ...i, kinds: classify(i), endsAt: endDate(i) }));
+  let parsed = null, lastErr = null;
+  for (const url of NEWS_URLS) {
+    try {
+      const res = await fetch(url, { headers: { 'User-Agent': UA, Accept: 'application/rss+xml, application/xml, text/xml;q=0.9, */*;q=0.5' }, signal: AbortSignal.timeout(20000) });
+      if (!res.ok) { lastErr = new Error(`EVE's news feed is having problems (HTTP ${res.status}). It will try again later.`); continue; }
+      const got = parseRss(await res.text());
+      if (got.length) { parsed = got; break; }
+      lastErr = new Error('EVE\'s news feed came back empty. It will try again later.');
+    } catch (e) { lastErr = new Error(`Couldn't reach EVE's news feed (${e.name === 'TimeoutError' ? 'timed out' : e.message}).`); }
+  }
+  if (!parsed) {
+    // keep showing what we had
+    if ((s.news.items || []).length) { s.news.error = lastErr.message; s.news.errorAt = Date.now(); return { items: newsItems(), fresh: [], error: lastErr.message }; }
+    throw lastErr;
+  }
+  const items = parsed.slice(0, 30).map(i => ({ ...i, kinds: classify(i), endsAt: endDate(i) }));
   const firstRun = !s.news.at;
   const seen = new Set(s.news.seen);
-  const fresh = firstRun ? [] : items.filter(i => !seen.has(i.id));
+  let fresh = firstRun ? [] : items.filter(i => !seen.has(i.id));
+  if (fresh.length > 8) fresh = [];   // feed changed address or ids: don't alert on everything
   s.news = { at: Date.now(), seen: [...new Set([...items.map(i => i.id), ...s.news.seen])].slice(0, 200), items };
   store.save('daily');
   return { items: newsItems(), fresh };
@@ -260,7 +275,7 @@ function status() {
   const today = (s.goals[dayKey()] || []).map(goalById).filter(Boolean);
   return { cfg: cfg(), day: dayKey(), nextReset: nextReset(), monthSteps: MONTH_STEPS, daysLeft: daysLeftInMonth(), pilots: pilotRows(),
     goals: today, catalogue: GOALS, goalsForBonus: GOALS_FOR_BONUS,
-    news: newsItems(), newsAt: s.news.at || 0, tq: s.tq };
+    news: newsItems(), newsAt: s.news.at || 0, newsError: s.news.errorAt > (s.news.at || 0) ? s.news.error : null, tq: s.tq };
 }
 
 function save(next) {

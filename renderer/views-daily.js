@@ -75,7 +75,7 @@ function drawDaily(d) {
 
       <div class="panel" style="padding:0">
         <div style="padding:14px 18px 6px;display:flex;align-items:center;gap:10px"><h3 style="margin:0;flex:1">EVE news</h3>
-          <span class="dim" style="font-size:12px">${d.newsAt ? 'Checked ' + fmtDate(d.newsAt) : 'Not checked yet'}</span><button class="btn btn-ghost" style="padding:3px 10px;font-size:12px" id="dl-news">⟳ Check now</button></div>
+          <span class="dim" style="font-size:12px">${d.newsAt ? 'Checked ' + fmtDate(d.newsAt) : 'Not checked yet'}</span>${d.newsError ? html`<span class="gold" style="font-size:12px" title="${d.newsError}">⚠ last check failed, showing earlier news</span>` : ''}<button class="btn btn-ghost" style="padding:3px 10px;font-size:12px" id="dl-news">⟳ Check now</button></div>
         ${d.news.length ? html`<table><tbody>${d.news.slice(0, 15).map(n => html`<tr style="${raw(n.active ? '' : 'opacity:.6')}"><td>
             <div><a href="#" data-ext="${n.link}">${n.title}</a></div>
             <div style="margin-top:3px">${n.kinds.map(k => html`<span class="badge ${k === 'login' || k === 'sp' ? 'green' : k === 'free' ? 'accent' : ''}" style="margin-right:4px">${NEWS_KIND_LABELS[k]}</span>`)}

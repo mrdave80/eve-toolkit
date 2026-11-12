@@ -336,6 +336,8 @@ api.wh = {
     statics: [{ code: 'H296', leadsTo: 'C5', lifeHours: 24, totalMass: 3e9, jumpMass: 1.35e9 }, { code: 'D845', leadsTo: 'HS', lifeHours: 24, totalMass: 5e9, jumpMass: 375e6 }], shattered: false, staticsKnown: true } }), op: async (m, o) => ({ ok: true, data: whMap }), system: async () => ({ ok: true, data: {} }),
   activity: async ids => ({ ok: true, data: { 31000404: { kills: { ship: 3, pod: 2, npc: 0 }, jumps: null }, 31000202: { kills: { ship: 0, pod: 0, npc: 212 }, jumps: null }, 30002053: { kills: { ship: 4, pod: 1, npc: 0 }, jumps: 1840 }, 30001234: { kills: { ship: 11, pod: 6, npc: 3 }, jumps: 620 } } }),
   routes: async () => ({ ok: true, data: { Jita: 13, Amarr: 22, Dodixie: 14, Rens: 6, Hek: 0 } }),
+  roll: async o => { try { return { ok: true, data: require('../../src/whroll').plan(o) }; } catch (e) { return { ok: false, error: e.message }; } },
+  rollPresets: async () => ({ ok: true, data: require('../../src/whroll').PRESETS }),
   track: async () => ({ ok: true }), untrack: async () => ({ ok: true }),
   status: async () => ({ ok: true, data: { active: true, mapId: 'm1', pilots: [2119000001, 2119000002], positions: { 2119000001: 31000202, 2119000002: 31000101 }, ships: {},
     shipNames: { 2119000001: 'Buzzard', 2119000002: 'Prospect' },
@@ -775,6 +777,12 @@ api.diag = { report: async () => ({ ok: true, data: 'EVE Toolkit 1.9.0\nSystem: 
     places: [{ label: 'Nourvukaiken gate', kind: 'gate', kills: 9, pods: 4 }, { label: 'Kedama gate', kind: 'gate', kills: 5, pods: 1 }, { label: 'Tama VII - Moon 9 belt', kind: 'belt', kills: 3 }, { label: 'In space or a site', kind: 'space', kills: 9 }],
     victimGroups: [{ name: 'State War Academy', count: 6 }, { name: 'Rusty Bolt Industrial', count: 5 }, { name: 'Deep Pockets Salvage', count: 3 }],
     pilots: P.map(([name, id, corp, alliance], i) => ({ id, name, corp, alliance, kills: [19, 15, 12, 8, 4][i], last: ago([13, 13, 52, 95, 260][i]), ships: [['Sabre', 'Proteus'], ['Lachesis'], ['Proteus', 'Sabre'], ['Catalyst'], ['Falcon']][i] })),
+    battles: [{ start: ago(40), end: ago(13), minutes: 27, kills: 11, pilots: 34, isk: 9.2e8, efficiency: 88, sides: [
+      { pilots: 19, lost: 2, isk: 1.1e8, groups: ['Umbral Reach', 'Gank Co'], ships: [{ name: 'Sabre', n: 1 }, { name: 'Catalyst', n: 1 }] },
+      { pilots: 15, lost: 9, isk: 8.1e8, groups: ['State War Academy', 'Rusty Bolt Industrial', 'Deep Pockets Salvage'], ships: [{ name: 'Capsule', n: 4 }, { name: 'Ferox', n: 2 }, { name: 'Orca', n: 1 }, { name: 'Caracal', n: 2 }] }] },
+      { start: ago(260), end: ago(248), minutes: 12, kills: 4, pilots: 11, isk: 2.4e8, efficiency: 35, sides: [
+      { pilots: 5, lost: 3, isk: 1.6e8, groups: ['Tama Gate Watch'], ships: [{ name: 'Thrasher', n: 2 }, { name: 'Vexor', n: 1 }] },
+      { pilots: 6, lost: 1, isk: 0.8e8, groups: ['Faction Warfare Militia'], ships: [{ name: 'Harbinger', n: 1 }] }] }],
     kills, nearby: [['Kedama', 0.4, 1, 2, 1, 0, 380], ['Nourvukaiken', 0.8, 1, 1, 0, 12, 520], ['Okkamon', 0.6, 2, 0, 0, 40, 90], ['Sujarento', 0.4, 2, 0, 0, 3, 140]].map(([name, security, jumps, ship, pod, npc, traffic], i) => ({ id: 30002800 + i, name, security, jumps, ship, pod, npc, traffic })),
     intel: [{ at: ago(11), channel: 'TheCitadel.imperium', who: 'Scout Alpha', text: 'Tama 3x Sabre + Lachesis on Nourvukaiken gate', clear: false }, { at: ago(48), channel: 'TheCitadel.imperium', who: 'Hauler Bob', text: 'Tama camped, avoid', clear: false }, { at: ago(300), channel: 'TheCitadel.imperium', who: 'Scout Alpha', text: 'Tama clr', clear: true }],
     at: iso(now) } });

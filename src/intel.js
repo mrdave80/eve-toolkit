@@ -400,7 +400,7 @@ async function zkillStats(ids) {
   const out = {};
   for (const id of ids.slice(0, 25)) {
     try {
-      const r = await fetch(`https://zkillboard.com/api/stats/characterID/${id}/`, { headers: { 'User-Agent': 'EVE-Toolkit-Desktop (in-game contact: Mr Frank)', 'Accept-Encoding': 'gzip' } });
+      const r = await fetch(`https://zkillboard.com/api/stats/characterID/${id}/`, { headers: { 'User-Agent': 'EVE-Toolkit-Desktop (in-game contact: Mr Frank)', 'Accept-Encoding': 'gzip' }, signal: AbortSignal.timeout(20000) });
       if (!r.ok) continue;
       const j = await r.json();
       out[id] = { kills: j.shipsDestroyed || 0, losses: j.shipsLost || 0, danger: j.dangerRatio ?? null, gang: j.gangRatio ?? null, solo: j.soloKills || 0, iskDestroyed: j.iskDestroyed || 0 };

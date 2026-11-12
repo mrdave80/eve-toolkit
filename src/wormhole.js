@@ -231,6 +231,7 @@ async function op(mapId, o) {
       }
       break;
     }
+    case 'removeGoneSigs': { const s = findSys(m, o.systemId); if (s) s.sigs = s.sigs.filter(x => !x.gone); break; }
     case 'removeSig': { const s = findSys(m, o.systemId); if (s) s.sigs = s.sigs.filter(x => x.id !== o.sigId); break; }
     default: throw new Error('Unknown map operation ' + o.kind);
   }

@@ -191,6 +191,8 @@ contextBridge.exposeInMainWorld('api', {
     system: id => call('wh:system', id),
     activity: ids => call('wh:activity', ids),
     routes: id => call('wh:routes', id),
+    roll: o => call('wh:roll', o),
+    rollPresets: () => call('wh:rollPresets'),
     track: (mapId, pilots) => call('wh:track', mapId, pilots),
     untrack: () => call('wh:untrack'),
     status: () => call('wh:status'),

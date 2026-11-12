@@ -61,7 +61,8 @@ function drawWh() {
       <select id="wh-map" class="crumb-select">${whState.maps.map(x => html`<option value="${x.id}" ${raw(m && x.id === m.id ? 'selected' : '')}>${x.name} (${(x.systems || []).length})</option>`)}</select>
       <button class="btn btn-ghost" id="wh-newmap" title="New map">+ Map</button>
       <button class="btn btn-ghost" id="wh-rename">Rename</button>
-      <button class="btn btn-ghost" id="wh-share" title="Export this map, or import one someone shared">⇄ Share</button>
+      <button class="btn btn-ghost" id="wh-share" title="Export this map, or import one from EVE Toolkit, Pathfinder, Wanderer or Nexum">⇄ Share / import</button>
+      <button class="btn btn-ghost" id="wh-rollbtn" title="Work out which ships to send through to close a wormhole">Rolling</button>
       <span class="wh-sep"></span>
       <input type="search" id="wh-add" placeholder="Add system by name (e.g. J123456, Jita)…" style="min-width:250px">
       <span class="wh-sep"></span>
@@ -246,7 +247,8 @@ function drawSide() {
   <div class="panel"><h3>Signatures ${s.sigsAt ? html`<span class="dim" style="text-transform:none;letter-spacing:0">· updated ${ageStr(s.sigsAt)} ago</span>` : ''}</h3>
     <textarea id="wh-paste" rows="3" placeholder="Probe scanner → Ctrl+A, Ctrl+C → paste here" style="width:100%;background:var(--bg-2);border:1px solid var(--line-2);color:var(--text);border-radius:6px;padding:8px;font:12px Consolas,monospace"></textarea>
     <div style="display:flex;gap:10px;align-items:center;margin:6px 0 10px"><button class="btn btn-primary" id="wh-pastebtn">Update signatures</button>
-      <label class="check" style="margin:0"><input type="checkbox" id="wh-rmmissing" checked> Delete missing</label></div>
+      <label class="check" style="margin:0" title="Off: signatures no longer in the scanner are crossed out so you can check them first"><input type="checkbox" id="wh-rmmissing" ${raw(localStorage.getItem('whRmMissing') === '1' ? 'checked' : '')}> Delete missing straight away</label></div>
+    ${sigs.some(x => x.gone) ? html`<div class="notice" style="display:flex;gap:10px;align-items:center;margin-bottom:8px"><span style="flex:1">${sigs.filter(x => x.gone).length} signature${sigs.filter(x => x.gone).length === 1 ? ' is' : 's are'} no longer in your scanner (crossed out below).</span><button class="btn btn-ghost" id="wh-delgone">Delete them</button></div>` : ''}
     ${sigs.length ? html`<table class="wh-sigs"><thead><tr><th>ID</th><th>Type</th><th>Name / WH</th><th class="right">%</th><th class="right">Age</th><th></th></tr></thead><tbody>
       ${sigs.map(x => { const fresh = Date.now() - Date.parse(x.firstSeen) < 10 * 60000; return html`<tr class="${x.gone ? 'gone' : ''} ${fresh ? 'fresh' : ''}">
         <td class="num">${x.id}</td><td>${x.group === 'Anomaly' ? raw('<span class="dim">Anom</span> ') : ''}${x.type ? html`<span class="badge ${x.type === 'Wormhole' ? 'accent' : ''}">${x.type}</span>` : raw('<span class="gold">?</span>')}</td>
@@ -269,8 +271,9 @@ function drawSide() {
   $('#wh-pastebtn').onclick = async () => {
     const text = $('#wh-paste').value;
     if (!text.trim()) return toast('Paste your probe scanner results first.', true);
+    try { localStorage.setItem('whRmMissing', $('#wh-rmmissing').checked ? '1' : '0'); } catch {}
     const r = await whOp({ kind: 'pasteSigs', systemId: s.id, text, removeMissing: $('#wh-rmmissing').checked });
-    if (r && r.result) toast(`Signatures: ${r.result.added} new, ${r.result.updated} updated, ${r.result.removed} removed`);
+    if (r && r.result) { const gone = (r.map.systems.find(x => x.id === s.id) || { sigs: [] }).sigs.filter(x => x.gone).length; toast(`Signatures: ${r.result.added} new, ${r.result.updated} updated, ${r.result.removed ? r.result.removed + ' removed' : gone + ' gone'}`); }
     drawCanvas(); drawSide();
   };
   document.querySelectorAll('[data-sigwh]').forEach(i => i.onchange = () => whOp({ kind: 'updateSig', systemId: s.id, sigId: i.dataset.sigwh, patch: { whType: i.value.trim().toUpperCase() } }));
@@ -279,6 +282,7 @@ function drawSide() {
     const r = await whOp({ kind: 'updateSig', systemId: s.id, sigId: i.dataset.siglead, patch: { leadsTo: i.value.trim() } });
     if (r) { toast('Connection added'); drawCanvas(); drawSide(); drawChainList(); refreshActivity(); }
   });
+  if ($('#wh-delgone')) $('#wh-delgone').onclick = async () => { await whOp({ kind: 'removeGoneSigs', systemId: s.id }); drawSide(); drawCanvas(); };
   document.querySelectorAll('[data-sigdel]').forEach(b => b.onclick = async () => { await whOp({ kind: 'removeSig', systemId: s.id, sigId: b.dataset.sigdel }); drawSide(); drawCanvas(); });
 }
 
@@ -294,7 +298,7 @@ function drawConnSide(box, m, c) {
     <div class="field"><label>Mass</label><div class="seg">${Object.entries(MASS).map(([k, v]) => html`<button data-mass="${k}" class="${(c.mass || 'stable') === k ? 'active' : ''}" style="${(c.mass || 'stable') === k ? `color:${v.color}` : ''}">${v.label}</button>`)}</div></div>
     <label class="check"><input type="checkbox" id="wc-eol" ${raw(c.eol ? 'checked' : '')}> End of life (less than 4 hours left)</label>
     <div class="field"><label>Notes</label><textarea id="wc-notes" rows="2">${c.notes || ''}</textarea></div>`}
-    <button class="btn btn-danger" id="wc-del">Delete connection</button></div>`);
+    <div style="display:flex;gap:8px;flex-wrap:wrap">${c.gate ? '' : html`<button class="btn btn-ghost" id="wc-roll">Plan rolling…</button>`}<button class="btn btn-danger" id="wc-del">Delete connection</button></div></div>`);
   if (!c.gate) {
     const up = patch => whOp({ kind: 'updateConnection', id: c.id, patch }).then(() => { drawCanvas(); drawSide(); drawChainList(); });
     $('#wc-type').onchange = e => up({ type: e.target.value.trim().toUpperCase() });
@@ -304,6 +308,7 @@ function drawConnSide(box, m, c) {
     $('#wc-notes').onchange = e => whOp({ kind: 'updateConnection', id: c.id, patch: { notes: e.target.value } });
   }
   showWhTypeInfo(c);
+  if ($('#wc-roll')) $('#wc-roll').onclick = () => openRollModal(c);
   $('#wc-del').onclick = async () => { await whOp({ kind: 'removeConnection', id: c.id }); whState.sel = null; drawCanvas(); drawSide(); drawChainList(); };
 }
 
@@ -357,6 +362,7 @@ function bindWhToolbar() {
   $('#wh-map').onchange = e => { whState.mapId = e.target.value; whState.sel = null; drawWh(); refreshActivity(); };
   $('#wh-newmap').onclick = () => openModal('New map', field('Name', inputText('name', '', 'e.g. Scouting chain')), { submit: 'Create', onSubmit: async d => { const r = await whOp({ kind: 'createMap', name: d.name || 'Chain' }, null); if (r) { whState.mapId = r.id; drawWh(); } } });
   $('#wh-share').onclick = () => whShareModal(m);
+  $('#wh-rollbtn').onclick = () => openRollModal(null);
   $('#wh-rename').onclick = () => openModal('Rename map', field('Name', inputText('name', m.name)), { onSubmit: async d => { await whOp({ kind: 'renameMap', name: d.name || m.name }); drawWh(); } });
   $('#wh-add').onkeydown = async e => {
     if (e.key !== 'Enter' || !e.target.value.trim()) return;
@@ -422,7 +428,8 @@ function whShareModal(m) {
     <div class="muted" style="font-size:12.5px;margin-bottom:8px">Exports <b>${m ? m.name : 'this map'}</b> with its systems, connections, signatures, labels and notes. Pilot tracking isn't included.</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn btn-primary" id="whs-code" ${raw(m ? '' : 'disabled')}>Copy as text</button><button type="button" class="btn btn-ghost" id="whs-file" ${raw(m ? '' : 'disabled')}>Save to file…</button></div>
     <div class="dim" style="font-size:12px;margin:6px 0 16px">Text is easiest for Discord or EVE mail: paste the whole thing, starting with EVETK-WH1:. A file is better for big chains.</div>
-    <h3 class="mh">Bring in a shared map</h3>
+    <h3 class="mh">Bring in a map</h3>
+    <div class="muted" style="font-size:12.5px;margin-bottom:8px">Takes an EVE Toolkit map, a map exported from <b>Pathfinder</b>, <b>Wanderer</b> or <b>Nexum</b>, or a plain list of systems, one chain per line: <code>J123456 -> J234567 -> Jita</code>.</div>
     <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:8px">
       <label class="check" style="margin:0"><input type="radio" name="whs-mode" value="new" checked> As a new map</label>
       <label class="check" style="margin:0"><input type="radio" name="whs-mode" value="merge" ${raw(m ? '' : 'disabled')}> Merge into <select id="whs-target" class="crumb-select" style="margin-left:6px">${others.map(x => html`<option value="${x.id}" ${raw(m && x.id === m.id ? 'selected' : '')}>${x.name}</option>`)}</select></label></div>
@@ -446,10 +453,66 @@ function whShareModal(m) {
     const i = whState.maps.findIndex(x => x.id === d.map.id); if (i === -1) whState.maps.push(d.map); else whState.maps[i] = d.map;
     whState.mapId = d.map.id; whState.sel = null;
     closeModal(); drawWh(); refreshActivity();
-    toast(d.mode === 'merge' ? `Merged "${d.from.name}": ${d.added} new systems, ${d.addedConn} new connections, ${d.addedSigs} new signatures` : `Imported "${d.map.name}": ${d.systems} systems, ${d.connections} connections`);
+    toast((d.mode === 'merge' ? `Merged "${d.from.name}": ${d.added} new systems, ${d.addedConn} new connections, ${d.addedSigs} new signatures` : `Imported "${d.map.name}": ${d.systems} systems, ${d.connections} connections`)
+      + (d.foreign ? ` from ${d.foreign}` : '') + (d.unknown && d.unknown.length ? `. Skipped unknown systems: ${d.unknown.slice(0, 5).join(', ')}` : ''));
   };
   $('#whs-code').onclick = () => ex('code');
   $('#whs-file').onclick = () => ex('file');
   $('#whs-paste').onclick = () => im('clipboard');
   $('#whs-open').onclick = () => im('file');
+}
+
+
+// ---------- Rolling planner ----------
+const rollState = { ships: null, presets: null };
+async function openRollModal(c) {
+  if (!whTypesCache) { const r = await api.sde.wormholeTypes(); whTypesCache = r.ok ? r.data : []; }
+  if (!rollState.presets) { const r = await api.wh.rollPresets(); rollState.presets = r.ok ? r.data : []; }
+  if (!rollState.ships) { try { rollState.ships = JSON.parse(localStorage.getItem('whRollShips') || 'null'); } catch {} }
+  if (!rollState.ships || !rollState.ships.length) rollState.ships = [{ ...rollState.presets[1], count: 1 }];
+  const t = c && whTypesCache.find(x => x.code === String(c.type || '').toUpperCase());
+  const kt = v => (v ? Math.round(v / 1e6) : '');
+  openModal('Rolling planner', html`
+    <div class="muted" style="font-size:12.5px;margin-bottom:10px">Plans round trips so the hole closes on a jump <b>back</b>, never with a ship on the far side. Wormhole mass varies by ±10%, so every jump out is checked against the lightest the hole could be.</div>
+    <div class="grid grid-4">
+      <div class="field"><label>Wormhole type</label><input type="text" id="rl-type" list="wh-type-list-r" value="${t ? t.code : (c && c.type) || ''}" placeholder="e.g. H296"></div>
+      <div class="field"><label>Total mass (k t)</label><input type="number" id="rl-total" value="${t ? kt(t.totalMass) : ''}" placeholder="e.g. 3000"></div>
+      <div class="field"><label>Max per jump (k t)</label><input type="number" id="rl-jump" value="${t ? kt(t.jumpMass) : ''}" placeholder="e.g. 1350"></div>
+      <div class="field"><label>Mass through so far (k t)</label><input type="number" id="rl-thru" value="" placeholder="if you know it"></div></div>
+    <div class="field"><label>How it looks now</label><div class="seg" id="rl-state">${Object.entries(MASS).map(([k, v]) => html`<button type="button" data-rlstate="${k}" class="${(c && c.mass || 'stable') === k ? 'active' : ''}">${v.label}</button>`)}</div></div>
+    <h3 class="mh">Rolling ships</h3>
+    <div id="rl-ships"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 12px"><select id="rl-preset" class="crumb-select">${rollState.presets.map((p, i) => html`<option value="${i}">${p.name}</option>`)}<option value="custom">Custom ship…</option></select><button type="button" class="btn btn-ghost" id="rl-add">+ Add ship</button></div>
+    <div id="rl-out"></div>
+    <datalist id="wh-type-list-r">${whTypesCache.filter(x => x.totalMass).map(x => html`<option value="${x.code}">${x.leadsTo}</option>`)}</datalist>`, { wide: true });
+  { const cl = document.querySelector('#modal .modal-foot [data-close]'); if (cl) cl.textContent = 'Close'; }
+  const drawShips = () => {
+    $('#rl-ships').innerHTML = String(html`<table><thead><tr><th>Ship</th><th class="right">Cold (k t)</th><th class="right">Hot (k t)</th><th></th></tr></thead><tbody>${rollState.ships.map((s, i) => html`<tr>
+      <td><input type="text" class="wh-mini" data-rls="${i}" data-k="name" value="${s.name}" style="width:100%"></td><td class="right"><input type="number" data-rls="${i}" data-k="cold" value="${kt(s.cold)}" class="wh-mini" style="width:90px"></td>
+      <td class="right"><input type="number" data-rls="${i}" data-k="hot" value="${kt(s.hot)}" class="wh-mini" style="width:90px"></td><td><button type="button" class="btn btn-ghost" style="padding:1px 7px" data-rlsdel="${i}">✕</button></td></tr>`)}</tbody></table>`);
+    document.querySelectorAll('[data-rls]').forEach(i => i.oninput = () => { const s = rollState.ships[i.dataset.rls]; s[i.dataset.k] = i.dataset.k === 'name' ? i.value : Number(i.value) * 1e6; run(); });
+    document.querySelectorAll('[data-rlsdel]').forEach(b => b.onclick = () => { rollState.ships.splice(Number(b.dataset.rlsdel), 1); drawShips(); run(); });
+  };
+  const run = async () => {
+    try { localStorage.setItem('whRollShips', JSON.stringify(rollState.ships)); } catch {}
+    const st = document.querySelector('[data-rlstate].active');
+    const total = Number($('#rl-total').value) * 1e6;
+    if (!total) { $('#rl-out').innerHTML = String(html`<div class="dim">Pick a wormhole type or enter its total mass.</div>`); return; }
+    const r = await api.wh.roll({ total, jumpMass: Number($('#rl-jump').value) * 1e6 || null, state: st ? st.dataset.rlstate : 'stable', through: Number($('#rl-thru').value) * 1e6 || 0, ships: rollState.ships });
+    const out = $('#rl-out'); if (!out) return;
+    if (!r.ok) { out.innerHTML = String(html`<div class="notice">${r.error}</div>`); return; }
+    const p = r.data;
+    out.innerHTML = String(html`<div class="kv" style="margin-bottom:8px"><span class="k">Mass left now</span><span>${fmtNum(p.range.lo / 1e6)}k – ${fmtNum(p.range.hi / 1e6)}k t</span>
+      ${p.tooBig.length ? html`<span class="k">Too heavy to jump</span><span class="neg">${p.tooBig.join(', ')}</span>` : ''}</div>
+      ${p.steps.length ? html`<table><thead><tr><th>#</th><th>Ship</th><th>Out</th><th>Back</th><th class="right">Through after</th><th></th></tr></thead><tbody>${p.steps.map(s => html`<tr>
+        <td class="num">${s.n}</td><td>${s.ship}</td><td><span class="badge ${s.out === 'hot' ? 'gold' : ''}">${s.out}</span> <span class="dim">${fmtNum(s.outMass / 1e6)}k</span></td><td><span class="badge ${s.back === 'hot' ? 'gold' : ''}">${s.back}</span> <span class="dim">${fmtNum(s.backMass / 1e6)}k</span></td>
+        <td class="right num">${fmtNum(s.after / 1e6)}k t</td><td style="font-size:12px">${s.willClose ? raw('<span class="pos">Closes</span>') : s.mayClose ? raw('<span class="gold">May close</span>') : s.check === 'destab' ? 'Should now look reduced' : s.check === 'crit' ? 'Should now look critical' : ''}</td></tr>`)}</tbody></table>` : ''}
+      <div class="notice" style="margin-top:10px">${p.advice}</div>
+      <div class="dim" style="font-size:11.5px;margin-top:6px">Hot means with the microwarpdrive running as you jump. After each step, look at the hole: if it shows reduced or critical earlier than expected, set that above and the plan updates.</div>`);
+  };
+  drawShips(); run();
+  $('#rl-type').onchange = () => { const x = whTypesCache.find(w => w.code === $('#rl-type').value.trim().toUpperCase()); if (x) { $('#rl-total').value = kt(x.totalMass); $('#rl-jump').value = kt(x.jumpMass); } run(); };
+  ['#rl-total', '#rl-jump', '#rl-thru'].forEach(id => $(id).oninput = run);
+  document.querySelectorAll('[data-rlstate]').forEach(b => b.onclick = () => { document.querySelectorAll('[data-rlstate]').forEach(x => x.classList.toggle('active', x === b)); run(); });
+  $('#rl-add').onclick = () => { const v = $('#rl-preset').value; rollState.ships.push(v === 'custom' ? { name: 'My ship', cold: 0, hot: 0 } : { ...rollState.presets[Number(v)] }); drawShips(); run(); };
 }

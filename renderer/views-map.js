@@ -42,29 +42,59 @@ async function loadMap(force) {
   const r = await api.map.region(mapState.regionId, { force: !!force });
   const box = $('#mp-box'); if (!box) return;
   if (!r.ok) { box.innerHTML = String(errorView(r)); return; }
-  mapState.data = r.data; mapState.layout = layoutMap(r.data);
+  mapState.data = r.data; mapState.layout = layoutMap(r.data, box.clientWidth && box.clientHeight ? box.clientWidth / box.clientHeight : 1.4);
   drawMap();
 }
 
-/** Project x/z to screen and push apart overlapping systems so labels stay readable. */
-function layoutMap(d) {
+/** Project x/z to screen, scale so neighbours sit a box-width apart, then push overlapping
+    boxes apart while keeping each system close to where it really is and near its gate neighbours. */
+const MP_W = 76, MP_H = 24, MP_GAP_X = 14, MP_GAP_Y = 16;
+function layoutMap(d, aspect = 1.4) {
   const all = [...d.systems.map(s => ({ ...s, ext: false })), ...d.external.map(s => ({ ...s, ext: true }))];
-  const xs = all.map(s => s.x), zs = all.map(s => s.z);
-  const minX = Math.min(...xs), maxX = Math.max(...xs), minZ = Math.min(...zs), maxZ = Math.max(...zs);
-  const W = 1400, H = 950, pad = 60;
-  const k = Math.min((W - 2 * pad) / ((maxX - minX) || 1), (H - 2 * pad) / ((maxZ - minZ) || 1));
-  const pos = new Map(all.map(s => [s.id, { x: pad + (s.x - minX) * k, y: pad + (maxZ - s.z) * k, ext: s.ext }]));
-  const nodes = [...pos.entries()];
-  for (let it = 0; it < 80; it++) {
-    for (let i = 0; i < nodes.length; i++) for (let j = i + 1; j < nodes.length; j++) {
-      const a = nodes[i][1], b = nodes[j][1];
-      const dx = b.x - a.x, dy = b.y - a.y, dist = Math.hypot(dx, dy) || 0.01, min = 46;
-      if (dist < min) { const push = (min - dist) / 2, ux = dx / dist, uy = dy / dist; a.x -= ux * push; a.y -= uy * push; b.x += ux * push; b.y += uy * push; }
+  const n = all.length;
+  if (!n) return { pos: new Map(), all: new Map(), box: { minX: 0, minY: 0, maxX: 100, maxY: 100 }, cons: [] };
+  const raw = all.map(s => ({ x: s.x, y: -s.z }));
+  // Scale so the region covers about 4 box-cells per system: dense enough to read at Fit,
+  // with room for the overlap pass to spread out tight clusters.
+  const rx = Math.max(...raw.map(p => p.x)) - Math.min(...raw.map(p => p.x)) || 1, ry = Math.max(...raw.map(p => p.y)) - Math.min(...raw.map(p => p.y)) || 1;
+  const k = Math.sqrt((n * (MP_W + MP_GAP_X) * (MP_H + MP_GAP_Y) * 4) / (rx * ry));
+  const minX = Math.min(...raw.map(p => p.x)), minY = Math.min(...raw.map(p => p.y));
+  // Stretch towards the shape of the map panel (up to 1.8×) so a tall region uses the width too
+  const ar = (rx / ry), sx = ar < aspect ? Math.min(1.8, Math.sqrt(aspect / ar)) : 1, sy = ar > aspect ? Math.min(1.8, Math.sqrt(ar / aspect)) : 1;
+  const P = raw.map(p => ({ x: (p.x - minX) * k * sx, y: (p.y - minY) * k * sy }));
+  const home = P.map(p => ({ ...p }));
+  const idx = new Map(all.map((s, i) => [s.id, i]));
+  const links = (d.edges || []).map(([a, b]) => [idx.get(a), idx.get(b)]).filter(([a, b]) => a !== undefined && b !== undefined);
+  const SX = MP_W + MP_GAP_X, SY = MP_H + MP_GAP_Y;
+  for (let it = 0; it < 260; it++) {
+    const cool = 1 - it / 300;
+    // keep geography: a gentle pull back towards the real position
+    for (let i = 0; i < n; i++) { P[i].x += (home[i].x - P[i].x) * 0.015 * cool; P[i].y += (home[i].y - P[i].y) * 0.015 * cool; }
+    // keep gate neighbours from drifting far apart
+    for (const [a, b] of links) {
+      const dx = P[b].x - P[a].x, dy = P[b].y - P[a].y, dist = Math.hypot(dx, dy) || 1, want = SX * 1.6;
+      if (dist > want) { const f = (dist - want) * 0.02 * cool / dist; P[a].x += dx * f; P[a].y += dy * f; P[b].x -= dx * f; P[b].y -= dy * f; }
     }
+    // no overlapping boxes (with a gap), pushed apart along the shorter overlap
+    let moved = 0;
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+      const dx = P[j].x - P[i].x, dy = P[j].y - P[i].y;
+      const ox = SX - Math.abs(dx), oy = SY - Math.abs(dy);
+      if (ox <= 0 || oy <= 0) continue;
+      moved++;
+      if (ox / SX < oy / SY) { const p = ox / 2 * (dx < 0 ? -1 : 1) || ox / 2; P[i].x -= p; P[j].x += p; }
+      else { const p = oy / 2 * (dy < 0 ? -1 : 1) || oy / 2; P[i].y -= p; P[j].y += p; }
+    }
+    if (!moved && it > 60) break;
   }
+  const pos = new Map(all.map((s, i) => [s.id, { x: P[i].x, y: P[i].y, ext: s.ext }]));
   const px = [...pos.values()];
-  const bx = { minX: Math.min(...px.map(p => p.x)) - 40, minY: Math.min(...px.map(p => p.y)) - 40, maxX: Math.max(...px.map(p => p.x)) + 40, maxY: Math.max(...px.map(p => p.y)) + 40 };
-  return { pos, all: new Map(all.map(s => [s.id, s])), box: bx };
+  const bx = { minX: Math.min(...px.map(p => p.x)) - MP_W, minY: Math.min(...px.map(p => p.y)) - 50, maxX: Math.max(...px.map(p => p.x)) + MP_W, maxY: Math.max(...px.map(p => p.y)) + 50 };
+  // constellation names, placed above each group
+  const groups = new Map();
+  for (const s of d.systems) { if (!s.constellation) continue; const p = pos.get(s.id); const g = groups.get(s.constellation) || { name: s.constellation, xs: [], ys: [] }; g.xs.push(p.x); g.ys.push(p.y); groups.set(s.constellation, g); }
+  const cons = [...groups.values()].map(g => ({ name: g.name, x: g.xs.reduce((a, b) => a + b, 0) / g.xs.length, y: Math.min(...g.ys) - MP_H, minX: Math.min(...g.xs) - MP_W / 2 - 8, maxX: Math.max(...g.xs) + MP_W / 2 + 8, minY: Math.min(...g.ys) - MP_H / 2 - 8, maxY: Math.max(...g.ys) + MP_H / 2 + 8 }));
+  return { pos, all: new Map(all.map(s => [s.id, s])), box: bx, cons };
 }
 
 function intelPins() {
@@ -93,27 +123,37 @@ function drawMap() {
   const P = id => L.pos.get(id);
   const vb = mapState.view || { x: L.box.minX, y: L.box.minY, w: L.box.maxX - L.box.minX, h: L.box.maxY - L.box.minY };
   mapState.view = vb;
-  let svg = `<svg id="mp-svg" viewBox="${vb.x} ${vb.y} ${vb.w} ${vb.h}" style="width:100%;height:100%;display:block;user-select:none">`;
-  for (const [a, b, kind] of d.edges) { const p = P(a), q = P(b); if (p && q) svg += `<line x1="${p.x}" y1="${p.y}" x2="${q.x}" y2="${q.y}" style="stroke:var(--line-2)" stroke-width="${kind ? 1 : 1.6}" ${kind ? 'stroke-dasharray="4 4"' : ''}/>`; }
+  const zoomed = vb.w < (L.box.maxX - L.box.minX) * 0.55;
+  const HW = MP_W / 2, HH = MP_H / 2;
+  let svg = `<svg id="mp-svg" class="${zoomed ? 'mp-zoomed' : ''}" viewBox="${vb.x} ${vb.y} ${vb.w} ${vb.h}" style="width:100%;height:100%;display:block;user-select:none">`;
+  // constellation names above each group
+  for (const c of L.cons || []) svg += `<text class="mp-cons" x="${c.x}" y="${c.y - 4}" text-anchor="middle" style="fill:var(--dim);font-size:9.5px;letter-spacing:.08em" opacity=".75">${esc(c.name.toUpperCase())}</text>`;
+  const consOf = id => (L.all.get(id) || {}).constellation;
+  for (const [a, b, kind] of d.edges) { const p = P(a), q = P(b); if (p && q) { const inner = !kind && consOf(a) && consOf(a) === consOf(b); svg += `<line x1="${p.x}" y1="${p.y}" x2="${q.x}" y2="${q.y}" style="stroke:var(--line-2)" stroke-width="${kind ? 1 : inner ? 1.2 : 2}" opacity="${inner ? 0.7 : 1}" ${kind ? 'stroke-dasharray="4 4"' : ''}/>`; } }
   for (const [a, b] of d.bridges) { const p = P(a), q = P(b); if (p && q) { const mx = (p.x + q.x) / 2 + (q.y - p.y) * 0.15, my = (p.y + q.y) / 2 - (q.x - p.x) * 0.15; svg += `<path d="M${p.x} ${p.y} Q${mx} ${my} ${q.x} ${q.y}" fill="none" style="stroke:var(--gold)" stroke-width="1.6" stroke-dasharray="6 4" opacity=".85"/>`; } }
   // heat
-  if (h.color) for (const s of d.systems) { const v = h.val(s); if (!v) continue; const p = P(s.id); const r = 8 + 26 * Math.sqrt(v / max); svg += `<circle cx="${p.x}" cy="${p.y}" r="${r}" style="fill:${h.color}" opacity="${0.18 + 0.4 * Math.sqrt(v / max)}"/>`; }
+  if (h.color) for (const s of d.systems) { const v = h.val(s); if (!v) continue; const p = P(s.id); const r = 14 + 26 * Math.sqrt(v / max); svg += `<circle cx="${p.x}" cy="${p.y}" r="${r}" style="fill:${h.color}" opacity="${0.16 + 0.34 * Math.sqrt(v / max)}"/>`; }
   // nodes
   for (const [id, s] of L.all) {
     const p = P(id); if (!p) continue;
     const sovFill = mapState.heat === 'sov' && s.sov ? `hsl(${hashHue(s.sov)},55%,45%)` : 'var(--node)';
     const sel = mapState.sel === id;
     const pin = pins.get(id);
-    if (pin) svg += `<circle cx="${p.x}" cy="${p.y}" r="17" fill="none" style="stroke:${pin.clear ? 'var(--green)' : 'var(--red)'}" stroke-width="2.5"><animate attributeName="r" values="13;19;13" dur="1.6s" repeatCount="indefinite"/></circle>`;
-    svg += `<g class="mp-node" data-sys="${id}" style="cursor:pointer" opacity="${s.ext ? 0.55 : 1}">
-      <rect x="${p.x - 32}" y="${p.y - 10}" width="64" height="20" rx="5" style="fill:${sovFill};stroke:${sel ? 'var(--accent)' : secCol(s.security)}" stroke-width="${sel ? 2.4 : 1.3}"/>
-      <text x="${p.x}" y="${p.y + 4}" text-anchor="middle" style="fill:var(--text);font-size:10.5px;font-weight:600">${esc(s.name.length > 10 ? s.name.slice(0, 9) + '…' : s.name)}</text>
-      ${s.ext ? `<text x="${p.x}" y="${p.y + 21}" text-anchor="middle" style="fill:var(--dim);font-size:8.5px">${esc(s.region)}</text>` : ''}
-      ${!s.ext && h.color && h.val(s) ? `<text x="${p.x + 30}" y="${p.y - 12}" text-anchor="end" style="fill:${h.color};font-size:9px;font-weight:700">${h.val(s)}</text>` : ''}</g>`;
+    if (pin) svg += `<rect x="${p.x - HW - 5}" y="${p.y - HH - 5}" width="${MP_W + 10}" height="${MP_H + 10}" rx="9" fill="none" style="stroke:${pin.clear ? 'var(--green)' : 'var(--red)'}" stroke-width="2.5"><animate attributeName="opacity" values="1;.25;1" dur="1.6s" repeatCount="indefinite"/></rect>`;
+    const v = !s.ext && h.color ? h.val(s) : 0;
+    const name = s.name.length > 11 ? s.name.slice(0, 10) + '…' : s.name;
+    svg += `<g class="mp-node" data-sys="${id}" style="cursor:pointer" opacity="${s.ext ? 0.55 : 1}"><title>${esc(s.name)}${s.ext ? ' · ' + esc(s.region) : ''} (${Number(s.security).toFixed(1)})</title>
+      <rect x="${p.x - HW}" y="${p.y - HH}" width="${MP_W}" height="${MP_H}" rx="5" style="fill:${sovFill};stroke:${sel ? 'var(--accent)' : secCol(s.security)}" stroke-width="${sel ? 2.4 : 1.4}"/>
+      <rect x="${p.x - HW}" y="${p.y - HH}" width="4" height="${MP_H}" rx="2" style="fill:${secCol(s.security)}"/>
+      <text x="${p.x + 2}" y="${p.y + 4}" text-anchor="middle" style="fill:var(--text);font-size:11px;font-weight:600">${esc(name)}</text>
+      ${s.ext ? `<text x="${p.x}" y="${p.y + HH + 10}" text-anchor="middle" style="fill:var(--dim);font-size:8.5px">${esc(s.region)}</text>` : ''}
+      ${v ? `<g><rect x="${p.x + HW - 12}" y="${p.y - HH - 9}" width="${String(v).length * 6 + 8}" height="13" rx="6.5" style="fill:${h.color}"/><text x="${p.x + HW - 8}" y="${p.y - HH + 1}" style="fill:#fff;font-size:9px;font-weight:700">${v}</text></g>` : ''}
+      ${!s.ext ? `<text class="mp-detail" x="${p.x}" y="${p.y + HH + 9}" text-anchor="middle" style="fill:var(--dim);font-size:7.5px">${Number(s.security).toFixed(1)} · ${s.jumps || 0} jumps · ${s.npc || 0} NPC</text>` : ''}</g>`;
     const here = pilotsAt.get(id);
-    if (here) svg += `<g><rect x="${p.x - 34}" y="${p.y + 12}" width="68" height="13" rx="3" style="fill:var(--accent)"/><text x="${p.x}" y="${p.y + 21.5}" text-anchor="middle" style="fill:var(--on-accent);font-size:8.5px;font-weight:700">${esc(here.length > 1 ? here.length + ' pilots' : here[0].split(' ')[0])}</text></g>`;
+    if (here) svg = svg.replace(/<text class="mp-detail"[^>]*>[^<]*<\/text><\/g>$/, "</g>");
+    if (here) svg += `<g><rect x="${p.x - HW}" y="${p.y + HH + 2}" width="${MP_W}" height="13" rx="3" style="fill:var(--accent)"/><text x="${p.x}" y="${p.y + HH + 11.5}" text-anchor="middle" style="fill:var(--on-accent);font-size:8.5px;font-weight:700">${esc(here.length > 1 ? here.length + ' pilots' : here[0].split(' ')[0])}</text></g>`;
   }
-  for (const w of d.wormholes) { const p = P(w.inside); if (p) svg += `<g><circle cx="${p.x - 34}" cy="${p.y - 10}" r="7" style="fill:var(--purple)"/><text x="${p.x - 34}" y="${p.y - 7}" text-anchor="middle" style="fill:#fff;font-size:8px;font-weight:700">J</text></g>`; }
+  for (const w of d.wormholes) { const p = P(w.inside); if (p) svg += `<g><circle cx="${p.x - HW}" cy="${p.y - HH}" r="7" style="fill:var(--purple)"/><text x="${p.x - HW}" y="${p.y - HH + 3}" text-anchor="middle" style="fill:#fff;font-size:8px;font-weight:700">J</text></g>`; }
   svg += '</svg>';
   box.innerHTML = svg;
   $('#mp-upd').textContent = `CCP stats from ${new Date(d.updated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · updates every 5 min`;
@@ -171,9 +211,11 @@ function bindMapPanZoom() {
     const r = svgEl.getBoundingClientRect(), v = mapState.view;
     const fx = (e.clientX - r.left) / r.width, fy = (e.clientY - r.top) / r.height;
     const z = e.deltaY > 0 ? 1.15 : 1 / 1.15;
-    const nw = Math.max(200, Math.min(4000, v.w * z)), nh = nw * v.h / v.w;
+    const fitW = mapState.layout.box.maxX - mapState.layout.box.minX;
+    const nw = Math.max(fitW * 0.18, Math.min(fitW * 2.5, v.w * z)), nh = nw * v.h / v.w;
     mapState.view = { x: v.x + (v.w - nw) * fx, y: v.y + (v.h - nh) * fy, w: nw, h: nh };
     apply();
+    svgEl.classList.toggle('mp-zoomed', nw < fitW * 0.55);
   };
   let drag = null, moved = false;
   box.onpointerdown = e => { drag = { x: e.clientX, y: e.clientY, v: { ...mapState.view } }; moved = false; box.style.cursor = 'grabbing'; };

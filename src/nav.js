@@ -22,7 +22,7 @@ let scoutCache = { at: 0, list: [] };
 async function theraConnections() {
   if (Date.now() - scoutCache.at < 10 * 60000) return scoutCache.list;
   try {
-    const r = await fetch('https://api.eve-scout.com/v2/public/signatures', { headers: { 'User-Agent': 'EVE-Toolkit-Desktop' } });
+    const r = await fetch('https://api.eve-scout.com/v2/public/signatures', { headers: { 'User-Agent': 'EVE-Toolkit-Desktop' }, signal: AbortSignal.timeout(20000) });
     if (!r.ok) throw new Error(String(r.status));
     const data = await r.json();
     const list = (Array.isArray(data) ? data : []).filter(x => (x.signature_type || 'wormhole') === 'wormhole').map(x => ({

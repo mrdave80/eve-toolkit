@@ -85,6 +85,7 @@ function parseAccessToken(accessToken) {
 
 async function tokenRequest(params) {
   const res = await fetch(`${SSO}/v2/oauth/token`, {
+    signal: AbortSignal.timeout(20000),
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',

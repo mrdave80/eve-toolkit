@@ -12,6 +12,8 @@ const str = (v, n = 200) => (typeof v === 'string' ? v.slice(0, n) : '');
 const num = (v, lo = -1e9, hi = 1e9) => { const x = Number(v); return Number.isFinite(x) ? Math.max(lo, Math.min(hi, x)) : 0; };
 const iso = v => (typeof v === 'string' && !Number.isNaN(Date.parse(v)) ? new Date(Date.parse(v)).toISOString() : null);
 const bool = v => v === true;
+// The mapper stores destab / crit; older exports and other tools say reduced / critical
+const MASS_NORM = { stable: 'stable', destab: 'destab', reduced: 'destab', crit: 'crit', critical: 'crit' };
 const sysId = v => { const x = Number(v); return Number.isInteger(x) && x >= 30000000 && x < 33000000 ? x : null; };
 
 function cleanSig(g) {
@@ -29,8 +31,8 @@ function cleanSystem(s) {
 function cleanConn(c, ids) {
   const from = sysId(c && c.from), to = sysId(c && c.to);
   if (!from || !to || from === to || !ids.has(from) || !ids.has(to)) return null;
-  return { from, to, type: str(c.type, 6), mass: ['stable', 'reduced', 'critical'].includes(c.mass) ? c.mass : 'stable', eol: bool(c.eol), size: ['S', 'M', 'L', 'XL', 'C'].includes(c.size) ? c.size : 'L',
-    createdAt: iso(c.createdAt) || new Date().toISOString(), updatedAt: iso(c.updatedAt) || new Date().toISOString(), note: str(c.note, 300) || undefined };
+  return { from, to, type: str(c.type, 6), mass: MASS_NORM[c.mass] || 'stable', eol: bool(c.eol), size: ['S', 'M', 'L', 'XL', 'C'].includes(c.size) ? c.size : 'L',
+    createdAt: iso(c.createdAt) || new Date().toISOString(), updatedAt: iso(c.updatedAt) || new Date().toISOString(), note: str(c.note, 300) || undefined, notes: str(c.notes, 300) || undefined, gate: bool(c.gate) || undefined, eolAt: c.eol ? iso(c.eolAt) || undefined : undefined };
 }
 
 /** The shareable copy of a map: no pilot tracking, no internal ids. */
@@ -76,8 +78,10 @@ function parse(input) {
 const newId = () => require('crypto').randomBytes(6).toString('hex');
 
 /** mode 'new': a new map. mode 'merge': add what's missing to an existing map; newer signature and connection info wins. */
-function importMap(input, { mode = 'new', targetId = null } = {}) {
-  const d = parse(input);
+function importMap(input, opts = {}) { return importParsed(parse(input), opts); }
+
+/** Same as importMap, for a map already parsed (by parse() or whimport.build()). */
+function importParsed(d, { mode = 'new', targetId = null } = {}) {
   if (mode !== 'merge') {
     const names = new Set(ws.get().maps.map(m => m.name));
     let name = d.name; if (names.has(name)) name = `${name} (imported)`;
@@ -110,4 +114,4 @@ function importMap(input, { mode = 'new', targetId = null } = {}) {
   return { map: saved, mode, systems: d.systems.length, connections: d.connections.length, added: addedSys, addedConn, updatedConn, addedSigs, from: d };
 }
 
-module.exports = { exportMap, toCode, parse, importMap, FORMAT, PREFIX };
+module.exports = { exportMap, toCode, parse, importMap, importParsed, FORMAT, PREFIX, MASS_NORM };

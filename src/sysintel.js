@@ -119,7 +119,9 @@ async function report(q, hoursIn, o = {}) {
   const busiest = timeline.reduce((b, t, i) => (t.kills > (b ? timeline[b].kills : 0) ? i : b), null);
   if (busiest !== null && timeline[busiest].kills >= 3) notes.push({ tone: '', text: `Busiest hour: ${new Date(timeline[busiest].hourStart).toISOString().slice(11, 13)}:00 EVE with ${timeline[busiest].kills} kills.` });
 
+  const battles = findBattles(pvp, nm);
   const data = {
+    battles,
     id, name: s.name, security: s.security, region: s.region, constellation: s.constellation, hours, sov, live, nearby, notes,
     totals: { kills: pvp.length, npcLosses: kills.length - pvp.length, pods: pvp.filter(k => POD.has(k.victim.group)).length, value: pvp.reduce((n, k) => n + k.value, 0), solo: pvp.filter(k => k.solo).length, listed: items.length, read: mails.length },
     timeline,
@@ -137,4 +139,50 @@ async function report(q, hoursIn, o = {}) {
   return data;
 }
 
-module.exports = { report, HOURS };
+/** Group kills close in time into battles and split the groups involved into two sides. */
+function findBattles(pvp, nm) {
+  const asc = [...pvp].sort((a, b) => a.time.localeCompare(b.time));
+  const clusters = [];
+  let cur = null;
+  for (const k of asc) {
+    const t = Date.parse(k.time);
+    if (cur && t - cur.last <= 15 * 60000) { cur.kills.push(k); cur.last = t; } else { cur = { kills: [k], last: t }; clusters.push(cur); }
+  }
+  const out = [];
+  for (const c of clusters) {
+    const pilots = new Set(c.kills.flatMap(k => [k.victim.id, ...k.attackers.map(a => a.id)].filter(Boolean)));
+    if (c.kills.length < 3 && pilots.size < 8) continue;
+    const g = x => x.alliance || x.corp;
+    // Who fought whom: attackers' groups vs the victim's group
+    const vs = new Map(); const add = (a, b) => { if (!a || !b || a === b) return; (vs.get(a) || vs.set(a, new Map()).get(a)).set(b, ((vs.get(a) || new Map()).get(b) || 0) + 1); };
+    const weight = new Map();
+    for (const k of c.kills) { const v = g(k.victim); for (const a of new Set(k.attackers.map(g))) { add(a, v); add(v, a); weight.set(a, (weight.get(a) || 0) + 1); } weight.set(v, (weight.get(v) || 0) + 1); }
+    const side = new Map();
+    const order = [...weight.entries()].sort((a, b) => b[1] - a[1]).map(x => x[0]);
+    for (const start of order) {
+      if (side.has(start)) continue;
+      // join the side it fought least against, defaulting to A for the biggest group
+      if (!side.size) side.set(start, 'A');
+      else { const foes = vs.get(start) || new Map(); let a = 0, b = 0; for (const [o, n] of foes) { if (side.get(o) === 'A') a += n; if (side.get(o) === 'B') b += n; } side.set(start, a >= b ? 'B' : 'A'); }
+      // spread: anyone fighting this group is on the other side
+      const q = [start];
+      while (q.length) { const x = q.shift(); for (const [o] of vs.get(x) || []) if (!side.has(o)) { side.set(o, side.get(x) === 'A' ? 'B' : 'A'); q.push(o); } }
+    }
+    const mk = id => ({ groups: new Map(), pilots: new Set(), lost: 0, isk: 0, ships: new Map() });
+    const sides = { A: mk(), B: mk() };
+    for (const k of c.kills) {
+      const sv = sides[side.get(g(k.victim)) || 'B'];
+      sv.lost++; sv.isk += k.value; sv.ships.set(k.victim.shipName, (sv.ships.get(k.victim.shipName) || 0) + 1);
+      if (k.victim.id) sv.pilots.add(k.victim.id); sv.groups.set(g(k.victim), (sv.groups.get(g(k.victim)) || 0) + 1);
+      for (const a of k.attackers) { const sa = sides[side.get(g(a)) || 'A']; sa.pilots.add(a.id); sa.groups.set(g(a), (sa.groups.get(g(a)) || 0) + 1); }
+    }
+    const fmt = x => ({ pilots: x.pilots.size, lost: x.lost, isk: x.isk, groups: [...x.groups.entries()].sort((a, b) => b[1] - a[1]).slice(0, 4).map(([id]) => nm(id)), ships: [...x.ships.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6).map(([name, n]) => ({ name, n })) });
+    const A = fmt(sides.A), B = fmt(sides.B);
+    const total = A.isk + B.isk;
+    out.push({ start: c.kills[0].time, end: c.kills[c.kills.length - 1].time, minutes: Math.max(1, Math.round((Date.parse(c.kills[c.kills.length - 1].time) - Date.parse(c.kills[0].time)) / 60000)),
+      kills: c.kills.length, pilots: pilots.size, isk: total, sides: [A, B], efficiency: total ? Math.round(100 * B.isk / total) : 0, killIds: c.kills.map(k => k.id) });
+  }
+  return out.sort((a, b) => b.start.localeCompare(a.start)).slice(0, 10);
+}
+
+module.exports = { report, HOURS, _findBattles: findBattles };

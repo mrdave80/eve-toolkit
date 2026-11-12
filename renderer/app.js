@@ -71,6 +71,10 @@ function toast(msg, err = false) {
 
 const loadingView = (msg = 'Contacting ESI…') => html`<div class="loading"><div class="spinner"></div>${msg}</div>`;
 function errorView(res) {
+  if (res && (res.status === 503 || /Tranquility is offline|reach EVE's servers/i.test(res.error || ''))) {
+    if (tqState.online !== false) setTimeout(updateServerStatus, 0);
+    return html`<div class="notice tq-offline"><b>${/reach EVE/i.test(res.error || '') ? 'EVE\'s servers can\'t be reached right now.' : 'Tranquility is offline.'}</b><br><span class="muted">This page will load by itself when the server is back. No need to keep refreshing.</span></div>`;
+  }
   let hint = '';
   if (res.status === 403) hint = 'This pilot may not have granted the scope this page needs. Re-add the pilot from the sidebar to grant all scopes.';
   else if (res.status === 401 || /refresh login/i.test(res.error)) hint = 'The login for this pilot has expired or been revoked. Use "Re-authorise" on the pilot\'s page.';
@@ -913,11 +917,35 @@ function viewAssets(d) {
 
 // ================= Server status & ticker =================
 
+// While Tranquility is down: a banner instead of endless spinners, checks every 30 s, and the
+// current page reloads by itself when the server is back.
+const tqState = { online: null, timer: null, since: null, reason: '' };
 async function updateServerStatus() {
   const el = $('#server-status');
   const r = await api.status();
-  if (r.ok) el.innerHTML = String(html`<span class="dot up"></span>Tranquility · ${fmtNum(r.data.players)} online`);
-  else el.innerHTML = String(html`<span class="dot down"></span>Tranquility unreachable`);
+  const d = r.ok ? r.data : { online: false, reason: 'network' };
+  const was = tqState.online;
+  const up = d.online !== false && r.ok;
+  tqState.online = up; tqState.since = d.since || tqState.since; tqState.reason = d.reason || '';
+  if (el) el.innerHTML = up ? String(html`<span class="dot up"></span>Tranquility · ${fmtNum(d.players)} online`)
+    : String(html`<span class="dot down"></span>${d.reason === 'network' ? 'EVE servers unreachable' : 'Tranquility offline'}`);
+  showTqBanner(!up, d);
+  clearTimeout(tqState.timer);
+  tqState.timer = setTimeout(updateServerStatus, up ? 5 * 60 * 1000 : 30 * 1000);
+  if (up && was === false) {
+    toast('Tranquility is back online');
+    // reload the page if it was showing the offline message (or was stuck loading)
+    if (document.querySelector('#content .tq-offline, #content .loading')) render(true);
+  }
+}
+function showTqBanner(show, d = {}) {
+  let b = document.getElementById('tq-banner');
+  if (!show) { if (b) b.remove(); return; }
+  if (!b) { b = document.createElement('div'); b.id = 'tq-banner'; document.getElementById('main').prepend(b); }
+  const net = d.reason === 'network';
+  b.innerHTML = String(html`<span class="dot down"></span><span><b>${net ? 'Can\'t reach EVE\'s servers.' : 'Tranquility is offline.'}</b> ${net ? 'Check your internet connection.' : 'Daily downtime starts at 11:00 EVE time and usually lasts about 15 minutes.'} Pages show what was last loaded; everything refreshes when it's back.${tqState.since ? html` <span class="dim">Down since ${new Date(tqState.since).toISOString().slice(11, 16)} EVE.</span>` : ''}</span>
+    <button class="btn btn-ghost" style="padding:4px 12px" id="tq-check">Check now</button>`);
+  b.querySelector('#tq-check').onclick = async e => { e.target.textContent = 'Checking…'; e.target.disabled = true; await updateServerStatus(); };
 }
 
 setInterval(() => {
@@ -1074,7 +1102,6 @@ api.onUpdate(showUpdateBanner);
   renderTopbar();
   render();
   updateServerStatus();
-  setInterval(updateServerStatus, 5 * 60 * 1000);
   setTimeout(checkGameDataOnStart, 2500);
 })();
 

@@ -479,6 +479,9 @@ tr.intel-clear td { opacity: .6; }
 
 #upd-banner { display: flex; gap: 12px; align-items: center; padding: 8px 20px; background: var(--accent-dim); border-bottom: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); }
 #upd-banner span { flex: 1; }
+#tq-banner { display: flex; gap: 12px; align-items: center; padding: 8px 20px; background: color-mix(in srgb, var(--neg, #f56565) 14%, transparent); border-bottom: 1px solid color-mix(in srgb, var(--neg, #f56565) 40%, transparent); font-size: 13px; }
+#tq-banner > span:nth-child(2) { flex: 1; }
+.notice.tq-offline { border-color: color-mix(in srgb, var(--neg, #f56565) 40%, transparent); }
 
 /* ---------- Themes & About ---------- */
 html { transition: background-color .2s; }
@@ -617,3 +620,8 @@ html[data-streamer] .mail-row .from, html[data-streamer] .mail-view { filter: bl
 #walk-panel .walk-bar { height: 3px; background: var(--bg-2); border-radius: 2px; margin-bottom: 10px; overflow: hidden; } #walk-panel .walk-bar i { display: block; height: 100%; background: var(--accent); }
 .help-hl { outline: 2px solid var(--accent) !important; outline-offset: 3px; border-radius: 8px; animation: helpPulse 1.4s ease-in-out infinite; }
 @keyframes helpPulse { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 55%, transparent); } 50% { box-shadow: 0 0 0 8px color-mix(in srgb, var(--accent) 0%, transparent); } }
+
+/* Live map: extra system detail only when zoomed in */
+#mp-svg .mp-detail { display: none; }
+#mp-svg.mp-zoomed .mp-detail { display: inline; }
+#mp-svg .mp-node:hover rect:first-of-type { stroke-width: 2.4; }
