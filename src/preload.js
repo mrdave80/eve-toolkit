@@ -118,7 +118,7 @@ contextBridge.exposeInMainWorld('api', {
   items: { search: q => call('items:search', q), info: id => call('items:info', id) },
   agents: { options: () => call('agents:options'), find: o => call('agents:find', o), lpFor: (item, from) => call('agents:lpFor', item, from) },
   camps: o => call('hunt:camps', o),
-  systemCard: q => call('sys:card', q), systemActivity: id => call('sys:activity', id),
+  systemCard: q => call('sys:card', q), systemActivity: id => call('sys:activity', id), systemIntel: (q, h, refresh) => call('sys:intel', q, h, refresh),
   backup: { create: pw => call('backup:create', pw), pick: () => call('backup:pick'), describe: pw => call('backup:describe', pw), restore: pw => call('backup:restore', pw) },
   assetFinder: { search: o => call('assets:search', o), consolidate: o => call('assets:consolidate', o) },
   eveSettings: { list: () => call('eveprof:list'), copy: o => call('eveprof:copy', o), backups: () => call('eveprof:backups'), restore: (id, force) => call('eveprof:restore', id, force), label: (id, l) => call('eveprof:label', id, l) },

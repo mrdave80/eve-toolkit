@@ -173,7 +173,7 @@ function renderTopbar() {
     tabs.innerHTML = '';
     sub.innerHTML = [['plan', 'Chain planner'], ['near', 'Nearby planets']].map(([k, l]) => `<button class="tab ${(state.piTab || 'plan') === k ? 'active' : ''}" data-pitab="${k}">${l}</button>`).join('');
   } else {
-    crumb.classList.remove('pilot'); crumb.textContent = { mailAll: 'Mail, all pilots', wormholes: 'Wormhole mapper', liveMap: 'Live map', daily: 'Daily rewards and EVE news', piPlanner: 'Planetary interaction planner', corp: 'Corporation', settings: 'Settings', about: 'About & support', dashboard: 'All pilots', trainingAll: 'Training board', industryAll: 'Industry board', planetsAll: 'Planets board' }[state.view] || '';
+    crumb.classList.remove('pilot'); crumb.textContent = { mailAll: 'Mail, all pilots', wormholes: 'Wormhole mapper', liveMap: 'Live map', daily: 'Daily rewards and EVE news', piPlanner: 'Planetary interaction planner', corp: 'Corporation', settings: 'Settings', about: 'About & support', help: 'Help & guides', dashboard: 'All pilots', trainingAll: 'Training board', industryAll: 'Industry board', planetsAll: 'Planets board' }[state.view] || '';
     tabs.innerHTML = '';
     sub.innerHTML = '';
   }
@@ -202,6 +202,7 @@ async function render(force = false) {
   try {
     if (state.view === 'settings') return renderSettings();
     if (state.view === 'about') return renderAbout();
+    if (state.view === 'help') return renderHelp();
     if (state.view === 'dashboard') return await renderDashboard(stillCurrent);
     if (state.view === 'trainingAll') return await renderTrainingAll(stillCurrent);
     if (state.view === 'industryAll') return await renderIndustryAll(stillCurrent);
@@ -345,7 +346,7 @@ function setStreamer(on, save = true) {
   const b = document.getElementById('streamer-btn'); if (b) b.classList.toggle('on', !!on);
   if (save) { state.settings.streamer = !!on; api.setSettings({ streamer: !!on }); toast(on ? 'Streamer mode on: names, wallets and locations are hidden' : 'Streamer mode off'); }
 }
-document.addEventListener('keydown', e => { if (e.ctrlKey && e.shiftKey && (e.key === 'H' || e.key === 'h')) { e.preventDefault(); setStreamer(!document.documentElement.hasAttribute('data-streamer')); } });
+document.addEventListener('keydown', e => { if (e.key === 'F1') { e.preventDefault(); openHelp(); return; } if (e.ctrlKey && e.shiftKey && (e.key === 'H' || e.key === 'h')) { e.preventDefault(); setStreamer(!document.documentElement.hasAttribute('data-streamer')); } });
 
 function openSettingsSection(key) { const d = document.querySelector(`[data-sfold="${key}"]`); if (d) { d.open = true; d.scrollIntoView(); } }
 
@@ -1066,6 +1067,7 @@ api.onUpdate(showUpdateBanner);
   setStreamer(!!state.settings.streamer, false);
   if (api.piWatch) api.piWatch.cfg().then(r => { if (r.ok) state.piSnooze = r.data.snooze; });
   { const b = document.getElementById('streamer-btn'); if (b) b.onclick = () => setStreamer(!document.documentElement.hasAttribute('data-streamer')); }
+  { const h = document.getElementById('help-btn'); if (h) h.onclick = () => openHelp(); }
   state.characters = c.ok ? c.data : [];
   if (state.settings.themeAuto && state.settings.themeAuto.enabled) refreshTheme();
   renderSidebar();

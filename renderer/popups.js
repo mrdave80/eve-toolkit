@@ -141,10 +141,11 @@ async function openSystemCard(q) {
     </div>
     <div id="pop-sact" style="margin-top:14px"><h3 class="mh">When it's busy</h3><div class="dim" style="font-size:12px">Loading kills by hour from zKillboard…</div></div>
     <div style="margin-top:14px;display:flex;gap:6px;flex-wrap:wrap">
-      ${s.wspace ? '' : popBtn('Route here', 'id="pop-sroute"')}${s.wspace ? popBtn('Who lives here?', 'id="pop-swh"') : ''}${popBtn('Live map', 'id="pop-smap"')}${popBtn('Set destination', 'id="pop-sdest"')}
+      ${s.wspace ? '' : popBtn('Route here', 'id="pop-sroute"')}${s.wspace ? popBtn('Who lives here?', 'id="pop-swh"') : ''}${popBtn('System intel', 'id="pop-sintel"')}${popBtn('Live map', 'id="pop-smap"')}${popBtn('Set destination', 'id="pop-sdest"')}
       ${popBtn('zKillboard ↗', `data-link="https://zkillboard.com/system/${s.id}/"`)}${popBtn('Dotlan ↗', `data-link="https://evemaps.dotlan.net/system/${s.name.replace(/ /g, '_')}"`)}${s.wspace ? popBtn('anoik.is ↗', `data-link="https://anoik.is/systems/${s.name}"`) : ''}</div>`);
   api.systemActivity(s.id).then(a => { const el = box.querySelector('#pop-sact'); if (el) el.innerHTML = String(html`<h3 class="mh">When it's busy</h3>${a.ok ? activityHeat(a.data) : html`<div class="dim" style="font-size:12px">${a.error}</div>`}`); });
   const on = (sel, fn) => { const b = box.querySelector(sel); if (b) b.onclick = fn; };
+  on('#pop-sintel', () => { closeModal(); siState.q = s.name; siState.data = null; state.toolsTab = 't-sysintel'; go('tools'); setTimeout(() => { const b = document.getElementById('si-go'); if (b) b.click(); }, 300); });
   on('#pop-sroute', () => openRouteCard(navState.from || '', s.name));
   on('#pop-swh', () => openWhResCard(s.name));
   on('#pop-smap', () => { closeModal(); mapState.regionId = s.regionId; mapState.sel = s.id; mapState.view = null; go('liveMap'); });

@@ -1,5 +1,10 @@
 # Changelog
 
+## Next release
+
+- System Intel (Tools → Intel): search a system and see the last 6, 12, 24 or 48 hours: player kills by hour, who is killing and in what ships, where kills happen (with gate and undock camps called out), the most active pilots, every kill with its attackers, your own intel channel reports for the system, and what's happening within two jumps right now. Also on every system card.
+- Help & guides (sidebar, the ? button or F1): a guide for every tool with step-by-step instructions, tips and screenshots, searchable and also found by Ctrl+K. ? opens the guide for the page you're on, and **Walk me through it** opens the tool with a step panel that highlights each control in turn.
+
 ## 1.11.1
 
 - Fixed: one-click update of the portable version failed with "resource busy or locked". The portable launcher keeps its own file open until the app has closed, so the swap now happens just after the app closes and the new version opens by itself. Updating from 1.10.0 or 1.11.0 portable still needs a manual download this one time; the folder (win-x64 zip) version updates normally.

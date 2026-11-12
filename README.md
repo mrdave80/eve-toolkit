@@ -22,6 +22,7 @@ A free Windows desktop app for EVE Online pilots, corporations and alliances. Sk
 | ![What to build](docs/screenshots/what-to-build.jpg) | ![Agent finder](docs/screenshots/agent-finder.jpg) |
 | ![D-scan roles and warnings](docs/screenshots/dscan.jpg) | ![PI watchdog](docs/screenshots/pi-watchdog.jpg) |
 | ![Route planner places and favourites](docs/screenshots/route-places.jpg) | ![Daily goals](docs/screenshots/daily-rewards.jpg) |
+| ![System Intel](docs/screenshots/system-intel.jpg) | ![Help and guides](docs/screenshots/help.jpg) |
 
 Screenshots use demo data with made-up pilots.
 
@@ -148,6 +149,14 @@ Corp mode works much like AllianceAuth, but runs from this app with no server to
 **Live sharing without a server:** under Discord → Share & Backup, choose a shared OneDrive, Dropbox or Google Drive folder. Every officer's app merges everyone's changes, deletions included, each minute. Members can be linked to their main on the Members page.
 
 **Without a server**, corp records (ops, timers, fleets, SRP, applications, audits) live on the PC running the app. Officers share them with **Discord → Share & Backup → Export / Import**. Imports merge records, and the newest change wins. Background alerts and role sync run only while the app is open.
+
+## Help & guides (sidebar → Help & guides, ? or F1)
+
+Every tool has a guide: where to find it, what it's for, step-by-step instructions, tips and screenshots. Search the guides, or press **?** (or F1) on any page for its guide. **Walk me through it** opens the tool and shows each step in a small panel, highlighting the control to use. Guides also turn up in Ctrl+K search.
+
+## System Intel (Tools → Intel → System Intel)
+
+Search a system and pick 6, 12, 24 or 48 hours. You get player kills by hour, who is doing the killing (by alliance or corp) and in what ships, where the kills happen with gate and undock camps called out, the most active pilots, each kill with its attackers and a fit check, your own intel channel reports that mention the system, and ship kills, NPC kills and traffic in every system within two jumps over the last hour. Also opens from the **System intel** button on any system card.
 
 ## What to Build (Tools → Industry)
 

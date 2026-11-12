@@ -107,6 +107,9 @@ const SHOTS = [
   ['A8-incursions', `state.toolsTab='t-pve'; go('tools')`, `(async()=>{await new Promise(r=>setTimeout(r,800)); [...document.querySelectorAll('#pv-rat h3')].find(h=>/Incursions/.test(h.textContent))?.scrollIntoView();})()`],
   ['A9-streamer', `document.documentElement.setAttribute('data-streamer',''); go('dashboard')`],
   ['B0-route-places', `state.toolsTab='t-route'; go('tools')`, `(async()=>{await new Promise(r=>setTimeout(r,600)); const i=document.getElementById('rt-to'); i.focus(); i.value='Jita'; i.dispatchEvent(new Event('input'));})()`],
+  ['C0-sysintel', `siState.data=null; state.toolsTab='t-sysintel'; go('tools')`, `(async()=>{await new Promise(r=>setTimeout(r,400)); document.getElementById('si-q').value='Tama'; document.getElementById('si-go').click(); await new Promise(r=>setTimeout(r,600)); document.querySelector('#si-out tr.xrow td:nth-child(3)')?.click();})()`],
+  ['C1-help', `helpState.id='route'; go('help')`],
+  ['C2-walk', `endWalk(); startWalk('sysintel')`, `(async()=>{await new Promise(r=>setTimeout(r,700)); document.getElementById('si-q').value='Tama'; document.getElementById('si-go').click(); await new Promise(r=>setTimeout(r,500)); document.getElementById('walk-next').click();})()`],
   ['57-whinfo', `go('wormholes')`, `whState.sel = { type: 'sys', id: 31000101 }; drawCanvas(); drawSide()`],
   ['42-livemap', `go('liveMap')`, `mapState.sel = 30004765; mapState.heat = 'ship'; drawMap()`],
   ['43-livemap-sov', `mapState.heat = 'sov'; mapState.sel = null; drawMap()`],
@@ -134,7 +137,7 @@ app.whenReady().then(async () => {
   const only = process.env.ONLY ? process.env.ONLY.split(',') : null;
   for (const [name, ...steps] of SHOTS) {
     if (only && !only.some(o => name.startsWith(o))) continue;
-    await js(`typeof closeModal === 'function' && closeModal(); typeof closeSearch === 'function' && closeSearch(); document.getElementById('upd-banner')?.remove(); document.documentElement.removeAttribute('data-streamer')`);
+    await js(`typeof closeModal === 'function' && closeModal(); typeof closeSearch === 'function' && closeSearch(); document.getElementById('upd-banner')?.remove(); document.documentElement.removeAttribute('data-streamer'); typeof endWalk === 'function' && endWalk()`);
     for (const s of steps) { await js(s); await wait(900); }
     await snap(name);
   }

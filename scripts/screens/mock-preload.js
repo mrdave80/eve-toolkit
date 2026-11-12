@@ -758,6 +758,27 @@ api.diag = { report: async () => ({ ok: true, data: 'EVE Toolkit 1.9.0\nSystem: 
   api.places = { search: async q => ({ ok: true, data: q ? SR : FAV.map(f => ({ ...f, fav: true })) }), favs: async () => ({ ok: true, data: FAV }), addFav: async () => ({ ok: true, data: FAV }), removeFav: async () => ({ ok: true, data: FAV }), prepare: async () => ({ ok: true }),
     stations: async () => ({ ok: true, data: { system: 'Jita', security: 0.95, places: SR.filter(x => x.kind === 'station') } }) };
 }
+
+// ---- System Intel ----
+{ const ago = m => iso(now - m * 60e3);
+  const P = [['Ben Dover', 2119000201, 'Night Shift Logistics', 'Umbral Reach'], ['Hugh Mungus', 2119000202, 'Gank Co', null], ['Neil Down', 2119000207, 'Night Shift Logistics', 'Umbral Reach'], ['Barry Cade', 2119000206, 'Gank Co', null], ['Dee Zaster', 2119000208, 'Rusty Bolt Industrial', null]];
+  const V = [[648, 'Badger', 'Hauler', 'Paige Turner', 'Rusty Bolt Industrial', 8.2e6, 14, 'Nourvukaiken gate'], [670, 'Capsule', 'Capsule', 'Paige Turner', 'Rusty Bolt Industrial', 1.1e5, 13, 'Nourvukaiken gate'], [11400, 'Jaguar', 'Assault Frigate', 'Rob Banks', 'Deep Pockets Salvage', 6.4e7, 52, 'Nourvukaiken gate'],
+    [17703, 'Catalyst', 'Destroyer', 'Carrie Oakey', 'Gank Co', 1.4e7, 95, 'Tama VII - Moon 9 belt'], [24698, 'Drake', 'Combat Battlecruiser', 'Anita Bath', 'State War Academy', 1.2e8, 180, 'Kedama gate'], [648, 'Badger', 'Hauler', 'Pat McGroin', 'Friendly Corp', 6.0e6, 260, 'Nourvukaiken gate'], [12005, 'Ishtar', 'Heavy Assault Cruiser', 'Eileen Dover', 'State War Academy', 2.9e8, 420, 'In space or a site'], [670, 'Capsule', 'Capsule', 'Eileen Dover', 'State War Academy', 2e6, 419, 'In space or a site']];
+  const kills = V.map(([ship, shipName, group, vn, vc, value, m, where], i) => ({ id: 131000000 + i, time: ago(m), value, npc: false, solo: i === 2, victim: { id: 2119000300 + i, ship, shipName, group, name: vn, corpName: vc }, where: { kind: /gate/.test(where) ? 'gate' : 'space', label: where },
+    attackerGroups: i % 2 ? ['Umbral Reach'] : ['Umbral Reach', 'Gank Co'], attackerCount: 3 + (i % 4), attackers: P.slice(0, 3 + (i % 3)).map(([name, id], j) => ({ id, name, ship: [22456, 11971, 29988, 17703, 11957][j], shipName: ['Sabre', 'Lachesis', 'Proteus', 'Catalyst', 'Falcon'][j] })) }));
+  const timeline = Array.from({ length: 24 }, (_, i) => { const n = [0, 0, 0, 1, 0, 0, 0, 2, 0, 1, 0, 0, 0, 0, 3, 1, 0, 0, 2, 4, 6, 3, 1, 2][i]; return { hourStart: iso(now - (24 - i) * H), kills: n, pods: Math.floor(n / 3), value: n * 2.4e7 }; });
+  api.systemIntel = async (q, h) => ({ ok: true, data: { id: 30002813, name: 'Tama', security: 0.3, region: 'The Citadel', constellation: 'Okomon', hours: h || 24, sov: null,
+    live: { ship: 4, pod: 2, npc: 0, jumps: 612, at: iso(now - 9 * 60e3) }, totals: { kills: 26, npcLosses: 2, pods: 7, value: 1.48e9, solo: 3, listed: 28, read: 28 },
+    notes: [{ tone: 'neg', text: 'Last player kill 13 minutes ago.' }, { tone: 'neg', text: '9 kills at the Nourvukaiken gate, pods too: looks like a gate camp (latest 13 min ago).' }, { tone: '', text: 'Umbral Reach took part in 19 of 26 kills.' }, { tone: '', text: 'Busiest hour: 20:00 EVE with 6 kills.' }],
+    timeline, attackerGroups: [{ name: 'Umbral Reach', kills: 19, last: ago(13) }, { name: 'Gank Co', kills: 8, last: ago(95) }, { name: 'Tama Gate Watch', kills: 4, last: ago(260) }],
+    attackerShips: [[22456, 'Sabre', 'Interdictor', 17], [11971, 'Lachesis', 'Combat Recon Ship', 14], [29988, 'Proteus', 'Strategic Cruiser', 11], [17703, 'Catalyst', 'Destroyer', 6], [11957, 'Falcon', 'Force Recon Ship', 3]].map(([typeId, name, group, kills]) => ({ typeId, name, group, kills })),
+    places: [{ label: 'Nourvukaiken gate', kind: 'gate', kills: 9, pods: 4 }, { label: 'Kedama gate', kind: 'gate', kills: 5, pods: 1 }, { label: 'Tama VII - Moon 9 belt', kind: 'belt', kills: 3 }, { label: 'In space or a site', kind: 'space', kills: 9 }],
+    victimGroups: [{ name: 'State War Academy', count: 6 }, { name: 'Rusty Bolt Industrial', count: 5 }, { name: 'Deep Pockets Salvage', count: 3 }],
+    pilots: P.map(([name, id, corp, alliance], i) => ({ id, name, corp, alliance, kills: [19, 15, 12, 8, 4][i], last: ago([13, 13, 52, 95, 260][i]), ships: [['Sabre', 'Proteus'], ['Lachesis'], ['Proteus', 'Sabre'], ['Catalyst'], ['Falcon']][i] })),
+    kills, nearby: [['Kedama', 0.4, 1, 2, 1, 0, 380], ['Nourvukaiken', 0.8, 1, 1, 0, 12, 520], ['Okkamon', 0.6, 2, 0, 0, 40, 90], ['Sujarento', 0.4, 2, 0, 0, 3, 140]].map(([name, security, jumps, ship, pod, npc, traffic], i) => ({ id: 30002800 + i, name, security, jumps, ship, pod, npc, traffic })),
+    intel: [{ at: ago(11), channel: 'TheCitadel.imperium', who: 'Scout Alpha', text: 'Tama 3x Sabre + Lachesis on Nourvukaiken gate', clear: false }, { at: ago(48), channel: 'TheCitadel.imperium', who: 'Hauler Bob', text: 'Tama camped, avoid', clear: false }, { at: ago(300), channel: 'TheCitadel.imperium', who: 'Scout Alpha', text: 'Tama clr', clear: true }],
+    at: iso(now) } });
+}
 contextBridge.exposeInMainWorld('api', api);
 contextBridge.exposeInMainWorld('__mock', { sdeCheck: v => { globalThis.__sdeCheck = v; } });
 

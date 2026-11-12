@@ -45,6 +45,7 @@
       <div class="side-foot">
         <button class="side-link" data-view="settings"><span class="ico">⚙</span> Settings</button>
         <button class="side-link" id="ov-toggle" title="Always-on-top window for over the EVE client. Ctrl+Shift+O"><span class="ico">⧉</span> Overlay</button>
+        <button class="side-link" data-view="help"><span class="ico">?</span> Help &amp; guides</button>
         <button class="side-link" data-view="about"><span class="ico">ⓘ</span> About &amp; support</button>
       </div>
     </aside>
@@ -53,7 +54,8 @@
       <header id="topbar">
         <div id="crumb"></div>
         <nav id="tabs"></nav>
-<button id="streamer-btn" class="btn btn-ghost" title="Streamer mode: hide pilot names, wallets and locations (Ctrl+Shift+H)">◐</button>
+        <button id="help-btn" class="btn btn-ghost" title="Help for this page (F1)">?</button>
+        <button id="streamer-btn" class="btn btn-ghost" title="Streamer mode: hide pilot names, wallets and locations (Ctrl+Shift+H)">◐</button>
         <button id="search-btn" class="btn btn-ghost" title="Find a tool, pilot or item (Ctrl+K)">⌕ Search <span class="kbd">Ctrl K</span></button>
         <button id="refresh" class="btn btn-ghost" title="Refresh (F5)">⟳ Refresh</button>
       </header>
@@ -85,6 +87,8 @@
   <script src="views-fit.js"></script>
   <script src="views-prices.js"></script>
   <script src="views-finder.js"></script>
+  <script src="help-data.js"></script>
+  <script src="views-help.js"></script>
   <script src="views-comms.js"></script>
   <script src="popups.js"></script>
   <script src="search.js"></script>

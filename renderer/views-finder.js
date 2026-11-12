@@ -304,3 +304,67 @@ function wireAg() {
   });
   document.querySelectorAll('[data-lp-open]').forEach(b => b.onclick = () => { toolState.lp.corpId = Number(b.dataset.lpOpen); state.toolsTab = 't-lp'; go('tools'); });
 }
+
+// ================= System Intel =================
+
+const siState = { q: '', hours: 24, data: null };
+
+async function tSysIntel() {
+  const o = siState;
+  setContent(html`<div class="panel" style="margin-bottom:14px"><div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end">
+      ${field('System', html`<div style="display:flex;gap:6px"><input type="text" id="si-q" value="${o.q}" placeholder="e.g. Tama" style="min-width:220px"><button class="btn btn-ghost" id="si-me" title="Use a pilot's location">⌖</button></div>`)}
+      ${field('Look back', html`<div class="seg">${[6, 12, 24, 48].map(h => html`<button type="button" data-si-h="${h}" class="${o.hours === h ? 'active' : ''}">${h} h</button>`)}</div>`)}
+      <div class="field"><button class="btn btn-primary" id="si-go">Show intel</button></div></div>
+    <div class="dim" style="font-size:12px">Kills from zKillboard with who did them and where, your intel channel reports, and what's happening in the systems around it right now.</div></div>
+    <div id="si-out">${o.data ? siView(o.data) : emptyBox('Search a system to see what has happened there recently.')}</div>`);
+  const run = async refresh => {
+    o.q = $('#si-q').value.trim(); if (!o.q) return toast('Type a system.', true);
+    const out = $('#si-out'); out.innerHTML = String(loadingView('Reading kills from zKillboard…'));
+    const r = await api.systemIntel(o.q, o.hours, refresh);
+    if (!r.ok) { out.innerHTML = String(errorView(r)); return; }
+    o.data = r.data; out.innerHTML = String(siView(r.data)); wireSi();
+  };
+  document.querySelectorAll('[data-si-h]').forEach(b => b.onclick = () => { o.hours = Number(b.dataset.siH); document.querySelectorAll('[data-si-h]').forEach(x => x.classList.toggle('active', x === b)); if ($('#si-q').value.trim()) run(false); });
+  $('#si-go').onclick = () => run(false);
+  $('#si-q').onkeydown = e => { if (e.key === 'Enter') run(false); };
+  $('#si-me').onclick = () => fillFromPilots('#si-q');
+  wireSi();
+}
+
+function siView(d) {
+  const ago = t => { const m = Math.round((Date.now() - Date.parse(t)) / 60000); return m < 60 ? m + ' min ago' : Math.round(m / 60) + ' h ago'; };
+  const t = d.totals, max = Math.max(1, ...d.timeline.map(x => x.kills));
+  return html`<div style="display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;margin-bottom:12px"><span style="font-size:20px"><a href="#" data-system="${d.id}" style="color:inherit">${d.name}</a></span> ${secBadge(d.security)}
+      <span class="muted">${d.region} · ${d.constellation}${d.sov ? ' · held by ' + d.sov : ''}</span><span style="flex:1"></span><button class="btn btn-ghost" id="si-refresh" style="padding:3px 10px;font-size:12px">⟳ Refresh</button></div>
+    <div class="grid grid-4" style="margin-bottom:14px">${stat(`Player kills (${d.hours} h)`, fmtNum(t.kills), t.pods ? `${t.pods} pods · ${t.solo} solo` : `${t.solo} solo`, t.kills ? 'neg' : 'pos')}${stat('ISK destroyed', fmtCompact(t.value), t.npcLosses ? `${t.npcLosses} lost to NPCs` : '')}
+      ${d.live ? stat('Right now', `${d.live.ship} ships · ${d.live.pod} pods`, `${fmtNum(d.live.jumps)} jumps and ${fmtNum(d.live.npc)} NPCs killed in CCP's last hour`, d.live.ship + d.live.pod ? 'gold' : '') : stat('Right now', '—', 'CCP stats unavailable')}
+      ${stat('Your intel reports', fmtNum(d.intel.length), d.intel[0] ? 'Latest ' + ago(d.intel[0].at) : 'From your intel channels')}</div>
+    ${d.notes.length ? html`<div class="panel" style="margin-bottom:14px">${d.notes.map(n => html`<div class="skill-row" style="font-size:13px"><span class="${n.tone}">${n.tone === 'neg' ? '⚠ ' : '• '}${n.text}</span></div>`)}</div>` : ''}
+    <div class="panel" style="margin-bottom:14px"><h3 style="margin-top:0">Kills by hour</h3>
+      <div style="display:flex;align-items:flex-end;gap:2px;height:80px">${d.timeline.map(h => html`<div title="${new Date(h.hourStart).toISOString().slice(11, 16)} EVE: ${h.kills} kills${h.pods ? ', ' + h.pods + ' pods' : ''}${h.value ? ' · ' + fmtCompact(h.value) : ''}" style="flex:1;height:${raw(String(Math.max(2, Math.round(76 * h.kills / max))))}px;background:${raw(h.kills ? 'color-mix(in srgb, var(--red) ' + (40 + Math.round(60 * h.kills / max)) + '%, transparent)' : 'var(--bg-2)')};border-radius:2px 2px 0 0"></div>`)}</div>
+      <div style="display:flex;justify-content:space-between" class="dim"><span style="font-size:11px">${d.hours} h ago</span><span style="font-size:11px">now</span></div></div>
+    <div class="grid grid-3" style="align-items:start;margin-bottom:14px">
+      <div class="panel"><h3 style="margin-top:0">Who's killing</h3>${d.attackerGroups.length ? d.attackerGroups.map(g => html`<div class="skill-row" style="font-size:12.5px"><span>${g.name}</span><span class="num">${g.kills} <span class="dim">· ${ago(g.last)}</span></span></div>`) : html`<div class="dim">Nobody</div>`}</div>
+      <div class="panel"><h3 style="margin-top:0">Ships they use</h3>${d.attackerShips.length ? d.attackerShips.map(s => html`<div class="skill-row" style="font-size:12.5px"><span>${icon(s.typeId, 16)}${s.name} <span class="dim">${s.group}</span></span><span class="num">${s.kills}</span></div>`) : html`<div class="dim">—</div>`}</div>
+      <div class="panel"><h3 style="margin-top:0">Where</h3>${d.places.length ? d.places.map(p => html`<div class="skill-row" style="font-size:12.5px"><span>${p.label}${(p.kind === 'gate' || p.kind === 'station') && p.kills >= 2 ? raw(' <span class="badge red">camp</span>') : ''}</span><span class="num">${p.kills}</span></div>`) : html`<div class="dim">—</div>`}
+        ${d.victimGroups.length ? html`<h3>Who's dying</h3>${d.victimGroups.slice(0, 6).map(g => html`<div class="skill-row" style="font-size:12.5px"><span>${g.name}</span><span class="num">${g.count}</span></div>`)}` : ''}</div></div>
+    ${d.pilots.length ? html`<div class="panel" style="padding:0;margin-bottom:14px"><div style="padding:14px 18px 0"><h3 style="margin:0 0 8px">Most active pilots</h3></div><table><thead><tr><th>Pilot</th><th>Corporation / alliance</th><th>Ships</th><th class="right">Kills</th><th class="right">Last seen</th></tr></thead><tbody>
+      ${d.pilots.map(p => html`<tr><td>${charImg(p.id, 18)}<a href="#" data-pilot="${p.id}">${p.name}</a></td><td class="muted" style="font-size:12px">${p.corp}${p.alliance ? html`<div class="dim">${p.alliance}</div>` : ''}</td><td style="font-size:12px">${p.ships.join(', ')}</td><td class="right num">${p.kills}</td><td class="right dim">${ago(p.last)}</td></tr>`)}</tbody></table></div>` : ''}
+    <div class="grid grid-2" style="align-items:start">
+      <div class="panel" style="padding:0"><div style="padding:14px 18px 0"><h3 style="margin:0 0 8px">Kills</h3></div>${d.kills.length ? html`<div class="table-wrap" style="max-height:60vh"><table><tbody>
+        ${d.kills.map(k => xRow('sik' + k.id, html`<td class="nowrap dim" style="font-size:12px">${ago(k.time)}</td><td>${icon(k.victim.ship, 18)}${k.victim.shipName}${k.npc ? raw(' <span class="badge">NPC</span>') : ''}<div class="dim" style="font-size:11.5px">${k.victim.name || ''}${k.victim.corpName ? ' · ' + k.victim.corpName : ''}</div></td>
+          <td style="font-size:12px">${k.where.label}<div class="dim">${k.attackerCount ? `${k.attackerCount} attacker${k.attackerCount === 1 ? '' : 's'}: ${k.attackerGroups.join(', ')}` : 'NPCs'}</div></td><td class="right num">${fmtCompact(k.value)}</td>`,
+          html`<div style="display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px">${k.attackers.map(a => html`<span>${a.ship ? icon(a.ship, 16) : ''}<a href="#" data-pilot="${a.id}">${a.name}</a> <span class="dim">${a.shipName || ''}</span></span>`)}</div>
+            <div style="margin-top:6px"><a href="#" data-link="https://zkillboard.com/kill/${k.id}/">zKillboard ↗</a> · <a href="#" data-killfit="${k.id}">Check fit</a></div>`, 4))}</tbody></table></div>` : html`<div class="dim" style="padding:0 18px 14px">No kills in this window.</div>`}
+        <div class="dim" style="font-size:11.5px;padding:6px 18px 12px">${t.listed > t.read ? `Read the latest ${t.read} of ${t.listed} kills.` : ''}</div></div>
+      <div>
+        <div class="panel" style="padding:0;margin-bottom:14px"><div style="padding:14px 18px 0"><h3 style="margin:0 0 8px">Your intel channels</h3></div>${d.intel.length ? html`<div class="table-wrap" style="max-height:30vh"><table><tbody>${d.intel.map(r => html`<tr><td class="nowrap dim" style="font-size:12px">${ago(r.at)}</td><td style="font-size:12.5px"><b>${r.who}</b>: ${r.text}${r.clear ? raw(' <span class="badge green">clear</span>') : ''}<div class="dim" style="font-size:11px">${r.channel}</div></td></tr>`)}</tbody></table></div>`
+          : html`<div class="dim" style="padding:0 18px 14px;font-size:12.5px">No reports mentioning ${d.name}. Turn on Intel Watch to read your intel channels.</div>`}</div>
+        <div class="panel" style="padding:0"><div style="padding:14px 18px 0"><h3 style="margin:0 0 8px">Within 2 jumps, last hour</h3></div>${d.nearby.length ? html`<table><tbody>${d.nearby.map(n => html`<tr><td><a href="#" data-si-go="${n.name}">${n.name}</a> ${secBadge(n.security)} <span class="dim">${n.jumps} j</span></td><td class="right num ${n.ship + n.pod ? 'neg' : 'dim'}">${n.ship}/${n.pod}</td><td class="right num dim">${n.npc} NPC</td><td class="right num dim">${n.traffic} jumps</td></tr>`)}</tbody></table>` : html`<div class="dim" style="padding:0 18px 14px">—</div>`}</div>
+      </div></div>`;
+}
+
+function wireSi() {
+  const r = $('#si-refresh'); if (r) r.onclick = async () => { const out = $('#si-out'); out.innerHTML = String(loadingView('Refreshing…')); const x = await api.systemIntel(siState.data.name, siState.hours, true); if (!x.ok) { out.innerHTML = String(errorView(x)); return; } siState.data = x.data; out.innerHTML = String(siView(x.data)); wireSi(); };
+  document.querySelectorAll('[data-si-go]').forEach(a => a.onclick = async e => { e.preventDefault(); $('#si-q').value = a.dataset.siGo; $('#si-go').click(); });
+}

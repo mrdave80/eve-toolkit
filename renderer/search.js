@@ -1,7 +1,7 @@
 /* Find anything: Ctrl+K or the search button. Tools, pilots, items and wormhole systems. */
 const SEARCH_EXTRA = {
   't-market': 'price order book jita hub', 't-appraisal': 'value evepraisal janice paste cargo fit', 't-orders': 'undercut outbid my orders', 't-arbitrage': 'hauling hub profit',
-  't-lp': 'loyalty points isk per lp', 't-trade': 'tycoon profit trading fifo margin', 't-prices': 'price alert watchlist notify cheap buy sell plex injector', 't-assets': 'find item where is my stuff hangar consolidate gather move haul', 't-ores': 'mining ore ice gas isk per m3 compress compression which ore', 't-agents': 'agent finder missions mission hub level 4 l4 security distribution research storyline locator lp store buy with lp', 't-wtb': 'what to build profit blueprints manufacturing best ideas', 't-compare': 'compare skills pilots side by side csv export queue alts', 't-eveset': 'copy settings overview layout window hotkeys core_char core_user dat profile', 't-bargain': 'contracts cheap deals snipe', 't-items': 'item info stats eve ref database ship module',
+  't-lp': 'loyalty points isk per lp', 't-trade': 'tycoon profit trading fifo margin', 't-prices': 'price alert watchlist notify cheap buy sell plex injector', 't-assets': 'find item where is my stuff hangar consolidate gather move haul', 't-ores': 'mining ore ice gas isk per m3 compress compression which ore', 't-sysintel': 'system intel kills last 24 hours who is active camp danger history', 't-agents': 'agent finder missions mission hub level 4 l4 security distribution research storyline locator lp store buy with lp', 't-wtb': 'what to build profit blueprints manufacturing best ideas', 't-compare': 'compare skills pilots side by side csv export queue alts', 't-eveset': 'copy settings overview layout window hotkeys core_char core_user dat profile', 't-bargain': 'contracts cheap deals snipe', 't-items': 'item info stats eve ref database ship module',
   't-build': 'manufacturing industry fuzzwork cost', 't-invent': 'invention t2 decryptor', 't-reprocess': 'refine ore minerals compress', 't-moon': 'moon survey probe scan r64 athanor tatara',
   't-route': 'route gate camp gank dotlan safe autopilot', 't-courier': 'courier hauling contracts', 't-hunt': 'hunting ratting safe pvp targets gate camp fight gatecamp', 't-jump': 'jump capital fatigue range jf',
   't-universe': 'sov incursion thera turnur faction warfare', 't-pilot': 'pilot intel zkill evewho threat grade', 't-whres': 'wormhole residents eviction who lives j-space', 't-shame': 'wall of shame fails bad fits oof',
@@ -12,6 +12,7 @@ const VIEW_ENTRIES = [
   ['dashboard', 'All pilots', 'home overview'], ['trainingAll', 'Training board', 'skill queue'], ['industryAll', 'Industry board', 'jobs slots'], ['planetsAll', 'Planets board', 'pi extractors colonies'],
   ['liveMap', 'Live map', 'region map kills heat sov'], ['daily', 'Daily rewards', 'login reward daily goals monthly track news downtime'], ['wormholes', 'Wormhole mapper', 'chain signatures tripwire pathfinder'],
   ['piPlanner', 'PI planner', 'planetary interaction chain'], ['mailAll', 'Mail (all pilots)', 'inbox evemail compose send reply'], ['corp', 'Corporation', 'corp director members srp moons doctrines'], ['settings', 'Settings', 'theme alerts phone speech notifications game data'],
+  ['help', 'Help & guides', 'help guide how to walkthrough tutorial manual docs'],
   ['about', 'About & support', 'diagnostics bug report donate mr frank']
 ];
 const searchState = { open: false, sel: 0, results: [], token: 0 };
@@ -20,6 +21,7 @@ function searchIndex() {
   const out = VIEW_ENTRIES.map(([v, label, kw]) => ({ kind: 'Page', label, sub: '', kw, go: () => go(v) }));
   for (const [group, tabs] of TOOLS_GROUPS) for (const [k, label] of tabs) out.push({ kind: 'Tool', label, sub: 'Tools · ' + group, kw: (SEARCH_EXTRA[k] || '') + ' ' + group, go: () => { state.toolsTab = k; go('tools'); } });
   if (typeof CORP_GROUPS !== 'undefined') for (const [group, tabs] of CORP_GROUPS) for (const [k, label] of tabs) out.push({ kind: 'Corp', label, sub: 'Corporation · ' + group, kw: group, go: () => { state.corpTab = k; go('corp'); } });
+  if (typeof HELP !== 'undefined') for (const h of HELP) out.push({ kind: 'Help', label: h.title, sub: 'Help · ' + h.group, kw: h.summary + ' guide how to help', go: () => openHelp(h.id) });
   for (const c of state.characters) out.push({ kind: 'Pilot', label: c.name, sub: 'Pilot', kw: '', img: portrait(c.id, 32), go: () => go('char', { charId: c.id, tab: 'summary' }) });
   return out;
 }
@@ -103,13 +105,14 @@ async function gettingStartedHtml() {
     ['Press Ctrl+K to find any tool, pilot or item', !!s.usedSearch, 'search']
   ];
   const done = steps.filter(x => x[1]).length;
-  return html`<div class="panel" id="gs-card" style="margin-bottom:16px"><div style="display:flex;align-items:center;gap:10px"><h3 style="margin:0;flex:1">Getting started · ${done} of ${steps.length}</h3><button class="btn btn-ghost" id="gs-hide" style="padding:3px 10px;font-size:12px">Hide</button></div>
+  return html`<div class="panel" id="gs-card" style="margin-bottom:16px"><div style="display:flex;align-items:center;gap:10px"><h3 style="margin:0;flex:1">Getting started · ${done} of ${steps.length}</h3><button class="btn btn-ghost" id="gs-help" style="padding:3px 10px;font-size:12px">? Guides and walkthroughs</button><button class="btn btn-ghost" id="gs-hide" style="padding:3px 10px;font-size:12px">Hide</button></div>
     <div class="bar" style="margin:10px 0 12px"><i style="width:${Math.round(done / steps.length * 100)}%"></i></div>
     <div class="grid grid-2" style="gap:4px 24px">${steps.map(([label, ok, act]) => html`<div style="display:flex;gap:8px;align-items:center;padding:3px 0">
       <span style="color:${raw(ok ? 'var(--green)' : 'var(--dim)')}">${ok ? '✓' : '○'}</span>${ok ? html`<span class="muted">${label}</span>` : html`<a href="#" data-gs="${act}">${label}</a>`}</div>`)}</div></div>`;
 }
 
 function wireGettingStarted() {
+  const gh = document.getElementById('gs-help'); if (gh) gh.onclick = () => openHelp('start');
   const h = document.getElementById('gs-hide'); if (h) h.onclick = async () => { await api.setSettings({ onboardingDone: true }); state.settings.onboardingDone = true; document.getElementById('gs-card').remove(); };
   document.querySelectorAll('[data-gs]').forEach(a => a.onclick = e => {
     e.preventDefault();
