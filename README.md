@@ -158,6 +158,28 @@ Every tool has a guide: where to find it, what it's for, step-by-step instructio
 
 Search a system and pick 6, 12, 24 or 48 hours. You get player kills by hour, who is doing the killing (by alliance or corp) and in what ships, where the kills happen with gate and undock camps called out, the most active pilots, each kill with its attackers and a fit check, your own intel channel reports that mention the system, and ship kills, NPC kills and traffic in every system within two jumps over the last hour. Also opens from the **System intel** button on any system card.
 
+**Battles** groups kills that happened close together into fights and splits them into the two sides, from who shot whom, with each side's pilots, ships lost, ISK lost and efficiency.
+
+## Station trading (Tools → Market → Station Trading)
+
+Scans every item at a trade hub for spreads worth station trading: buy with a buy order 0.01 over the best, resell 0.01 under the best sell, after sales tax and broker fee worked out from a pilot's Accounting and Broker Relations. Then checks each item's real daily volume and ranks them by what you'd make a day for the share of trades you expect to win. Items whose recent average price sits outside the spread are marked **check**, since one side may be a mistake or a scam order.
+
+## Job splitter (Tools → Industry → Job Splitter)
+
+Paste what you want built. The app works out the runs, splits them into jobs no longer than the limit you pick (one day suits a daily login), uses your blueprint copies first, and shares the jobs out over every pilot's free manufacturing and reaction slots. Copies stay with the pilot who owns them. You get each pilot's jobs, the ones waiting for a slot, every material with where you already have it, and a Multibuy list for the rest.
+
+## Blueprint prices (Tools → Industry → Blueprint Prices)
+
+Blueprints mostly sell on contracts. Search a blueprint (or what it makes) to see originals and copies on public contracts in the main trade regions, with ME and TE, copies priced per run, and the cheapest and median prices. Only contracts holding that one blueprint count.
+
+## Corporation fuel and leaderboard
+
+**Corporation → Structures → Fuel** shows fuel blocks and magmatic gas in each structure's bay, the burn a day (from what's in the bay and when CCP says it runs out), how long it lasts, what's stored in hangars beside it, and how many days all your hangar reserves cover. **Corporation → Members → Leaderboard** ranks members by bounty and ESS tax paid to the corp (and what that means they earned), and by moon ore mined at corp drills.
+
+## When Tranquility is down
+
+During daily downtime or an outage, a banner says Tranquility is offline (or that EVE's servers can't be reached) and since when. Pages show what they last loaded instead of spinning. The app checks every 30 seconds and reloads the page when the server is back.
+
 ## What to Build (Tools → Industry)
 
 Ranks the products of your own blueprints (the best ME/TE copy across your pilots) by profit per day. It prices each one with the Build Calculator's facility settings, takes off sales tax and broker fee, and caps what you'd sell at your chosen share of the hub's real daily sales, so a high-margin item nobody buys doesn't top the list. **Build ▸** opens the item in the Build Calculator. The calculator now has a **Shopping list**: it takes what your pilots already own (anywhere, or in the build system only) off the materials, checks you have the blueprint, and copies the rest for EVE's Multibuy window.
@@ -334,7 +356,7 @@ Keep a watchlist of items with a price to alert below, above, or both, at any of
 
 ## Trade profit (Tools → Market → Trade Profit)
 
-Real profit from your market trading. Each sale is matched to the oldest buys of the same item (first in, first out), and sales tax is taken from the wallet journal line for that sale. Broker fees can't be tied to an item, so they come off the total. Shows profit after fees, profit per day, sales, stock still on hand, and per item: margin, average time held, and what's left in stock. Turn on matching across pilots if you buy on one character and sell on another.
+Real profit from your market trading. Each sale is matched to the oldest buys of the same item (first in, first out), or costed at the weighted average of what you hold if you prefer, and sales tax is taken from the wallet journal line for that sale. Broker fees can't be tied to an item, so they come off the total. Shows profit after fees, profit per day, sales, stock still on hand, and per item: margin, average time held, and what's left in stock. Turn on matching across pilots if you buy on one character and sell on another. Profit is split into **station trading** (bought and sold in the same station) and **hauling**. Leave single buys, items or whole stations out, for example a station you only use to move stock between your own pilots.
 
 ESI only shares about 30 days of transactions, so the app keeps its own record on your PC and adds to it every six hours. Sales with no matching buy in that record (bought before tracking started, looted, built) are listed separately and left out of profit.
 
@@ -374,6 +396,16 @@ Send a map to corp or alliance mates who also use EVE Toolkit:
 Systems, connections, signatures, labels and notes are included. Pilot tracking isn't.
 
 To bring one in, use **Paste from clipboard** or **Open file**, either **as a new map** or **merged into** one of yours. Merging adds the systems, connections and signatures you don't have, takes newer connection details (mass, end of life), and keeps your own labels and notes.
+
+The same buttons import chains from other mappers: a map exported from **Pathfinder**, **Wanderer** or **Nexum**, or a plain list of systems, one chain per line (`Home -> J123456 -> J234567`). Systems, links, mass, end of life and ship size come across where the other tool has them.
+
+## Rolling wormholes (Wormhole mapper → Rolling)
+
+Pick the wormhole type (or enter its mass), how it looks now and the ships you roll with. The planner lists round trips, hot or cold each way, so every jump out stays under the lightest the hole could be (mass varies by ±10%) and the hole closes on a jump back. It notes when the hole should start to look reduced or critical; set what you see and the plan updates.
+
+## Signatures
+
+Paste the probe scanner into a system's Signatures box. Signatures no longer in your scanner are crossed out rather than deleted, and **Delete them** clears them all at once (or tick "Delete missing straight away").
 
 ## Wormhole system info (Wormhole mapper and Wormhole Residents)
 

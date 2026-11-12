@@ -61,7 +61,7 @@ function drawWh() {
       <select id="wh-map" class="crumb-select">${whState.maps.map(x => html`<option value="${x.id}" ${raw(m && x.id === m.id ? 'selected' : '')}>${x.name} (${(x.systems || []).length})</option>`)}</select>
       <button class="btn btn-ghost" id="wh-newmap" title="New map">+ Map</button>
       <button class="btn btn-ghost" id="wh-rename">Rename</button>
-      <button class="btn btn-ghost" id="wh-share" title="Export this map, or import one from EVE Toolkit, Pathfinder, Wanderer or Nexum">⇄ Share / import</button>
+      <button class="btn btn-ghost" id="wh-share" title="Export this map, or import one from EVE Toolkit, Pathfinder, Wanderer or Nexum">⇄ Share</button>
       <button class="btn btn-ghost" id="wh-rollbtn" title="Work out which ships to send through to close a wormhole">Rolling</button>
       <span class="wh-sep"></span>
       <input type="search" id="wh-add" placeholder="Add system by name (e.g. J123456, Jita)…" style="min-width:250px">

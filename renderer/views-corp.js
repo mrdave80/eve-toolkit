@@ -3,8 +3,8 @@
 
 const CORP_GROUPS = [
   ['Overview', [['c-overview', 'Overview']]],
-  ['Members', [['c-members', 'Members'], ['c-compliance', 'Compliance'], ['c-audit', 'Member Audit']]],
-  ['Structures', [['c-structures', 'Structures'], ['c-moons', 'Moons'], ['c-moontax', 'Moon Tax'], ['c-pos', 'POS & Customs']]],
+  ['Members', [['c-members', 'Members'], ['c-compliance', 'Compliance'], ['c-audit', 'Member Audit'], ['c-leader', 'Leaderboard']]],
+  ['Structures', [['c-structures', 'Structures'], ['c-fuel', 'Fuel'], ['c-moons', 'Moons'], ['c-moontax', 'Moon Tax'], ['c-pos', 'POS & Customs']]],
   ['Finance', [['c-wallets', 'Wallets'], ['c-contracts', 'Contracts'], ['c-orders', 'Market'], ['c-buyback', 'Buyback']]],
   ['Industry', [['c-industry', 'Jobs'], ['c-assets', 'Assets'], ['c-blueprints', 'Blueprints']]],
   ['Doctrines', [['c-doctrines', 'Doctrines']]],
@@ -113,6 +113,8 @@ async function renderCorp(stillCurrent) {
     'c-audit': () => cAudit(),
     'c-structures': () => withData(Promise.all([api.corp.structures(d), api.corp.structureNotifications(d)]).then(([a, b]) => a.ok ? { ok: true, data: { ...a.data, notes: b.ok ? b.data : [] } } : a), cStructures),
     'c-moons': () => withData(api.corp.moons(d), cMoons),
+    'c-fuel': () => withData(api.corp.fuel(d), cFuel, 'Reading structures and corp hangars…'),
+    'c-leader': () => cLeader(d),
     'c-pos': () => withData(api.corp.structures(d), cPos),
     'c-wallets': () => withData(api.corp.wallets(d, corpState.walletDiv), cWallets),
     'c-contracts': () => withData(api.corp.contracts(d), cContracts),
@@ -1185,3 +1187,57 @@ if (window.api && api.fleet) api.fleet.onUpdate(snap => {
   corpState.fleetLive = snap;
   if (state.view === 'corp' && state.corpTab === 'c-fleet' && !document.getElementById('modal')) drawFleet();
 });
+
+
+// ================= Fuel =================
+function cFuel(d) {
+  const days = v => (v === null || v === undefined ? '—' : v >= 99 ? '99+ days' : v.toFixed(1) + ' days');
+  const tone = v => (v === null ? '' : v < 3 ? 'neg' : v < 10 ? 'gold' : 'pos');
+  const hasGas = d.total.gas > 0 || d.burn.gas > 0;
+  setContent(html`<div class="grid grid-4" style="margin-bottom:14px">
+      ${stat('Fuel blocks in hangars', fmtNum(d.total.fuel), d.daysOnHand.fuel !== null ? `${days(d.daysOnHand.fuel)} of reserves at ${fmtNum(Math.round(d.burn.fuel))} a day` : 'No fuel use found', tone(d.daysOnHand.fuel))}
+      ${stat('Burn a month', fmtNum(Math.round(d.monthly.fuel)) + ' blocks', d.monthly.isk ? `about ${fmtCompact(d.monthly.isk)} ISK` : '')}
+      ${hasGas ? stat('Magmatic gas in hangars', fmtNum(d.total.gas), d.daysOnHand.gas !== null ? `${days(d.daysOnHand.gas)} at ${fmtNum(Math.round(d.burn.gas))} a day` : '', tone(d.daysOnHand.gas)) : stat('Magmatic gas', '—', 'No Metenox drills')}
+      ${stat('Runs out first', d.soonest ? d.soonest.name.split(' - ').slice(-1)[0] : '—', d.soonest ? `${days(d.soonest.daysLeft)} in the bay · ${d.soonest.system}` : '', d.soonest ? tone(d.soonest.daysLeft) : '')}</div>
+    <div class="panel" style="padding:0;margin-bottom:14px"><div style="padding:12px 16px"><h3 style="margin:0">Structures</h3><div class="dim" style="font-size:12px">Burn is worked out from the fuel in each bay and when CCP says it runs out. "With hangar fuel" adds blocks stored in that same structure.</div></div>
+      <div class="table-wrap"><table><thead><tr><th>Structure</th><th class="right">In bay</th><th class="right">Burn a day</th><th class="right">Bay lasts</th><th class="right">Stored here</th><th class="right">With hangar fuel</th><th>Services online</th></tr></thead><tbody>
+      ${d.structures.map(s => html`<tr><td>${icon(s.typeId, 18)}${s.name}<div class="dim" style="font-size:11.5px">${s.system} · ${s.state || ''}</div></td>
+        <td class="right num">${fmtNum(s.bay.fuel)}${s.bay.gas ? html`<div class="dim" style="font-size:11.5px">${fmtNum(s.bay.gas)} gas</div>` : ''}</td>
+        <td class="right num">${s.fuelPerDay ? fmtNum(Math.round(s.fuelPerDay)) : '—'}${s.gasPerDay ? html`<div class="dim" style="font-size:11.5px">${fmtNum(Math.round(s.gasPerDay))} gas</div>` : ''}</td>
+        <td class="right num ${tone(s.daysLeft)}">${s.daysLeft === null ? html`<span class="neg">No fuel</span>` : days(s.daysLeft)}</td>
+        <td class="right num">${s.inHangar.fuel ? fmtNum(s.inHangar.fuel) : '—'}</td>
+        <td class="right num ${tone(s.daysLeft !== null && s.extraDays !== null ? s.daysLeft + s.extraDays : s.daysLeft)}">${s.extraDays ? days(s.daysLeft + s.extraDays) : '—'}</td>
+        <td style="font-size:12px" class="muted">${s.services.join(', ') || html`<span class="dim">none</span>`}</td></tr>`)}</tbody></table></div></div>
+    <div class="panel" style="padding:0"><div style="padding:12px 16px"><h3 style="margin:0">Where the reserves are</h3></div>
+      ${d.reserves.length ? html`<table><thead><tr><th>Location</th><th class="right">Fuel blocks</th>${hasGas ? html`<th class="right">Magmatic gas</th>` : ''}<th>By type</th></tr></thead><tbody>
+      ${d.reserves.map(r => html`<tr><td>${r.name}${r.system ? html`<div class="dim" style="font-size:11.5px">${r.system}</div>` : ''}</td><td class="right num">${fmtNum(r.fuel)}</td>${hasGas ? html`<td class="right num">${r.gas ? fmtNum(r.gas) : '—'}</td>` : ''}
+        <td style="font-size:12px" class="muted">${Object.entries(r.byType).map(([n, q]) => `${n.replace(' Fuel Block', '')} ${fmtCompact(q)}`).join(' · ')}</td></tr>`)}</tbody></table>` : html`<div class="dim" style="padding:0 16px 14px">No fuel blocks or magmatic gas in corp hangars.</div>`}</div>`);
+}
+
+// ================= Leaderboard =================
+const leadState = { days: 30, tab: 'ratting', data: null };
+async function cLeader(d) {
+  const s = leadState;
+  setContent(html`<div class="toolbar"><select id="ld-days" class="crumb-select">${[7, 14, 30, 60, 90].map(n => html`<option value="${n}" ${raw(n === s.days ? 'selected' : '')}>Last ${n} days</option>`)}</select>
+    <div class="seg"><button id="ld-rat" class="${s.tab === 'ratting' ? 'active' : ''}">Ratting</button><button id="ld-min" class="${s.tab === 'mining' ? 'active' : ''}">Mining</button></div></div><div id="ld-out">${loadingView('Reading the corp wallet journal and mining ledger…')}</div>`);
+  const load = async () => { $('#ld-out').innerHTML = String(loadingView('Reading the corp wallet journal and mining ledger…')); const r = await api.corp.leaderboard(d, { days: s.days }); if (!$('#ld-out')) return; if (!r.ok) { $('#ld-out').innerHTML = String(errorView(r)); return; } s.data = r.data; drawLeader(); };
+  $('#ld-days').onchange = e => { s.days = Number(e.target.value); load(); };
+  $('#ld-rat').onclick = () => { s.tab = 'ratting'; $('#ld-rat').classList.add('active'); $('#ld-min').classList.remove('active'); drawLeader(); };
+  $('#ld-min').onclick = () => { s.tab = 'mining'; $('#ld-min').classList.add('active'); $('#ld-rat').classList.remove('active'); drawLeader(); };
+  load();
+}
+function drawLeader() {
+  const s = leadState, d = s.data; if (!d) return;
+  const t = d.totals;
+  const top = s.tab === 'ratting' ? d.ratting : d.mining;
+  const max = Math.max(1, ...top.map(r => s.tab === 'ratting' ? r.tax + r.ess : r.minedValue));
+  const medal = i => (i < 3 ? raw(`<span style="display:inline-block;width:18px;text-align:center">${['🥇', '🥈', '🥉'][i]}</span>`) : html`<span class="dim" style="display:inline-block;width:18px;text-align:center">${i + 1}</span>`);
+  $('#ld-out').innerHTML = String(html`<div class="grid grid-4" style="margin:12px 0 14px">${stat('Ratting tax to corp', fmtCompact(t.tax) + ' ISK', `${t.ratters} pilots · tax rate ${(d.taxRate * 100).toFixed(1)}%`)}${stat('Earned by members', d.taxRate ? fmtCompact(t.tax / d.taxRate) + ' ISK' : '—', 'Bounties and ESS, worked back from the tax')}${stat('Moon ore mined', fmtCompact(t.mined) + ' ISK', `${t.miners} pilots at corp drills`)}${stat('Period', `${d.days} days`, d.oldest ? 'Journal back to ' + fmtDate(d.oldest) : '')}</div>
+    ${d.journalError && s.tab === 'ratting' ? html`<div class="notice">${d.journalError}</div>` : ''}${d.miningError && s.tab === 'mining' ? html`<div class="notice">${d.miningError}</div>` : ''}
+    <div class="panel" style="padding:0">${top.length ? html`<table><thead><tr><th>Pilot</th>${s.tab === 'ratting' ? html`<th class="right">Tax paid</th><th class="right">Earned</th><th class="right">Ticks</th><th class="right">Last</th>` : html`<th class="right">Ore value</th><th class="right">Units</th><th>Mostly</th>`}<th style="width:28%"></th></tr></thead><tbody>
+      ${top.map((r, i) => { const v = s.tab === 'ratting' ? r.tax + r.ess : r.minedValue; return html`<tr><td>${medal(i)} ${charImg(r.id, 20)}<a href="#" data-pilot="${r.id}">${r.name}</a>${r.member ? '' : raw(' <span class="badge" title="No longer in the corp">left</span>')}</td>
+        ${s.tab === 'ratting' ? html`<td class="right num">${fmtCompact(v)}</td><td class="right num pos">${r.earned ? fmtCompact(r.earned) : '—'}</td><td class="right num dim">${fmtNum(r.ticks)}</td><td class="right dim">${r.last ? timeAgo(r.last) : '—'}</td>`
+          : html`<td class="right num">${fmtCompact(v)}</td><td class="right num dim">${fmtCompact(r.mined)}</td><td style="font-size:12px" class="muted">${r.ores.slice(0, 3).map(o => o.name).join(', ')}</td>`}
+        <td><div style="height:8px;border-radius:4px;background:var(--bg-3)"><div style="height:100%;width:${Math.round(100 * v / max)}%;border-radius:4px;background:${s.tab === 'ratting' ? 'var(--green)' : 'var(--gold)'}"></div></div></td></tr>`; })}</tbody></table>` : emptyBox(s.tab === 'ratting' ? 'No ratting tax in this period.' : 'No moon mining at corp drills in this period.')}</div>
+    <div class="dim" style="font-size:12px;margin-top:8px">Ratting comes from bounty and ESS tax lines in the master wallet journal (Accountant role). Mining comes from the moon mining ledger of corp-owned drills; belt and anomaly mining isn't shared with the corp by CCP.</div>`);
+}

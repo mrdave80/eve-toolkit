@@ -4,6 +4,18 @@
 
 - System Intel (Tools → Intel): search a system and see the last 6, 12, 24 or 48 hours: player kills by hour, who is killing and in what ships, where kills happen (with gate and undock camps called out), the most active pilots, every kill with its attackers, your own intel channel reports for the system, and what's happening within two jumps right now. Also on every system card.
 - Help & guides (sidebar, the ? button or F1): a guide for every tool with step-by-step instructions, tips and screenshots, searchable and also found by Ctrl+K. ? opens the guide for the page you're on, and **Walk me through it** opens the tool with a step panel that highlights each control in turn.
+- Battle reports in System Intel: kills close together are grouped into fights, split into the two sides, with each side's pilots, losses, ISK lost and efficiency.
+- Wormhole mapper: a rolling planner (which ships to send, hot or cold, so the hole closes on a jump back without stranding anyone, checked against the ±10% mass variation); import maps from Pathfinder, Wanderer, Nexum or a plain system list; signatures that disappear from your scanner are crossed out with one button to delete them all. Shared maps now keep reduced and critical mass.
+- Station Trading (Tools → Market): scans every item at a hub for buy-order to sell-order spreads that clear your sales tax and broker fee (from a pilot's skills), filtered by daily volume, with what you'd make a day.
+- Trade Profit: choose first in, first out or weighted average cost; profit split into station trading and hauling; leave single buys, items or whole stations out.
+- Job Splitter (Tools → Industry): paste what you want built and get jobs for each pilot's free slots, each under the time limit you choose, using copies first, with a shopping list of what you don't already own and where the rest is.
+- Blueprint Prices (Tools → Industry): what originals and copies really sell for on public contracts, per run for copies, in the main trade regions.
+- Appraisal takes a zKillboard or in-game kill link: what dropped, what was destroyed and the total.
+- Corporation → Fuel: each structure's bay, burn a day and how long it lasts, fuel blocks and magmatic gas in corp hangars, and how many days they cover.
+- Corporation → Leaderboard: members ranked by ratting tax paid and by moon ore mined.
+- When Tranquility is down the app says so with a banner, shows the last data it loaded instead of spinning, checks every 30 seconds and reloads the page when the server is back. Every request now times out instead of hanging.
+- Fixed: EVE news always failed (CCP's news feed address returns an error); it now reads CCP's main feed and keeps the last news if a check fails.
+- Live map: systems no longer overlap, the map uses the full width, constellation names are shown, and zooming in shows each system's security, jumps and NPC kills.
 
 ## 1.11.1
 

@@ -49,6 +49,7 @@ contextBridge.exposeInMainWorld('api', {
   clearCache: () => call('esi:clearCache'),
   openLink: url => call('shell:open', url),
   corp: {
+    fuel: id => call('corp:fuel', id), leaderboard: (id, o) => call('corp:leaderboard', id, o),
     directors: () => call('corp:directors'),
     overview: id => call('corp:overview', id),
     members: id => call('corp:members', id),

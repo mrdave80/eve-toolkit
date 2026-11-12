@@ -821,6 +821,18 @@ api.diag = { report: async () => ({ ok: true, data: 'EVE Toolkit 1.9.0\nSystem: 
     dropped: ap([[3841, 'Large Shield Extender II', 1, 3.1e6], [5973, '5MN Y-T8 Compact Microwarpdrive', 1, 0.8e6], [2488, 'Warrior II', 4, 0.3e6]]), destroyed: ap([[3244, 'Warp Disruptor II', 1, 1.1e6], [527, 'Stasis Webifier II', 2, 2.2e6], [2048, 'Damage Control II', 1, 0.49e6], [31718, 'Medium Core Defense Field Extender II', 2, 3.4e6]]),
     totals: { dropped: 5.1e6, destroyed: 271e6, total: 276e6, hull: 258e6 }, zkbValue: 281e6 } });
 }
+{
+  const S = (id, name, typeId, system, daysLeft, bay, gas, burn, gasBurn, stored, services) => ({ id, name, typeId, system, state: 'shield_vulnerable', daysLeft, fuelExpires: daysLeft === null ? null : new Date(now + daysLeft * D).toISOString(), bay: { fuel: bay, gas, types: {} }, fuelPerDay: burn, gasPerDay: gasBurn, inHangar: { fuel: stored, gas: 0 }, extraDays: burn ? stored / burn : null, services });
+  api.corp.fuel = async () => ({ ok: true, data: { structures: [S(1, 'K-6K16 - Hard Rock Refinery', 35835, 'K-6K16', 1.6, 470, 0, 288, 0, 0, ['Moon Drilling', 'Reprocessing']), S(2, 'MJXW-P - Metenox', 81826, 'MJXW-P', 4.2, 504, 18500, 120, 4400, 2400, ['Automatic Moon Drilling']), S(3, '1DQ1-A - Deep Pockets Keepstar', 35834, '1DQ1-A', 24.8, 23800, 0, 960, 0, 44000, ['Market', 'Clone Bay', 'Manufacturing (Standard)']), S(4, '1DQ1-A - Raitaru Works', 35825, '1DQ1-A', 41.5, 9960, 0, 240, 0, 0, ['Manufacturing (Standard)'])],
+    reserves: [{ id: 3, name: '1DQ1-A - Deep Pockets Keepstar', system: '1DQ1-A', fuel: 44000, gas: 61000, byType: { 'Caldari Fuel Block': 32000, 'Amarr Fuel Block': 12000, 'Magmatic Gas': 61000 } }, { id: 5, name: 'MJXW-P - Metenox', system: 'MJXW-P', fuel: 2400, gas: 0, byType: { 'Caldari Fuel Block': 2400 } }, { id: 6, name: 'Jita IV - Moon 4 - Caldari Navy Assembly Plant', system: null, fuel: 18000, gas: 0, byType: { 'Caldari Fuel Block': 18000 } }],
+    total: { fuel: 64400, gas: 61000 }, burn: { fuel: 1608, gas: 4400 }, daysOnHand: { fuel: 40.0, gas: 13.9 }, monthly: { fuel: 48240, gas: 132000, isk: 1.06e9 }, soonest: null } });
+  const leadData = { days: 30, taxRate: 0.1, journalError: null, miningError: null, oldest: new Date(now - 30 * D).toISOString(),
+    ratting: [['Richard Fitzwell', 2119000001, 412e6, 1840], ['Wayne Kerr', 2119000004, 288e6, 1210], ['Ben Dover', 2119000101, 151e6, 690], ['Hugh Mungus', 2119000102, 92e6, 401], ['Phil McCracken', 2119000103, 31e6, 150]].map(([name, id, tax, ticks]) => ({ id, name, tax, ess: 0, ticks, earned: tax / 0.1, member: true, last: new Date(now - ticks * 3e5).toISOString(), ores: [] })),
+    mining: [['Mike Hunt', 2119000002, 1.92e9, 2.4e6, ['Xenotime', 'Cobaltite']], ['Jack Mehoff', 2119000005, 1.1e9, 1.5e6, ['Bitumens', 'Zeolites']], ['Hugh Jayness', 2119000003, 0.42e9, 0.6e6, ['Sylvite']]].map(([name, id, minedValue, mined, ores]) => ({ id, name, minedValue, mined, ores: ores.map(n => ({ name: n })), member: true })),
+    totals: { tax: 974e6, mined: 3.44e9, ratters: 5, miners: 3 } };
+  leadData.fuel = 0;
+  api.corp.leaderboard = async () => ({ ok: true, data: leadData });
+}
 contextBridge.exposeInMainWorld('api', api);
 contextBridge.exposeInMainWorld('__mock', { sdeCheck: v => { globalThis.__sdeCheck = v; } });
 
