@@ -2,8 +2,8 @@
 /* Tools: market, industry, navigation, intel, finance. Helpers from app.js & friends. */
 
 const TOOLS_GROUPS = [
-  ['Market', [['t-market', 'Browser'], ['t-appraisal', 'Appraisal'], ['t-orders', 'My Orders'], ['t-arbitrage', 'Hub Arbitrage'], ['t-lp', 'LP Store'], ['t-trade', 'Trade Profit'], ['t-prices', 'Price Alerts'], ['t-bargain', 'Contract Bargains'], ['t-items', 'Item Database']]],
-  ['Industry', [['t-build', 'Build Calculator'], ['t-wtb', 'What to Build'], ['t-invent', 'Invention'], ['t-reprocess', 'Reprocessing'], ['t-ores', 'Ore Values'], ['t-moon', 'Moon Scan'], ['t-assets', 'Asset Finder']]],
+  ['Market', [['t-market', 'Browser'], ['t-appraisal', 'Appraisal'], ['t-orders', 'My Orders'], ['t-arbitrage', 'Hub Arbitrage'], ['t-lp', 'LP Store'], ['t-trade', 'Trade Profit'], ['t-station', 'Station Trading'], ['t-prices', 'Price Alerts'], ['t-bargain', 'Contract Bargains'], ['t-items', 'Item Database']]],
+  ['Industry', [['t-build', 'Build Calculator'], ['t-wtb', 'What to Build'], ['t-split', 'Job Splitter'], ['t-bpc', 'Blueprint Prices'], ['t-invent', 'Invention'], ['t-reprocess', 'Reprocessing'], ['t-ores', 'Ore Values'], ['t-moon', 'Moon Scan'], ['t-assets', 'Asset Finder']]],
   ['Navigation', [['t-route', 'Route Planner'], ['t-courier', 'Courier Contracts'], ['t-hunt', 'Hunting & Ratting'], ['t-agents', 'Agent Finder'], ['t-jump', 'Jump Planner'], ['t-universe', 'Universe']]],
   ['Intel', [['t-pilot', 'Pilot Intel'], ['t-sysintel', 'System Intel'], ['t-whres', 'Wormhole Residents'], ['t-shame', 'Wall of Shame'], ['t-intel', 'Intel Watch'], ['t-local', 'Local & D-scan'], ['t-combat', 'Combat Log']]],
   ['Fitting', [['t-fit', 'Fit Checker']]],
@@ -32,7 +32,7 @@ const iskCell = (v, cls = '') => html`<span class="num ${cls}">${v === null || v
 
 async function renderTools(stillCurrent) {
   const tab = state.toolsTab || 't-market';
-  const needsSde = ['t-shame', 't-whres', 't-hunt', 't-courier', 't-market', 't-appraisal', 't-arbitrage', 't-build', 't-invent', 't-reprocess', 't-ores', 't-assets', 't-wtb', 't-agents', 't-sysintel', 't-route', 't-jump', 't-intel', 't-local'];
+  const needsSde = ['t-split', 't-bpc', 't-station', 't-shame', 't-whres', 't-hunt', 't-courier', 't-market', 't-appraisal', 't-arbitrage', 't-build', 't-invent', 't-reprocess', 't-ores', 't-assets', 't-wtb', 't-agents', 't-sysintel', 't-route', 't-jump', 't-intel', 't-local'];
   if (needsSde.includes(tab)) {
     const info = await api.sde.info();
     if (!info.ok || !info.data.ready) return setContent(needSdeView('This tool'));
@@ -44,7 +44,7 @@ async function renderTools(stillCurrent) {
     't-pilot': tPilot, 't-whres': () => tWhRes(), 't-shame': () => tShame(), 't-intel': () => (typeof tIntel === 'function' ? tIntel() : null), 't-local': () => (typeof tLocal === 'function' ? tLocal() : null), 't-combat': () => (typeof tCombat === 'function' ? tCombat() : null),
     't-fit': () => tFit(),
     't-items': () => tItems(), 't-bargain': () => tBargains(), 't-charval': () => tCharValue(stillCurrent),
-    't-trade': () => tTrade(stillCurrent), 't-assets': () => tAssetFinder(), 't-wtb': () => tWhatToBuild(), 't-agents': () => tAgents(), 't-sysintel': () => tSysIntel(), 't-ores': () => tOres(), 't-eveset': () => tEveSettings(), 't-compare': () => tCompareSkills(), 't-prices': () => tPriceWatch(), 't-moon': () => tMoon(),
+    't-trade': () => tTrade(stillCurrent), 't-station': () => tStation(stillCurrent), 't-assets': () => tAssetFinder(), 't-wtb': () => tWhatToBuild(), 't-split': () => tJobSplit(stillCurrent), 't-bpc': () => tBpPrices(stillCurrent), 't-agents': () => tAgents(), 't-sysintel': () => tSysIntel(), 't-ores': () => tOres(), 't-eveset': () => tEveSettings(), 't-compare': () => tCompareSkills(), 't-prices': () => tPriceWatch(), 't-moon': () => tMoon(),
     't-farm': () => tFarm(stillCurrent), 't-insure': () => tInsure(stillCurrent),
     't-pve': () => tPve(), 't-networth': () => (typeof tNetworth === 'function' ? tNetworth(stillCurrent) : null), 't-income': () => (typeof tIncome === 'function' ? tIncome(stillCurrent) : null)
   };
@@ -124,16 +124,30 @@ function priceBadge(x) {
   return '';
 }
 
+async function appraiseKill(link, out) {
+  const r = await api.appraiseKill(link, toolState.hub);
+  if (!r.ok) { out.innerHTML = String(errorView(r)); return; }
+  const k = r.data, t = k.totals;
+  const list = (title, a, cls) => a.rows.length ? html`<div class="panel" style="padding:0;margin-bottom:12px"><div style="padding:12px 16px 0;display:flex;justify-content:space-between"><h3 style="margin:0">${title}</h3><span class="num ${cls}">${fmtCompact(a.totals.sell)} ISK</span></div><div class="table-wrap" style="max-height:34vh"><table><tbody>
+    ${a.rows.map(x => html`<tr><td>${icon(x.typeId, 18)}${x.name}${priceBadge(x)}</td><td class="right num">${fmtNum(x.qty)}</td><td class="right num">${fmtCompact(x.sell)}</td></tr>`)}</tbody></table></div></div>` : '';
+  out.innerHTML = String(html`<div class="panel" style="margin-bottom:12px;display:flex;gap:12px;align-items:center">${icon(k.shipTypeId, 48)}<div style="flex:1"><div style="font-size:16px">${k.ship ? k.ship.name : 'Ship'} ${k.victim ? html`<span class="muted">· ${k.victim}</span>` : ''}</div>
+      <div class="dim" style="font-size:12px">${k.corp || ''}${k.alliance ? ' · ' + k.alliance : ''} · ${k.system || ''} ${k.security !== null ? secBadge(k.security) : ''} · ${fmtDate(k.time)} · ${k.attackers} attacker${k.attackers === 1 ? '' : 's'}</div></div>
+      <a href="#" class="btn btn-ghost" data-killfit="${k.id}">Check fit</a><a href="#" class="btn btn-ghost" data-link="https://zkillboard.com/kill/${k.id}/">zKill ↗</a></div>
+    <div class="grid grid-3" style="margin-bottom:12px">${stat('Total loss', fmtCompact(t.total) + ' ISK', k.zkbValue ? 'zKillboard says ' + fmtCompact(k.zkbValue) : 'At ' + toolState.hub + ' sell prices')}${stat('Dropped', fmtCompact(t.dropped) + ' ISK', 'What the killer could loot', 'gold')}${stat('Destroyed', fmtCompact(t.destroyed) + ' ISK', `Hull ${fmtCompact(t.hull)}`, 'neg')}</div>
+    ${list('Dropped', k.dropped, 'gold')}${list('Destroyed', k.destroyed, 'neg')}`);
+}
+
 async function tAppraisal() {
   const a = toolState.appraisal;
   setContent(html`<div class="grid grid-2" style="align-items:start">
-    <div class="panel"><h3>Paste items</h3><textarea id="ap-text" rows="14" style="width:100%" class="mono-area" placeholder="Inventory copy, contract, cargo scan, EFT fit, or lines like 'Tritanium 1000' / '10x Hammerhead II'">${a.text}</textarea>
+    <div class="panel"><h3>Paste items</h3><textarea id="ap-text" rows="14" style="width:100%" class="mono-area" placeholder="Inventory copy, contract, cargo scan, EFT fit, lines like 'Tritanium 1000' / '10x Hammerhead II', or a zKillboard / in-game kill link">${a.text}</textarea>
       <div class="toolbar" style="margin:10px 0 0">${hubSelect('ap-hub', toolState.hub)}<button class="btn btn-primary" id="ap-go">Appraise</button></div></div>
     <div id="ap-out">${emptyBox('Paste anything with item names to value it at live hub prices.')}</div></div>`);
   $('#ap-hub').onchange = e => { toolState.hub = e.target.value; };
   $('#ap-go').onclick = async () => {
     a.text = $('#ap-text').value;
     const out = $('#ap-out'); out.innerHTML = String(loadingView('Pricing items…'));
+    if (/zkillboard\.com\/kill\/\d+|killmails\/\d+\/[0-9a-f]{40}/i.test(a.text) && a.text.trim().split(/\s+/).length <= 3) return appraiseKill(a.text.trim(), out);
     const r = await api.appraise(a.text, toolState.hub);
     if (!r.ok) { out.innerHTML = String(errorView(r)); return; }
     const d = r.data;

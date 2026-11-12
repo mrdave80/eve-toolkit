@@ -165,4 +165,4 @@ async function checkRoute(path, { hours = 1, grade = true, fetchKills = false } 
   return { hours: h, checked: targets.length, reports, verdict: worst === 2 ? 'danger' : worst === 1 ? 'warn' : 'clear', at: new Date().toISOString() };
 }
 
-module.exports = { checkRoute, _systemReport: systemReport };
+module.exports = { checkRoute, stationName, _systemReport: systemReport };

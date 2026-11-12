@@ -554,7 +554,19 @@ api.diag = { report: async () => ({ ok: true, data: 'EVE Toolkit 1.9.0\nSystem: 
       .map(([h, seller, qty, matched, price, lots]) => ({ time: new Date(now - h * 3600e3).toISOString(), seller, qty, matched, price, lots: lots.map(([q, p, buyer, dd]) => ({ qty: q, price: p, buyer, time: new Date(now - h * 3600e3 - dd * D).toISOString() })), moreLots: 0, tax: matched * price * 0.0337, profit: matched * price * 0.966 - lots.reduce((n, l) => n + l[0] * l[1], 0) }));
     const daily = Array.from({ length: 30 }, (_, i) => { const v = (Math.sin(i * 1.7) * 0.6 + 0.4) * 60e6 + (i % 7 === 3 ? -45e6 : 0); return { day: new Date(now - (29 - i) * D).toISOString().slice(0, 10), revenue: 300e6, profit: v + 5e6, broker: 5e6, net: v }; });
     const sum = k => items.reduce((n, x) => n + x[k], 0);
-    api.trade = { ...api.trade, report: async () => ({ ok: true, data: { days: 30, pooled: true, errors: [], items, daily, ledgerFrom: new Date(now - 74 * D).toISOString(), ledgerCount: 4120,
+    items.forEach((x, i) => { x.style = i % 3 === 1 ? { station: 0, haul: x.profit } : { station: x.profit, haul: 0 }; });
+    items[0].matches.forEach((m, i) => { m.style = i === 1 ? 'haul' : 'station'; m.lots.forEach((l, j) => { l.id = 9000 + i * 10 + j; }); });
+    const stRow = (typeId, name, group, buy, sell, volume, bo, so, trend) => { const per = (sell - 0.01) * (1 - 0.0375 - 0.015) - (buy + 0.01) * 1.015; const units = Math.floor(volume * 0.1); return { typeId, name, group, buy, sell, per, margin: per / buy, volume, buyOrders: bo, sellOrders: so, trend, units, daily: units * per, capital: units * buy, spark: Array.from({ length: 30 }, (_, i) => (buy + sell) / 2 * (1 + Math.sin(i / 4 + typeId) * 0.04 + trend * i / 30)) }; };
+    const stRows = [stRow(2185, 'Hammerhead II', 'Combat Drone', 1.01e6, 1.19e6, 4200, 38, 61, 0.03), stRow(12058, 'Medium Armor Repairer II', 'Armor Repair Unit', 1.42e6, 1.71e6, 1900, 22, 40, -0.02), stRow(2048, 'Damage Control II', 'Damage Control', 402e3, 489e3, 6100, 45, 77, 0.01),
+      stRow(31718, 'Medium Core Defense Field Extender II', 'Rig Shield', 3.1e6, 3.62e6, 610, 14, 19, 0.06), stRow(3829, 'Ogre II', 'Combat Drone', 812e3, 978e3, 1300, 18, 33, -0.05), stRow(19739, 'Heavy Entropic Disintegrator II', 'Energy Weapon', 21.4e6, 26.9e6, 95, 7, 12, 0.11), stRow(2281, 'Adaptive Invulnerability Field II', 'Shield Hardener', 1.62e6, 1.84e6, 3800, 30, 52, 0)];
+    stRows[5].odd = true;
+    api.trade.station = async () => ({ ok: true, data: { hub: 'Jita', station: 'Jita IV - Moon 4 - Caldari Navy Assembly Plant', fees: { salesTax: 3.75, brokerFee: 1.5, from: 'Accounting 5, Broker Relations 5' }, scanned: 14820, candidates: 1840, checked: 150, rows: stRows.sort((a, b) => b.daily - a.daily), at: new Date(now - 2 * 60e3).toISOString() } });
+    api.trade.stationStatus = async () => ({ ok: true, data: { phase: '', done: 0, total: 0 } });
+    api.trade.fees = async () => ({ ok: true, data: { salesTax: 3.75, brokerFee: 1.5, from: 'Accounting 5, Broker Relations 5' } });
+    api.trade = { ...api.trade, exclude: async () => ({ ok: true, data: {} }), station: api.trade.station, stationStatus: api.trade.stationStatus, fees: api.trade.fees, report: async (o = {}) => ({ ok: true, data: { days: 30, pooled: true, method: o.method || 'fifo', errors: [], items, daily,
+      styles: { station: { profit: 512e6, revenue: 7.1e9, trades: 318 }, haul: { profit: 238e6, revenue: 3.2e9, trades: 94 } },
+      locations: [{ id: 60003760, name: 'Jita IV - Moon 4 - Caldari Navy Assembly Plant', buys: 210, sells: 188, isk: 8.4e9 }, { id: 60008494, name: 'Amarr VIII (Oris) - Emperor Family Academy', buys: 40, sells: 61, isk: 1.9e9 }, { id: 1035466617946, name: 'Perimeter - Tranquility Trading Tower', buys: 22, sells: 0, isk: 0.6e9 }],
+      excluded: { count: 14, tx: 3, loc: [{ id: 60011866, name: 'Dodixie IX - Moon 20 - Federation Navy Assembly Plant' }], type: [{ id: 44992, name: 'PLEX' }] }, ledgerFrom: new Date(now - 74 * D).toISOString(), ledgerCount: 4120,
       totals: { revenue: sum('revenue'), cost: sum('cost'), salesTax: sum('tax'), broker: 148e6, gross: sum('profit'), net: sum('profit') - 148e6, perDay: (sum('profit') - 148e6) / 30, unmatchedQty: 12, unmatchedIsk: 41e6, stockIsk: 2.31e9, trades: 412 } } }) };
     const prod = (typeId, name, rating, share, isk, sellAs = 'refined') => ({ typeId, name, rating, share, iskPerM3: isk, sellAs });
     const moon = (name, region, sec, rating, products) => { const iskPerM3 = products.reduce((n, p) => n + p.iskPerM3 * p.share, 0); return { name, region, security: sec, rating, share: products.reduce((n, p) => n + p.share, 0), products, iskPerM3, monthIsk: iskPerM3 * 14.4e6, extractionIsk: iskPerM3 * 3.36e6 }; };
@@ -786,6 +798,28 @@ api.diag = { report: async () => ({ ok: true, data: 'EVE Toolkit 1.9.0\nSystem: 
     kills, nearby: [['Kedama', 0.4, 1, 2, 1, 0, 380], ['Nourvukaiken', 0.8, 1, 1, 0, 12, 520], ['Okkamon', 0.6, 2, 0, 0, 40, 90], ['Sujarento', 0.4, 2, 0, 0, 3, 140]].map(([name, security, jumps, ship, pod, npc, traffic], i) => ({ id: 30002800 + i, name, security, jumps, ship, pod, npc, traffic })),
     intel: [{ at: ago(11), channel: 'TheCitadel.imperium', who: 'Scout Alpha', text: 'Tama 3x Sabre + Lachesis on Nourvukaiken gate', clear: false }, { at: ago(48), channel: 'TheCitadel.imperium', who: 'Hauler Bob', text: 'Tama camped, avoid', clear: false }, { at: ago(300), channel: 'TheCitadel.imperium', who: 'Scout Alpha', text: 'Tama clr', clear: true }],
     at: iso(now) } });
+}
+{
+  const job = (productTypeId, product, runs, out, h, bp, me, te, moveBp) => ({ productTypeId, product, runs, out, seconds: h * 3600, bp, me, te, moveBp: moveBp || null, activity: 'manufacturing' });
+  api.ind.split = async () => ({ ok: true, data: { pilots: [
+      { id: 2119000001, name: 'Richard Fitzwell', free: { manufacturing: 3, reaction: 1 }, jobs: [job(2185, 'Hammerhead II', 60, 60, 23.1, 'BPC (60 runs)', 10, 20), job(2185, 'Hammerhead II', 60, 60, 23.1, 'BPO', 10, 20), job(2048, 'Damage Control II', 40, 40, 19.6, 'BPO', 8, 16)], hours: 23.1 },
+      { id: 2119000002, name: 'Mike Hunt', free: { manufacturing: 5, reaction: 0 }, jobs: [job(2185, 'Hammerhead II', 60, 60, 23.1, 'BPO', 10, 20, 'Richard Fitzwell'), job(2185, 'Hammerhead II', 60, 60, 23.1, null, 10, 20), job(12005, 'Ishtar', 2, 2, 21.5, 'BPC (2 runs)', 4, 8)], hours: 23.1 },
+      { id: 2119000004, name: 'Wayne Kerr', free: { manufacturing: 0, reaction: 0 }, jobs: [], hours: 0 }],
+    waiting: [job(2185, 'Hammerhead II', 20, 20, 7.7, null, 10, 20)], skipped: [{ name: 'Ishtar', why: 'You don’t own enough copies; 2 runs planned at ME 10', warn: true }], unknown: [],
+    materials: [[11399, 'Morphite', 1870, 600, ['Richard Fitzwell', 'Jita IV - Moon 4 - Caldari Navy Assembly Plant', 600]], [11478, 'R.A.M.- Robotics', 310, 310, ['Mike Hunt', 'Amarr VIII (Oris) - Emperor Family Academy', 410]], [16670, 'Crystalline Carbonide', 52800, 12000, ['Richard Fitzwell', 'Jita IV - Moon 4 - Caldari Navy Assembly Plant', 12000]], [11539, 'Gravimetric Sensor Cluster', 640, 0, null], [34, 'Tritanium', 1.2e6, 1.2e6, ['Wayne Kerr', 'Perimeter - Tranquility Trading Tower', 4.1e6]]]
+      .map(([typeId, name, need, have, at]) => ({ typeId, name, need, have, buy: need - have, places: at ? [{ pilot: at[0], location: at[1], qty: at[2] }] : [], volume: (need - have) * 0.01 })).sort((a, b) => b.buy - a.buy),
+    totals: { jobs: 7, placed: 6, buyVolume: 418, toBuy: 3 }, multibuy: 'Crystalline Carbonide 40800\nMorphite 1270\nGravimetric Sensor Cluster 640' } });
+  const bp = (price, me, te, sys, sec, h, runs) => ({ id: Math.round(price), price, bpc: !!runs, runs: runs || null, perRun: runs ? price / runs : null, me, te, region: 'The Forge', system: sys, security: sec, location: sys + ' station', issued: new Date(now - h * 3600e3).toISOString() });
+  api.ind.bpOffers = async () => ({ ok: true, data: { blueprintId: 2186, blueprint: 'Hammerhead II Blueprint', productId: 2185, product: 'Hammerhead II', market: null,
+    summary: { bpoCheapest: 1.42e9, bpoMedian: 1.65e9, bpcPerRunCheapest: 1.9e6, bpcPerRunMedian: 2.6e6, bpos: 4, bpcs: 11 },
+    bpos: [bp(1.42e9, 10, 20, 'Jita', 0.9, 30), bp(1.55e9, 10, 20, 'Perimeter', 1.0, 80), bp(1.75e9, 10, 18, 'Amarr', 1.0, 200), bp(2.1e9, 10, 20, 'Jita', 0.9, 6)],
+    bpcs: [bp(19e6, 10, 20, 'Jita', 0.9, 4, 10), bp(52e6, 10, 20, 'Perimeter', 1.0, 22, 20), bp(26e6, 10, 18, 'Jita', 0.9, 50, 10), bp(260e6, 10, 20, 'Amarr', 1.0, 90, 100), bp(84e6, 9, 18, 'Dodixie', 0.9, 30, 30)].map(r => r).sort((a, b) => a.perRun - b.perRun),
+    scanned: 4210, read: 0, regions: ['The Forge', 'Domain', 'Sinq Laison', 'Metropolis', 'Heimatar'] } });
+  api.ind.bpStatus = async () => ({ ok: true, data: { phase: '' } });
+  const ap = rows => ({ rows: rows.map(([typeId, name, qty, unit]) => ({ typeId, name, qty, sell: qty * unit, buy: qty * unit * 0.9, unitSell: unit, priceSource: 'market' })), totals: { sell: rows.reduce((n, r) => n + r[2] * r[3], 0) } });
+  api.appraiseKill = async () => ({ ok: true, data: { id: 128000001, time: new Date(now - 3 * 3600e3).toISOString(), shipTypeId: 11971, ship: { name: 'Lachesis' }, victim: 'Hugh Mungus', corp: 'Gank Co', alliance: 'Umbral Reach', system: 'Tama', security: 0.3, attackers: 14,
+    dropped: ap([[3841, 'Large Shield Extender II', 1, 3.1e6], [5973, '5MN Y-T8 Compact Microwarpdrive', 1, 0.8e6], [2488, 'Warrior II', 4, 0.3e6]]), destroyed: ap([[3244, 'Warp Disruptor II', 1, 1.1e6], [527, 'Stasis Webifier II', 2, 2.2e6], [2048, 'Damage Control II', 1, 0.49e6], [31718, 'Medium Core Defense Field Extender II', 2, 3.4e6]]),
+    totals: { dropped: 5.1e6, destroyed: 271e6, total: 276e6, hull: 258e6 }, zkbValue: 281e6 } });
 }
 contextBridge.exposeInMainWorld('api', api);
 contextBridge.exposeInMainWorld('__mock', { sdeCheck: v => { globalThis.__sdeCheck = v; } });

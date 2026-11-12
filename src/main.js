@@ -746,6 +746,9 @@ handle('ind:calc', o => industry.calculate(o));
 const buildplan = require('./buildplan');
 handle('ind:shopping', async (o, stockOpts) => buildplan.shoppingList(await industry.calculate(o), stockOpts || {}));
 handle('ind:whatToBuild', o => buildplan.whatToBuild(o || {}));
+handle('ind:split', o => require('./jobsplit').split(o || {}));
+handle('ind:bpOffers', o => require('./bargains').blueprintOffers(o || {}));
+handle('ind:bpStatus', () => require('./bargains').bpStatus());
 handle('ind:invent', o => industry.invention(o));
 handle('ind:reprocess', (text, o) => industry.reprocess(appraise.parseItems(text).items, o));
 handle('ind:structures', () => ({ structures: industry.STRUCTURES, decryptors: industry.DECRYPTORS }));
@@ -757,6 +760,7 @@ handle('ind:pilotSkills', async charId => {
     scrapmetal: by('Scrapmetal Processing'), levels: Object.fromEntries(lv) };
 });
 handle('appraise', (text, hub) => appraise.appraise(text, hub, store.get().priceOverrides || {}));
+handle('appraise:killmail', (link, hub) => appraise.killmail(link, hub, store.get().priceOverrides || {}));
 handle('appraise:setPrice', (typeId, price) => {
   const d = store.get(); d.priceOverrides = d.priceOverrides || {};
   const id = Number(typeId), v = Number(price);
@@ -1057,6 +1061,10 @@ handle('pw:check', () => checkPrices());
 setInterval(() => { if ((store.get().priceWatch || []).length) checkPrices().catch(e => diag.warn('prices', e.message)); }, 15 * 60000);
 setTimeout(() => { if ((store.get().priceWatch || []).length) checkPrices().catch(() => {}); }, 45000);
 handle('trade:report', o => trade.report(o || {}));
+handle('trade:station', o => require('./stationtrade').scan(o || {}));
+handle('trade:stationStatus', () => require('./stationtrade').status());
+handle('trade:fees', id => require('./stationtrade').feesFor(id));
+handle('trade:exclude', (kind, id, on) => trade.setExclude(kind, id, on));
 handle('items:search', q => items.search(String(q || '')));
 handle('items:info', id => items.info(Number(id)));
 handle('charvalue', () => charvalue.value());

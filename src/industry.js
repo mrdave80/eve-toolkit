@@ -268,4 +268,4 @@ async function oreTable(o = {}) {
   return { family: fam, yield: y, side, hub: o.hub || 'Jita', rows: out };
 }
 
-module.exports = { oreTable, oreFamily, STRUCTURES, DECRYPTORS, costIndices, calculate, invention, reprocess, reprocessYield, matQty, meFactor };
+module.exports = { oreTable, oreFamily, STRUCTURES, DECRYPTORS, costIndices, calculate, invention, reprocess, reprocessYield, matQty, meFactor, jobSeconds };

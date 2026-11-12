@@ -48,8 +48,8 @@ async function scan(o = {}) {
   await pool(todo, 8, async c => {
     const r = await safe(() => getAllPages(`/contracts/public/items/${c.contract_id}/`, null, 5));
     if (!ok(r)) { failed++; return; }
-    // [typeId, qty, included, bpc, runs]
-    cache[c.contract_id] = { exp: Date.parse(c.date_expired), items: (r || []).slice(0, 300).map(x => [x.type_id, x.quantity, x.is_included ? 1 : 0, x.is_blueprint_copy ? 1 : 0, x.runs || 0]) };
+    // [typeId, qty, included, bpc, runs, me, te]
+    cache[c.contract_id] = { exp: Date.parse(c.date_expired), items: itemsTuple(r) };
   });
   store.save('contractItems');
 
@@ -91,4 +91,63 @@ async function scan(o = {}) {
   return { regionId, total: list.length, read: known.length, newlyRead: todo.length - failed, unread: list.length - known.length, failed, rows: out.slice(0, 100) };
 }
 
-module.exports = { scan };
+const itemsTuple = r => (r || []).slice(0, 300).map(x => [x.type_id, x.quantity, x.is_included ? 1 : 0, x.is_blueprint_copy ? 1 : 0, x.runs || 0, x.material_efficiency ?? null, x.time_efficiency ?? null]);
+
+// Main trade regions for blueprint contracts
+const BP_REGIONS = { 10000002: 'The Forge', 10000043: 'Domain', 10000032: 'Sinq Laison', 10000042: 'Metropolis', 10000030: 'Heimatar' };
+const bpStatus = { phase: '', done: 0, total: 0 };
+
+/**
+ * Blueprints for sale on public contracts. A contract holding just one blueprint has a volume of 0.01 m³,
+ * so only those are opened. o: { query (blueprint or product name / typeId), regions: [ids] }
+ */
+async function blueprintOffers(o = {}) {
+  if (!sde.ready()) throw new Error('Download the game data first (Settings → Game data).');
+  let want = Number(o.typeId) || null;
+  if (!want && o.query) {
+    const q = String(o.query).trim();
+    want = sde.typeIdByName(q) || sde.typeIdByName(q + ' Blueprint') || sde.typeIdByName(q.replace(/ Blueprint$/i, ''));
+  }
+  if (!want) throw new Error('Type a blueprint or item name, e.g. "Hammerhead II Blueprint" or "Raven".');
+  // product → its blueprint
+  const bi = sde.blueprintFor(want); const bpId = bi ? bi.blueprintId : want;
+  const bpType = sde.type(bpId) || {};
+  if (!/blueprint|formula/i.test(bpType.name || '') && !bi) throw new Error('That isn\'t a blueprint, and nothing has a blueprint that makes it.');
+  const regions = (o.regions && o.regions.length ? o.regions : Object.keys(BP_REGIONS)).map(Number);
+  const cache = itemCache(); prune();
+  const now = Date.now();
+  const lists = [];
+  bpStatus.phase = 'lists'; bpStatus.done = 0; bpStatus.total = regions.length;
+  for (const rid of regions) { const l = await safe(() => regionContracts(rid)); bpStatus.done++; if (ok(l)) lists.push(...l.filter(c => c.type === 'item_exchange' && c.volume <= 0.0101 && Date.parse(c.date_expired) > now).map(c => ({ ...c, regionId: rid }))); }
+  // Read the single-blueprint contracts not seen yet (old cache entries without ME/TE are read again)
+  const todo = lists.filter(c => !cache[c.contract_id] || (cache[c.contract_id].items[0] && cache[c.contract_id].items[0].length < 7)).slice(0, o.maxNew || 1500);
+  bpStatus.phase = 'items'; bpStatus.done = 0; bpStatus.total = todo.length;
+  await pool(todo, 10, async c => {
+    const r = await safe(() => get(`/contracts/public/items/${c.contract_id}/`));
+    bpStatus.done++;
+    if (ok(r)) cache[c.contract_id] = { exp: Date.parse(c.date_expired), items: itemsTuple(r) };
+  });
+  store.save('contractItems');
+  const rows = [];
+  for (const c of lists) {
+    const it = cache[c.contract_id]; if (!it) continue;
+    const got = it.items.filter(x => x[2]);
+    if (got.length !== 1 || got[0][0] !== bpId || it.items.some(x => !x[2])) continue;
+    const [, qty, , bpc, runs, me, te] = got[0];
+    rows.push({ id: c.contract_id, price: c.price, bpc: !!bpc, runs: bpc ? runs : null, perRun: bpc && runs ? c.price / runs : null, me, te, qty, title: c.title || '', regionId: c.regionId, region: BP_REGIONS[c.regionId] || String(c.regionId),
+      locationId: c.start_location_id, issued: c.date_issued, expires: c.date_expired, issuerId: c.issuer_id });
+  }
+  for (const r of rows.slice(0, 60)) { const l = await couriers.locate(r.locationId).catch(() => null); if (l) { const s2 = sde.system(l.systemId); r.location = l.name; r.system = s2 ? s2.name : null; r.security = s2 ? s2.security : null; } }
+  const bpos = rows.filter(r => !r.bpc).sort((a, b) => a.price - b.price), bpcs = rows.filter(r => r.bpc).sort((a, b) => a.perRun - b.perRun);
+  const median = a => { if (!a.length) return null; const s2 = [...a].sort((x, y) => x - y); return s2[Math.floor(s2.length / 2)]; };
+  bpStatus.phase = '';
+  // what the original costs from NPC sellers (blueprints with market orders)
+  const npc = await safe(() => market.prices([bpId], 'Jita'));
+  const productId = bi ? want : (sde.blueprint(bpId) && Object.values(sde.blueprint(bpId).a || {})[0] && (Object.values(sde.blueprint(bpId).a)[0].p || [])[0] || [])[0];
+  return { blueprintId: bpId, blueprint: bpType.name, productId: productId || null, product: productId ? (sde.type(productId) || {}).name : null,
+    market: ok(npc) && npc[bpId] ? npc[bpId] : null,
+    summary: { bpoCheapest: bpos[0] ? bpos[0].price : null, bpoMedian: median(bpos.map(r => r.price)), bpcPerRunMedian: median(bpcs.map(r => r.perRun)), bpcPerRunCheapest: bpcs[0] ? bpcs[0].perRun : null, bpos: bpos.length, bpcs: bpcs.length },
+    bpos: bpos.slice(0, 40), bpcs: bpcs.slice(0, 60), scanned: lists.length, read: todo.length, regions: regions.map(id => BP_REGIONS[id] || String(id)) };
+}
+
+module.exports = { scan, blueprintOffers, BP_REGIONS, bpStatus: () => ({ ...bpStatus }) };

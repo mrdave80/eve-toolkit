@@ -160,6 +160,17 @@ async function getAllPages(path, charId, maxPages = 50) {
   return out;
 }
 
+/** All pages, fetched several at a time (for big public lists such as a region's market). */
+async function getPagesParallel(path, maxPages = 400, n = 8, onProgress) {
+  const first = await rawRequest(path, { page: 1 });
+  const pages = Math.min(first.pages, maxPages);
+  const out = [first.body]; let done = 1, next = 2;
+  await Promise.all(Array.from({ length: Math.min(n, Math.max(0, pages - 1)) }, async () => {
+    while (next <= pages) { const p = next++; const r = await rawRequest(path, { page: p }); out[p - 1] = r.body; done++; if (onProgress) onProgress(done, pages); }
+  }));
+  return out.flat();
+}
+
 const safe = async (fn, fallback = null) => {
   try { return await fn(); } catch (e) { return { __error: e.message, __status: e.status, fallback }; }
 };
@@ -534,7 +545,7 @@ function clearCaches() {
 
 module.exports = {
   marketPrices, typeIdsByName, skillInfo,
-  get, getAllPages, safe, ok, rawRequest,
+  get, getAllPages, getPagesParallel, safe, ok, rawRequest,
   getAccessToken, serverStatus, tqState, overview, skillQueue, skills, wallet, mailList, mailBody,
   contracts, clones, industry, orders, assets, clearCaches, resolveNames
 };

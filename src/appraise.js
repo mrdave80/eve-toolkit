@@ -74,7 +74,10 @@ async function estimateNoMarket(ids, hub, avgOf) {
 }
 
 async function appraise(text, hub = 'Jita', overrides = {}) {
-  const { items, unknown } = parseItems(text);
+  return appraiseItems(parseItems(text), hub, overrides);
+}
+async function appraiseItems({ items, unknown = [] }, hub = 'Jita', overrides = {}) {
+  items = items.map(i => ({ ...i, name: i.name || (sde.type(i.typeId) || {}).name || 'Type ' + i.typeId }));
   const prices = await market.prices(items.map(i => i.typeId), hub);
   const noMarket = items.filter(i => { const p = prices[i.typeId] || {}; return p.sell == null && p.buy == null && !p.error; }).map(i => i.typeId);
   const est = noMarket.length ? await estimateNoMarket(noMarket, hub, id => (prices[id] || {}).avg || 0) : {};
@@ -96,4 +99,34 @@ async function appraise(text, hub = 'Jita', overrides = {}) {
   return { hub, rows, unknown, totals: { sell, buy, split: (sell + buy) / 2, volume, items: rows.reduce((n, r) => n + r.qty, 0) } };
 }
 
-module.exports = { parseItems, appraise };
+/** zKillboard link, kill id or ESI killmail link: what dropped, what was destroyed, and what it was all worth. */
+const KILL_RE = /killmails\/(\d+)\/([0-9a-f]{40})/i;
+const isKillLink = t => KILL_RE.test(t) || /zkillboard\.com\/kill\/(\d+)/i.test(t);
+async function killmail(input, hub = 'Jita', overrides = {}) {
+  const { get } = require('./esi');
+  const t = String(input || '').trim();
+  let id, hash, m;
+  if ((m = KILL_RE.exec(t))) { id = Number(m[1]); hash = m[2]; }
+  else if ((m = /zkillboard\.com\/kill\/(\d+)/i.exec(t)) || (m = /^(\d{6,})$/.exec(t))) id = Number(m[1]);
+  if (!id) throw new Error('Paste a zKillboard link or an in-game "Copy External Kill Link".');
+  let zkb = null;
+  if (!hash) {
+    const z = await require('./zkill').zk(`/killID/${id}/`, 3600000);
+    hash = Array.isArray(z) && z[0] && z[0].zkb && z[0].zkb.hash; zkb = z && z[0] && z[0].zkb;
+    if (!hash) throw new Error('zKillboard doesn’t have that killmail.');
+  }
+  const km = await get(`/killmails/${id}/${hash}/`);
+  const v = km.victim || {};
+  const dropped = new Map(), destroyed = new Map();
+  const walk = list => { for (const it of list || []) { if (it.quantity_dropped) dropped.set(it.item_type_id, (dropped.get(it.item_type_id) || 0) + it.quantity_dropped); if (it.quantity_destroyed) destroyed.set(it.item_type_id, (destroyed.get(it.item_type_id) || 0) + it.quantity_destroyed); walk(it.items); } };
+  walk(v.items);
+  const asItems = mp => ({ items: [...mp.entries()].map(([typeId, qty]) => ({ typeId, qty })), unknown: [] });
+  const [dr, de, hull] = await Promise.all([appraiseItems(asItems(dropped), hub, overrides), appraiseItems(asItems(destroyed), hub, overrides), appraiseItems({ items: [{ typeId: v.ship_type_id, qty: 1 }] }, hub, overrides)]);
+  const names = await require('./esi').resolveNames([v.character_id, v.corporation_id, v.alliance_id].filter(Boolean)).catch(() => ({}));
+  const sys = sde.ready() ? sde.system(km.solar_system_id) : null;
+  return { id, time: km.killmail_time, ship: hull.rows[0] || null, shipTypeId: v.ship_type_id, victim: names[v.character_id] || null, corp: names[v.corporation_id] || null, alliance: names[v.alliance_id] || null,
+    system: sys ? sys.name : null, security: sys ? sys.security : null, attackers: (km.attackers || []).length,
+    dropped: dr, destroyed: de, totals: { dropped: dr.totals.sell, destroyed: de.totals.sell + hull.totals.sell, total: dr.totals.sell + de.totals.sell + hull.totals.sell, hull: hull.totals.sell }, zkbValue: zkb ? zkb.totalValue : null };
+}
+
+module.exports = { parseItems, appraise, appraiseItems, killmail, isKillLink };

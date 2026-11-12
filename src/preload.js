@@ -110,10 +110,11 @@ contextBridge.exposeInMainWorld('api', {
     skills: () => call('plan:skills')
   },
   ind: {
-    calc: o => call('ind:calc', o), shopping: (o, so) => call('ind:shopping', o, so), whatToBuild: o => call('ind:whatToBuild', o), invent: o => call('ind:invent', o), reprocess: (t, o) => call('ind:reprocess', t, o), ores: o => call('ind:ores', o),
+    calc: o => call('ind:calc', o), shopping: (o, so) => call('ind:shopping', o, so), whatToBuild: o => call('ind:whatToBuild', o), split: o => call('ind:split', o), bpOffers: o => call('ind:bpOffers', o), bpStatus: () => call('ind:bpStatus'), invent: o => call('ind:invent', o), reprocess: (t, o) => call('ind:reprocess', t, o), ores: o => call('ind:ores', o),
     structures: () => call('ind:structures'), pilotSkills: id => call('ind:pilotSkills', id)
   },
   appraise: (text, hub) => call('appraise', text, hub),
+  appraiseKill: (link, hub) => call('appraise:killmail', link, hub),
   fit: { check: text => call('fit:check', text), engineStatus: () => call('fit:engineStatus'), engineUpdate: () => call('fit:engineUpdate'), fromEsi: f => call('fit:fromEsi', f), fromKillmail: id => call('fit:fromKillmail', id), saveToGame: (charId, eft, name, desc) => call('fit:saveToGame', charId, eft, name, desc), onEngine: cb => ipcRenderer.on('fit:engine', (_e, d) => cb(d)) },
   items: { search: q => call('items:search', q), info: id => call('items:info', id) },
   agents: { options: () => call('agents:options'), find: o => call('agents:find', o), lpFor: (item, from) => call('agents:lpFor', item, from) },
@@ -132,7 +133,7 @@ contextBridge.exposeInMainWorld('api', {
     track: (id, v) => call('daily:track', id, v), setGoals: ids => call('daily:setGoals', ids), tickGoal: (id, g, v) => call('daily:tickGoal', id, g, v), save: c => call('daily:save', c), news: () => call('daily:news')
   },
   appraiseSetPrice: (typeId, price) => call('appraise:setPrice', typeId, price),
-  trade: { report: o => call('trade:report', o), lp: (c, hub) => call('trade:lp', c, hub), arbitrage: (n, f, t, tax) => call('trade:arbitrage', n, f, t, tax), watchlist: () => call('trade:watchlist'), myOrders: () => call('trade:myOrders') },
+  trade: { report: o => call('trade:report', o), station: o => call('trade:station', o), stationStatus: () => call('trade:stationStatus'), fees: id => call('trade:fees', id), exclude: (kind, id, on) => call('trade:exclude', kind, id, on), lp: (c, hub) => call('trade:lp', c, hub), arbitrage: (n, f, t, tax) => call('trade:arbitrage', n, f, t, tax), watchlist: () => call('trade:watchlist'), myOrders: () => call('trade:myOrders') },
   places: { search: q => call('places:search', q), stations: s => call('places:stations', s), favs: () => call('places:favs'), addFav: p => call('places:addFav', p), removeFav: (k, id) => call('places:removeFav', k, id), prepare: () => call('places:prepare') },
   nav: {
     systemId: n => call('nav:systemId', n), route: (a, b, o) => call('nav:route', a, b, o), routeCheck: (p, o) => call('nav:routeCheck', p, o), jump: (a, b, o) => call('nav:jump', a, b, o),

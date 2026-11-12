@@ -625,3 +625,4 @@ html[data-streamer] .mail-row .from, html[data-streamer] .mail-view { filter: bl
 #mp-svg .mp-detail { display: none; }
 #mp-svg.mp-zoomed .mp-detail { display: inline; }
 #mp-svg .mp-node:hover rect:first-of-type { stroke-width: 2.4; }
+.tr-style.sel { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
