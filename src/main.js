@@ -39,6 +39,7 @@ const pilotintel = require('./pilotintel');
 const routewatch = require('./routewatch');
 const phone = require('./phone');
 const clipwatch = require('./clipwatch');
+const minesites = require('./minesites');
 const couriers = require('./couriers');
 const bridges = require('./bridges');
 const livemap = require('./livemap');
@@ -683,6 +684,28 @@ handle('market:hubs', () => market.HUBS);
 handle('market:prices', (ids, hub) => market.prices(ids, hub));
 handle('market:book', async (id, hub) => { const b = await market.book(id, hub); const { raw, ...rest } = b; return rest; });
 handle('market:history', (id, hub) => market.history(id, hub));
+handle('mine:list', o => minesites.list(o || {}));
+handle('mine:paste', (text, o) => minesites.paste(text, o || {}));
+handle('mine:cfg', p => minesites.setCfg(p || {}));
+handle('mine:remove', (sys, key) => minesites.remove(sys, key));
+handle('corp:extractions', id => corp.extractions(id));
+handle('mine:moons', async () => {
+  // Every director's moon extractions, with jumps from the nearest pilot
+  const out = []; const errors = [];
+  for (const dir of directors()) {
+    const r = await corp.extractions(dir.id).catch(e => { errors.push({ pilot: dir.name, error: e.message }); return []; });
+    for (const e of r) {
+      if (out.some(x => x.structureId === e.structureId && x.arrival === e.arrival)) continue;
+      const m = e.moonId ? await esi.get(`/universe/moons/${e.moonId}/`).catch(() => null) : null;
+      const systemId = m ? m.system_id : null;
+      let near = null;
+      if (systemId) for (const p of intel.positions()) { const j = intel._jumpsBetween(p.systemId, systemId, 30); if (j !== null && (!near || j < near.jumps)) near = { pilot: p.pilot, jumps: j }; }
+      const sy = systemId && sde.ready() ? sde.system(systemId) : null;
+      out.push({ ...e, director: dir.name, systemId, system: sy ? sy.name : null, security: sy ? sy.security : null, near });
+    }
+  }
+  return { extractions: out, errors };
+});
 handle('clipboard:write', text => { clipwatch.ignoreText(String(text)); clipboard.writeText(String(text)); return true; });
 
 // ================= Skill planner =================
@@ -832,6 +855,8 @@ handle('nav:pilotLocations', async () => {
 
 // ================= Intel =================
 
+minesites.setPositions(() => intel.positions(), (a, b, max) => intel._jumpsBetween(a, b, max));
+minesites.setNotifier((title, body, x) => { sendWin('mine:new', x); if (store.get().settings.notifications !== false) notify(title, body, 'intel'); });
 intel.setListener((ch, data) => {
   if (win && !win.isDestroyed()) win.webContents.send(ch, data);
   overlay.send(ch, data);
@@ -890,6 +915,12 @@ handle('pilot:vet', (q, directorId) => pilotintel.vet(q, { directorId }));
 const sendWin = (ch, d) => { if (win && !win.isDestroyed()) win.webContents.send(ch, d); };
 const away = () => !win || win.isDestroyed() || !win.isFocused();
 async function onClip(kind, text) {
+  if (kind === 'probe') {
+    if (!sde.ready() || !minesites.parseScan(text).length) return;
+    const r = await minesites.paste(text).catch(() => null);
+    if (r) sendWin('mine:scan', r);
+    return;
+  }
   if (kind === 'dscan') {
     if (!sde.ready()) return;
     const d = intel.analyseDscan(text);
@@ -1367,6 +1398,23 @@ async function corpBackground() {
           }
         }
       } catch { /* ignore */ }
+    }
+  }
+  // Moon chunks: an hour before arrival, and when ready
+  if (d.alertMoons !== false) {
+    for (const dir of directors()) {
+      try {
+        for (const e of await corp.extractions(dir.id)) {
+          const t = Date.parse(e.arrival) - Date.now();
+          const where = e.moon || e.structure || 'a moon';
+          if (t > 0 && t < 60 * 60000 && once(`chunk-soon:${e.structureId}:${e.arrival}`)) {
+            notify('Moon chunk in ' + Math.round(t / 60000) + ' min', where, 'structures');
+            await discord.postWebhook('structures', { title: `🌑 Moon chunk arrives in ${Math.round(t / 60000)} min`, color: 0x4fd1c5, fields: [{ name: 'Moon', value: where }, { name: 'Refinery', value: e.structure || '' }, { name: 'Arrives', value: `<t:${Math.floor(Date.parse(e.arrival) / 1000)}:F>` }] }).catch(() => {});
+          } else if (t <= 0 && t > -6 * 3600000 && once(`chunk-ready:${e.structureId}:${e.arrival}`)) {
+            notify('Moon chunk ready', `${where}: fire the laser before ${new Date(e.decay).toISOString().slice(11, 16)} EVE or it breaks by itself`, 'structures');
+          }
+        }
+      } catch { /* missing role or scope */ }
     }
   }
   if (d.remindOps) {

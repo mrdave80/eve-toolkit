@@ -833,6 +833,15 @@ api.diag = { report: async () => ({ ok: true, data: 'EVE Toolkit 1.9.0\nSystem: 
   leadData.fuel = 0;
   api.corp.leaderboard = async () => ({ ok: true, data: leadData });
 }
+{
+  const site = (kind, name, system, security, region, jumps, nearPilot, mins, source, by, gone) => ({ kind, name, system, systemId: 30000000 + name.length, key: name, security, region, jumps, nearPilot, firstSeen: new Date(now - mins * 60e3).toISOString(), lastSeen: new Date(now - Math.max(0, mins - 20) * 60e3).toISOString(), source, by, gone: !!gone });
+  api.mine = { list: async () => ({ ok: true, data: { cfg: { alert: true, ice: true, ore: false, maxJumps: 5, keepHours: 48 },
+      sites: [site('ice', 'Clear Icicle Belt', 'Ohkunen', 0.7, 'Metropolis', 2, 'Mike Hunt', 14, 'scan', 'Mike Hunt'), site('ice', 'White Glaze Belt', 'Eygfe', 0.6, 'Metropolis', 4, 'Mike Hunt', 41, 'chat', 'Scout Alpha'), site('ore', 'Average Frontier Deposit', 'Ohkunen', 0.7, 'Metropolis', 2, 'Mike Hunt', 14, 'scan', 'Mike Hunt'), site('ore', 'Unexceptional Frontier Deposit', 'Hek', 0.5, 'Metropolis', 6, 'Jack Mehoff', 95, 'scan', 'Jack Mehoff'), site('ice', 'Glacial Mass Belt', 'Nakugard', 0.5, 'Metropolis', 5, 'Mike Hunt', 300, 'scan', 'Mike Hunt', true)],
+      knownIce: [{ system: 'Ohkunen', security: 0.7, region: 'Metropolis', times: 6 }, { system: 'Eygfe', security: 0.6, region: 'Metropolis', times: 3 }, { system: 'Nakugard', security: 0.5, region: 'Metropolis', times: 2 }] } }),
+    paste: async () => ({ ok: true, data: { system: 'Ohkunen', sites: 2, added: 0, gone: 0 } }), cfg: async p => ({ ok: true, data: p }), remove: async () => ({ ok: true, data: true }),
+    moons: async () => ({ ok: true, data: { errors: [], extractions: [{ moon: 'K-6K16 VII - Moon 3', structure: 'K-6K16 - Hard Rock Refinery', system: 'K-6K16', arrival: new Date(now - 2 * 3600e3).toISOString(), decay: new Date(now + 1 * 3600e3).toISOString(), near: { pilot: 'Mike Hunt', jumps: 3 } }, { moon: 'MJXW-P IV - Moon 1', structure: 'MJXW-P - Athanor', system: 'MJXW-P', arrival: new Date(now + 40 * 60e3).toISOString(), decay: new Date(now + 3.6 * 3600e3).toISOString(), near: { pilot: 'Richard Fitzwell', jumps: 6 } }, { moon: 'QY6-RK II - Moon 2', structure: 'QY6-RK - Tatara', system: 'QY6-RK', arrival: new Date(now + 2.3 * D).toISOString(), decay: new Date(now + 2.3 * D + 3 * 3600e3).toISOString(), near: null }] } }),
+    onNew: () => {}, onScan: () => {} };
+}
 contextBridge.exposeInMainWorld('api', api);
 contextBridge.exposeInMainWorld('__mock', { sdeCheck: v => { globalThis.__sdeCheck = v; } });
 

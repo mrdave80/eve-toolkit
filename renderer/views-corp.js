@@ -1043,6 +1043,7 @@ async function cDiscord() {
       <div class="dim" style="margin-bottom:10px">In Discord: channel settings → Integrations → Webhooks → New Webhook → Copy URL. Use the same URL for several kinds if you like.</div>
       ${KINDS.map(([k, l]) => html`<div class="field"><label>${l}</label><div style="display:flex;gap:8px"><input type="text" id="wh-${k}" value="${d.webhooks[k] || ''}" placeholder="https://discord.com/api/webhooks/…" spellcheck="false" style="max-width:none;flex:1"><button class="btn btn-ghost" data-wh-test="${k}">Test</button></div></div>`)}
       <label class="check"><input type="checkbox" id="dc-alerts" ${raw(d.alertStructures ? 'checked' : '')}> Post structure attacks, reinforcements and low fuel (checked every 5 minutes while the app runs)</label>
+      <label class="check"><input type="checkbox" id="dc-moons" ${raw(d.alertMoons !== false ? 'checked' : '')}> Moon chunk alerts: an hour before arrival and when ready</label>
       <div class="field"><label>Low-fuel warning (days)</label><input type="number" id="dc-fuel" value="${d.fuelWarnDays}" min="1" max="30" style="max-width:120px"></div>
       <label class="check"><input type="checkbox" id="dc-remind" ${raw(d.remindOps ? 'checked' : '')}> Remind 30 minutes before ops and 60 minutes before timers</label>
     </div>
@@ -1062,7 +1063,7 @@ async function cDiscord() {
     <div style="display:flex;gap:10px"><button class="btn btn-primary" id="dc-save">Save Discord settings</button><button class="btn btn-ghost" id="dc-syncnow">Sync roles now</button></div>
     </div>`);
   const collect = () => {
-    const p = { webhooks: {}, alertStructures: $('#dc-alerts').checked, remindOps: $('#dc-remind').checked, fuelWarnDays: $('#dc-fuel').value, syncEnabled: $('#dc-sync').checked, guildId: $('#dc-guild').value };
+    const p = { webhooks: {}, alertStructures: $('#dc-alerts').checked, alertMoons: $('#dc-moons').checked, remindOps: $('#dc-remind').checked, fuelWarnDays: $('#dc-fuel').value, syncEnabled: $('#dc-sync').checked, guildId: $('#dc-guild').value };
     for (const [k] of KINDS) p.webhooks[k] = $('#wh-' + k).value;
     const mr = document.querySelector('[name=memberRoleId]'), ar = document.querySelector('[name=allianceRoleId]');
     p.memberRoleId = mr ? mr.value : ''; p.allianceRoleId = ar ? ar.value : '';

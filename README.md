@@ -172,6 +172,10 @@ Paste what you want built. The app works out the runs, splits them into jobs no 
 
 Blueprints mostly sell on contracts. Search a blueprint (or what it makes) to see originals and copies on public contracts in the main trade regions, with ME and TE, copies priced per run, and the cheapest and median prices. Only contracts holding that one blueprint count.
 
+## Ice and ore sites (Tools → Industry → Ice & Ore Sites)
+
+CCP doesn't publish anomalies outside the game, so the app collects sightings: paste the probe scanner (or copy it in game with the clipboard watch on and it's added to your online pilot's system), and ice or ore sites mentioned with a system in your intel channels are added too. Turn on alerts for ice, ore sites or both within so many jumps of your pilots. A later scan crosses out sites that have gone, and the app remembers which systems have had ice. **Moon chunks** lists your corp's extractions with jumps from your nearest pilot, and directors get an alert an hour before each chunk arrives and when it's ready.
+
 ## Corporation fuel and leaderboard
 
 **Corporation → Structures → Fuel** shows fuel blocks and magmatic gas in each structure's bay, the burn a day (from what's in the bay and when CCP says it runs out), how long it lasts, what's stored in hangars beside it, and how many days all your hangar reserves cover. **Corporation → Members → Leaderboard** ranks members by bounty and ESS tax paid to the corp (and what that means they earned), and by moon ore mined at corp drills.

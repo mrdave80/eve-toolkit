@@ -96,3 +96,72 @@ function drawBp() {
         ${d.bpcs.map(r => html`<tr><td class="right num pos">${fmtCompact(r.perRun)}</td><td class="right num">${fmtNum(r.runs)}</td><td class="right num">${fmtCompact(r.price)}</td><td class="right num">${r.me ?? '?'} / ${r.te ?? '?'}</td><td>${where(r)}</td></tr>`)}</tbody></table></div>` : html`<div class="dim" style="padding:0 16px 14px">None on contract.</div>`}</div></div>
     <div class="dim" style="font-size:12px;margin-top:8px">Only contracts with the blueprint on its own are counted; packs and contracts asking for items back are left out. Open the contract in game from the contract search to buy.</div>`);
 }
+
+
+// ================= Ice and ore sites =================
+
+const mineState = { tab: 'sites', from: '', kind: '', data: null, moons: null };
+async function tMining(stillCurrent) {
+  const s = mineState;
+  const r = await api.mine.list({});
+  if (stillCurrent && !stillCurrent()) return;
+  if (!r.ok) return setContent(errorView(r));
+  s.data = r.data; const c = r.data.cfg;
+  setContent(html`<div class="grid" style="grid-template-columns:minmax(300px,1fr) 2fr;gap:16px;align-items:start">
+    <div><div class="panel"><h3>Add a scan</h3>
+      <textarea id="mn-scan" rows="6" style="width:100%" class="mono-area" placeholder="Probe scanner → Ctrl+A, Ctrl+C → paste here"></textarea>
+      <div style="display:flex;gap:8px;margin-top:8px;align-items:center"><input type="text" id="mn-sys" placeholder="System (blank = your online pilot's)" style="${raw(inBox)};flex:1;width:auto"><button class="btn btn-primary" id="mn-add">Add</button></div>
+      <div class="dim" style="font-size:12px;margin-top:8px">With the clipboard watch on (Tools → Intel → Local &amp; D-scan), copying the probe scanner in game adds it by itself. Ice and ore mentioned with a system in your intel channels are picked up too.</div></div>
+    <div class="panel"><h3>Alerts</h3>
+      <label class="check"><input type="checkbox" id="mn-alert" ${raw(c.alert ? 'checked' : '')}> Alert me about new sites</label>
+      <div style="display:flex;gap:14px;margin:4px 0 8px"><label class="check" style="margin:0"><input type="checkbox" id="mn-ice" ${raw(c.ice ? 'checked' : '')}> Ice</label><label class="check" style="margin:0"><input type="checkbox" id="mn-ore" ${raw(c.ore ? 'checked' : '')}> Ore sites</label></div>
+      <div class="field" style="margin:0"><label>Within jumps of any of your pilots</label><input type="number" id="mn-jumps" min="0" max="30" value="${c.maxJumps}" style="width:90px"></div>
+      <div class="dim" style="font-size:12px;margin-top:8px">CCP doesn't share anomalies outside the game, so sites only come from scans and intel messages. A sighting is kept for ${c.keepHours} hours unless a later scan shows it gone.</div></div></div>
+    <div><div class="seg" style="margin-bottom:12px"><button data-mntab="sites" class="${s.tab === 'sites' ? 'active' : ''}">Sightings</button><button data-mntab="known" class="${s.tab === 'known' ? 'active' : ''}">Ice systems you've seen</button><button data-mntab="moons" class="${s.tab === 'moons' ? 'active' : ''}">Moon chunks</button></div>
+      <div id="mn-out"></div></div></div>`);
+  const save = () => api.mine.cfg({ alert: $('#mn-alert').checked, ice: $('#mn-ice').checked, ore: $('#mn-ore').checked, maxJumps: Number($('#mn-jumps').value) });
+  ['#mn-alert', '#mn-ice', '#mn-ore', '#mn-jumps'].forEach(id => $(id).onchange = save);
+  $('#mn-add').onclick = async () => {
+    const t = $('#mn-scan').value; if (!t.trim()) return toast('Paste your probe scanner first', true);
+    const r2 = await api.mine.paste(t, { system: $('#mn-sys').value.trim() || null });
+    if (!r2.ok) return toast(r2.error, true);
+    if (r2.data.needSystem) return toast(r2.data.pilots.length ? 'More than one pilot is online: type the system' : 'No pilot online: type the system', true);
+    toast(`${r2.data.system}: ${r2.data.sites} mining site${r2.data.sites === 1 ? '' : 's'}${r2.data.gone ? `, ${r2.data.gone} gone` : ''}`);
+    $('#mn-scan').value = ''; tMining(stillCurrent);
+  };
+  document.querySelectorAll('[data-mntab]').forEach(b => b.onclick = () => { s.tab = b.dataset.mntab; document.querySelectorAll('[data-mntab]').forEach(x => x.classList.toggle('active', x === b)); drawMining(); });
+  drawMining();
+}
+
+async function drawMining() {
+  const s = mineState, d = s.data, out = $('#mn-out'); if (!out) return;
+  const ago = t => timeAgo(t);
+  const jumpsCell = x => (x.jumps === null || x.jumps === undefined ? html`<span class="dim">—</span>` : html`${x.jumps}${x.nearPilot ? html` <span class="dim" style="font-size:11.5px">from ${x.nearPilot}</span>` : ''}`);
+  if (s.tab === 'sites') {
+    const live = d.sites.filter(x => !x.gone), gone = d.sites.filter(x => x.gone);
+    out.innerHTML = String(html`<div class="panel" style="padding:0">${d.sites.length ? html`<table><thead><tr><th>Site</th><th>System</th><th class="right">Jumps</th><th>Seen</th><th>From</th><th></th></tr></thead><tbody>
+      ${[...live, ...gone].map(x => html`<tr class="${x.gone ? 'dim' : ''}"><td><span class="badge ${x.kind === 'ice' ? 'accent' : 'gold'}">${x.kind}</span> ${x.name}${x.gone ? raw(' <span class="badge">gone</span>') : ''}</td><td><a href="#" data-system="${x.system}">${x.system}</a>${x.security !== null ? secBadge(x.security) : ''}<div class="dim" style="font-size:11.5px">${x.region}</div></td>
+        <td class="right num">${jumpsCell(x)}</td><td class="dim" style="font-size:12px">${ago(x.firstSeen)}${x.lastSeen !== x.firstSeen ? html`<div>checked ${ago(x.lastSeen)}</div>` : ''}</td><td style="font-size:12px">${x.source === 'chat' ? 'intel' : 'scan'}${x.by ? html` <span class="dim">· ${x.by}</span>` : ''}</td>
+        <td><button class="btn btn-ghost" style="padding:1px 7px" data-mndel="${x.systemId}|${x.key}" title="Remove">✕</button></td></tr>`)}</tbody></table>` : emptyBox('No sightings yet. Paste a probe scan, or turn on the clipboard watch and copy one in game.')}</div>`);
+    document.querySelectorAll('[data-mndel]').forEach(b => b.onclick = async () => { const [sys, key] = b.dataset.mndel.split('|'); await api.mine.remove(Number(sys), key); tMining(); });
+  } else if (s.tab === 'known') {
+    out.innerHTML = String(html`<div class="panel" style="padding:0">${d.knownIce.length ? html`<table><thead><tr><th>System</th><th class="right">Ice seen</th></tr></thead><tbody>${d.knownIce.map(k => html`<tr><td><a href="#" data-system="${k.system}">${k.system}</a>${k.security !== null ? secBadge(k.security) : ''} <span class="dim">${k.region}</span></td><td class="right num">${k.times}×</td></tr>`)}</tbody></table>` : emptyBox('Systems where you or your intel channels have seen ice show up here, so you know where to look next time.')}</div>
+      <div class="dim" style="font-size:12px;margin-top:8px">Ice only spawns in certain systems, and once a belt is mined out a new one appears at random in one of them.</div>`);
+  } else {
+    out.innerHTML = String(loadingView('Reading moon extractions…'));
+    const r = await api.mine.moons();
+    if (s.tab !== 'moons' || !$('#mn-out')) return;
+    if (!r.ok) { out.innerHTML = String(errorView(r)); return; }
+    const ex = r.data.extractions;
+    const now = Date.now();
+    out.innerHTML = String(html`<div class="panel" style="padding:0">${ex.length ? html`<table><thead><tr><th>Moon</th><th>Chunk</th><th class="right">Jumps</th><th>Breaks by itself</th></tr></thead><tbody>
+      ${ex.map(e => { const t = Date.parse(e.arrival) - now; return html`<tr><td>${e.moon || e.structure}<div class="dim" style="font-size:11.5px">${e.structure || ''}${e.system ? ' · ' + e.system : ''}</div></td>
+        <td>${t <= 0 ? raw('<span class="badge green">ready</span>') : html`in ${fmtDuration(t, true)}`}<div class="dim" style="font-size:11.5px">${fmtDate(e.arrival)}</div></td>
+        <td class="right num">${e.near ? html`${e.near.jumps} <span class="dim" style="font-size:11.5px">from ${e.near.pilot}</span>` : '—'}</td><td class="dim" style="font-size:12px">${fmtDate(e.decay)}</td></tr>`; })}</tbody></table>` : emptyBox(r.data.errors.length ? r.data.errors[0].error : 'No moon extractions. This needs a director pilot with the Station Manager role.')}</div>
+      <div class="dim" style="font-size:12px;margin-top:8px">You get an alert an hour before each chunk arrives and when it's ready (turn off under Corporation → Discord).</div>`);
+  }
+}
+
+// A copied probe scan or a sighting from intel: refresh the page if it's open, and say what was found
+api.mine.onScan(d => { if (d && d.sites) toast(`${d.system}: ${d.sites} mining site${d.sites === 1 ? '' : 's'} from your probe scan${d.gone ? `, ${d.gone} gone` : ''}`); if (state.view === 'tools' && state.toolsTab === 't-mining') tMining(); });
+api.mine.onNew(() => { if (state.view === 'tools' && state.toolsTab === 't-mining') tMining(); });

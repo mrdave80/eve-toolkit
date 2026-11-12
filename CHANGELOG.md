@@ -16,6 +16,8 @@
 - When Tranquility is down the app says so with a banner, shows the last data it loaded instead of spinning, checks every 30 seconds and reloads the page when the server is back. Every request now times out instead of hanging.
 - Fixed: EVE news always failed (CCP's news feed address returns an error); it now reads CCP's main feed and keeps the last news if a check fails.
 - Live map: systems no longer overlap, the map uses the full width, constellation names are shown, and zooming in shows each system's security, jumps and NPC kills.
+- Ice & Ore Sites (Tools → Industry): ice belts and ore sites from your probe scans (pasted, or copied in game with the clipboard watch on) and from intel channel messages, with alerts when ice or an ore site turns up within so many jumps of your pilots. Remembers which systems have had ice. CCP doesn't share anomalies outside the game, so this is as close as it gets.
+- Moon chunk alerts for directors: an hour before each chunk arrives and when it's ready, as a Windows/phone alert and on the structures Discord webhook, plus a Moon chunks list with jumps from your nearest pilot.
 
 ## 1.11.1
 

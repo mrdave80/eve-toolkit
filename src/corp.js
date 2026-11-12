@@ -183,6 +183,15 @@ async function moons(directorId) {
   };
 }
 
+/** Just the moon extractions (light enough for background alerts). */
+async function extractions(directorId) {
+  const { corporationId } = await corpOf(directorId);
+  const ex = await getAllPages(`/corporation/${corporationId}/mining/extractions/`, directorId, 5);
+  const names = await resolveNames([...new Set(ex.flatMap(e => [e.moon_id, e.structure_id]))], directorId);
+  return ex.map(e => ({ structureId: e.structure_id, structure: names[e.structure_id], moonId: e.moon_id, moon: names[e.moon_id], arrival: e.chunk_arrival_time, decay: e.natural_decay_time, start: e.extraction_start_time }))
+    .sort((a, b) => a.arrival.localeCompare(b.arrival));
+}
+
 // ---------- Finance ----------
 
 async function wallets(directorId, division = 1) {
@@ -477,6 +486,6 @@ async function buybackContracts(directorId) {
 
 module.exports = {
   moonTax, checkInvoicePayments, buybackContracts,
-  corpOf, overview, members, structures, moons, wallets, contracts, orders, industry, assets,
+  corpOf, overview, members, structures, moons, extractions, wallets, contracts, orders, industry, assets,
   killmails, killmailByLink, structureNotifications, currentFleet, lookupCharacter
 };

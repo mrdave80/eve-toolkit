@@ -166,6 +166,7 @@ async function handleReport(channel, msg, c) {
     const zone = r.closest ? zoneOfSystem(r.closest.id) : null;
     r.top = r.pilots[0] ? { ...r.pilots[0], zoneScore: zone && r.pilots[0].zones ? r.pilots[0].zones[zone] : null } : null;
   }
+  try { require('./minesites').fromChat(msg.text, systems, msg.who); } catch { /* ice and ore sightings are a bonus */ }
   reports.unshift(r);
   reports.length = Math.min(reports.length, 300);
   listener('intel:report', r);

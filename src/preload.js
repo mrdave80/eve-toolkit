@@ -116,6 +116,8 @@ contextBridge.exposeInMainWorld('api', {
   },
   appraise: (text, hub) => call('appraise', text, hub),
   appraiseKill: (link, hub) => call('appraise:killmail', link, hub),
+  mine: { list: o => call('mine:list', o), paste: (t, o) => call('mine:paste', t, o), cfg: p => call('mine:cfg', p), remove: (s, k) => call('mine:remove', s, k), moons: () => call('mine:moons'),
+    onNew: cb => ipcRenderer.on('mine:new', (_e, d) => cb(d)), onScan: cb => ipcRenderer.on('mine:scan', (_e, d) => cb(d)) },
   fit: { check: text => call('fit:check', text), engineStatus: () => call('fit:engineStatus'), engineUpdate: () => call('fit:engineUpdate'), fromEsi: f => call('fit:fromEsi', f), fromKillmail: id => call('fit:fromKillmail', id), saveToGame: (charId, eft, name, desc) => call('fit:saveToGame', charId, eft, name, desc), onEngine: cb => ipcRenderer.on('fit:engine', (_e, d) => cb(d)) },
   items: { search: q => call('items:search', q), info: id => call('items:info', id) },
   agents: { options: () => call('agents:options'), find: o => call('agents:find', o), lpFor: (item, from) => call('agents:lpFor', item, from) },

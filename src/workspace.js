@@ -16,7 +16,7 @@ const DEFAULTS = () => ({
     webhooks: { ops: '', timers: '', structures: '', srp: '', hr: '' },
     botTokenEnc: null, guildId: '', memberRoleId: '', allianceRoleId: '', titleRoles: {},
     links: {}, syncEnabled: false, lastSync: null, lastSyncResult: null,
-    fuelWarnDays: 3, alertStructures: true, remindOps: true
+    fuelWarnDays: 3, alertStructures: true, alertMoons: true, remindOps: true
   },
   alerted: {},
   deleted: {},            // "collection:id" -> ISO time (tombstones so deletes survive syncing)
@@ -139,7 +139,7 @@ function setDiscord(patch) {
     if (patch[k] && !/^\d{15,22}$/.test(patch[k].trim())) throw new Error(`${k} must be a Discord ID (numbers only).`);
     d[k] = patch[k].trim();
   }
-  for (const k of ['syncEnabled', 'alertStructures', 'remindOps']) if (typeof patch[k] === 'boolean') d[k] = patch[k];
+  for (const k of ['syncEnabled', 'alertStructures', 'alertMoons', 'remindOps']) if (typeof patch[k] === 'boolean') d[k] = patch[k];
   if (patch.fuelWarnDays !== undefined) d.fuelWarnDays = Math.max(1, Math.min(30, Number(patch.fuelWarnDays) || 3));
   if (patch.titleRoles && typeof patch.titleRoles === 'object') d.titleRoles = patch.titleRoles;
   save();

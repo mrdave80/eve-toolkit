@@ -3,7 +3,7 @@
 
 const TOOLS_GROUPS = [
   ['Market', [['t-market', 'Browser'], ['t-appraisal', 'Appraisal'], ['t-orders', 'My Orders'], ['t-arbitrage', 'Hub Arbitrage'], ['t-lp', 'LP Store'], ['t-trade', 'Trade Profit'], ['t-station', 'Station Trading'], ['t-prices', 'Price Alerts'], ['t-bargain', 'Contract Bargains'], ['t-items', 'Item Database']]],
-  ['Industry', [['t-build', 'Build Calculator'], ['t-wtb', 'What to Build'], ['t-split', 'Job Splitter'], ['t-bpc', 'Blueprint Prices'], ['t-invent', 'Invention'], ['t-reprocess', 'Reprocessing'], ['t-ores', 'Ore Values'], ['t-moon', 'Moon Scan'], ['t-assets', 'Asset Finder']]],
+  ['Industry', [['t-build', 'Build Calculator'], ['t-wtb', 'What to Build'], ['t-split', 'Job Splitter'], ['t-bpc', 'Blueprint Prices'], ['t-invent', 'Invention'], ['t-reprocess', 'Reprocessing'], ['t-ores', 'Ore Values'], ['t-mining', 'Ice & Ore Sites'], ['t-moon', 'Moon Scan'], ['t-assets', 'Asset Finder']]],
   ['Navigation', [['t-route', 'Route Planner'], ['t-courier', 'Courier Contracts'], ['t-hunt', 'Hunting & Ratting'], ['t-agents', 'Agent Finder'], ['t-jump', 'Jump Planner'], ['t-universe', 'Universe']]],
   ['Intel', [['t-pilot', 'Pilot Intel'], ['t-sysintel', 'System Intel'], ['t-whres', 'Wormhole Residents'], ['t-shame', 'Wall of Shame'], ['t-intel', 'Intel Watch'], ['t-local', 'Local & D-scan'], ['t-combat', 'Combat Log']]],
   ['Fitting', [['t-fit', 'Fit Checker']]],
@@ -32,7 +32,7 @@ const iskCell = (v, cls = '') => html`<span class="num ${cls}">${v === null || v
 
 async function renderTools(stillCurrent) {
   const tab = state.toolsTab || 't-market';
-  const needsSde = ['t-split', 't-bpc', 't-station', 't-shame', 't-whres', 't-hunt', 't-courier', 't-market', 't-appraisal', 't-arbitrage', 't-build', 't-invent', 't-reprocess', 't-ores', 't-assets', 't-wtb', 't-agents', 't-sysintel', 't-route', 't-jump', 't-intel', 't-local'];
+  const needsSde = ['t-mining', 't-split', 't-bpc', 't-station', 't-shame', 't-whres', 't-hunt', 't-courier', 't-market', 't-appraisal', 't-arbitrage', 't-build', 't-invent', 't-reprocess', 't-ores', 't-assets', 't-wtb', 't-agents', 't-sysintel', 't-route', 't-jump', 't-intel', 't-local'];
   if (needsSde.includes(tab)) {
     const info = await api.sde.info();
     if (!info.ok || !info.data.ready) return setContent(needSdeView('This tool'));
@@ -44,7 +44,7 @@ async function renderTools(stillCurrent) {
     't-pilot': tPilot, 't-whres': () => tWhRes(), 't-shame': () => tShame(), 't-intel': () => (typeof tIntel === 'function' ? tIntel() : null), 't-local': () => (typeof tLocal === 'function' ? tLocal() : null), 't-combat': () => (typeof tCombat === 'function' ? tCombat() : null),
     't-fit': () => tFit(),
     't-items': () => tItems(), 't-bargain': () => tBargains(), 't-charval': () => tCharValue(stillCurrent),
-    't-trade': () => tTrade(stillCurrent), 't-station': () => tStation(stillCurrent), 't-assets': () => tAssetFinder(), 't-wtb': () => tWhatToBuild(), 't-split': () => tJobSplit(stillCurrent), 't-bpc': () => tBpPrices(stillCurrent), 't-agents': () => tAgents(), 't-sysintel': () => tSysIntel(), 't-ores': () => tOres(), 't-eveset': () => tEveSettings(), 't-compare': () => tCompareSkills(), 't-prices': () => tPriceWatch(), 't-moon': () => tMoon(),
+    't-trade': () => tTrade(stillCurrent), 't-station': () => tStation(stillCurrent), 't-assets': () => tAssetFinder(), 't-wtb': () => tWhatToBuild(), 't-split': () => tJobSplit(stillCurrent), 't-bpc': () => tBpPrices(stillCurrent), 't-agents': () => tAgents(), 't-sysintel': () => tSysIntel(), 't-ores': () => tOres(), 't-mining': () => tMining(stillCurrent), 't-eveset': () => tEveSettings(), 't-compare': () => tCompareSkills(), 't-prices': () => tPriceWatch(), 't-moon': () => tMoon(),
     't-farm': () => tFarm(stillCurrent), 't-insure': () => tInsure(stillCurrent),
     't-pve': () => tPve(), 't-networth': () => (typeof tNetworth === 'function' ? tNetworth(stillCurrent) : null), 't-income': () => (typeof tIncome === 'function' ? tIncome(stillCurrent) : null)
   };
