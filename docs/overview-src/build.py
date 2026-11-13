@@ -6,17 +6,17 @@ SRC = '/home/claude/eve-companion/scripts/screens/out/overview'
 OUT = '/home/claude/overview'
 IMG = os.path.join(OUT, 'img'); os.makedirs(IMG, exist_ok=True)
 
-def jpg(name, width=1200):
+def jpg(name, width=1100):
     src = os.path.join(SRC, name + '.png')
     dst = os.path.join(IMG, name + '.jpg')
     if not os.path.exists(dst):
         im = Image.open(src).convert('RGB')
         if im.width > width: im = im.resize((width, round(im.height * width / im.width)), Image.LANCZOS)
-        im.save(dst, quality=60, optimize=True, progressive=True)
+        im.save(dst, quality=56, optimize=True, progressive=True)
     return 'img/' + name + '.jpg'
 
 LOGO = '<svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="13" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".35"/><path d="M16 3a13 13 0 0 1 12.6 9.8" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><circle cx="16" cy="16" r="4.2" fill="currentColor"/></svg>'
-VERSION = '1.11.0'
+VERSION = '1.12.0'
 
 pages = []
 def page(body, cls=''):
@@ -49,11 +49,11 @@ page(f"""
 # ---------- At a glance ----------
 groups = [
   ('Pilots &amp; training', ['Wallet, SP, location and ship for each pilot', 'Skill queue with per-level detail', 'Skill planner, remaps and “Can I fly…?”', 'Fit checker with DPS, tank and capacitor']),
-  ('Industry &amp; PI', ['Jobs and free slots across your pilots', 'Build, invention and reprocessing calculators', 'Asset finder, shopping lists and What to Build', 'Ore, ice and gas ISK per m³, PI watchdog', 'PI chain planner and moon scan value']),
-  ('Market &amp; finance', ['Hub order books, price history, appraisal', 'Trade profit, price alerts, contract bargains', 'Net worth history and income by source', 'Ratting, Abyss, skill farm and character value']),
-  ('Navigation', ['Routes through gates, wormholes and Thera/Turnur', 'Gate camp and gank check on each route', 'Live region map with kill heat and intel', 'Hunting grounds, gate camps, agent finder']),
-  ('Intel', ['Pilot lookup with a 0–100 threat grade', 'Intel channel watch with graded alerts', 'Local and d-scan with danger warnings', 'Wormhole residents and the Wall of Shame']),
-  ('Corporation', ['Members, structures, moons and fuel', 'Doctrines, op calendar, fleet tracking', 'SRP, timerboard, recruit spy check', 'Daily reset, clone jump, fatigue and incursion alerts']),
+  ('Industry &amp; PI', ['Jobs and free slots across your pilots', 'Build, invention and reprocessing calculators', 'Asset finder, shopping lists and What to Build', 'Ore, ice and gas ISK per m³, PI watchdog', 'Job splitter, blueprint prices, ice and ore sites', 'PI chain planner and moon scan value']),
+  ('Market &amp; finance', ['Hub order books, price history, appraisal', 'Trade profit, station trading scanner, price alerts', 'Net worth history and income by source', 'Ratting, Abyss, skill farm and character value']),
+  ('Navigation', ['Routes through gates, wormholes and Thera/Turnur', 'Gate camp and gank check on each route', 'Live region map with kill heat and intel', 'Wormhole mapper with rolling and map import', 'Hunting grounds, gate camps, agent finder']),
+  ('Intel', ['Pilot lookup with a 0–100 threat grade', 'System Intel with battle reports', 'Intel channel watch with graded alerts', 'Local and d-scan with danger warnings', 'Wormhole residents and the Wall of Shame']),
+  ('Corporation', ['Members, structures, moons, fuel and leaderboard', 'Doctrines, op calendar, fleet tracking', 'SRP, timerboard, recruit spy check', 'Daily reset, clone jump, fatigue and incursion alerts']),
 ]
 cards = ''.join(f'<div class="gcard"><h3>{t}</h3><ul>{"".join(f"<li>{x}</li>" for x in xs)}</ul></div>' for t, xs in groups)
 page(f"""
@@ -66,6 +66,36 @@ page(f"""
   <div><b>Portable</b><span>One Windows .exe or a Linux AppImage. No installer, account or server. Updates in one click.</span></div>
   <div><b>Free</b><span>All features are free to use. ISK or PLEX donations to Mr Frank are optional.</span></div>
 </div>""")
+
+# ---------- New in 1.12 ----------
+S = 'New in 1.12'
+feature(S, 'System Intel and battle reports', 'Search any system and look back 6, 12, 24 or 48 hours: who is killing, in what, where, and when. Kills close together are grouped into battles with both sides’ losses.',
+  ['Gate and undock camps called out, with the latest kill time', 'Most active pilots and every kill with its attackers', 'Your own intel channel reports for the system', 'What’s happening within two jumps right now'],
+  [('C0-sysintel', 'System Intel with battle reports')])
+feature(S, 'Help guides and walkthroughs', 'Every tool has a guide with steps, tips and screenshots. Press ? or F1 on any page for its guide, or let the app walk you through it, highlighting each control in turn.',
+  ['Searchable, and found by Ctrl+K search', 'Guides open on the page you’re on', 'Walkthroughs open the tool for you', 'Tips on what each tool needs, like roles or scopes'],
+  [('C1-help', 'Help and guides'), ('C2-walk', 'A walkthrough step')], 'two')
+feature(S, 'Wormholes: rolling and importing', 'The rolling planner works out which ships to send, hot or cold, so the hole closes on a jump back. Maps import from Pathfinder, Wanderer, Nexum or a plain list of systems.',
+  ['Every jump out checked against the lightest the hole could be (±10%)', 'Tells you when the hole should look reduced or critical', 'Signatures gone from your scanner crossed out, deleted in one go', 'Shared maps keep reduced and critical mass'],
+  [('D0-whroll', 'Rolling planner'), ('65-wh-share', 'Share and import maps')], 'two')
+feature(S, 'Station trading and trade profit', 'Station Trading scans a whole hub for spreads that beat your own fees, filtered by what really trades each day. Trade Profit now splits station trading from hauling and offers weighted average cost.',
+  ['Sales tax and broker fee from a pilot’s skills', 'Profit a day for the share of trades you expect to win', 'Suspicious prices marked for a second look', 'Leave single buys, items or stations out of profit'],
+  [('D5-station', 'Station trading scanner'), ('55-trade', 'Trade profit by style')], 'two')
+feature(S, 'Job splitter and blueprint prices', 'Paste what you want built and get jobs for every pilot’s free slots, each under a time limit you pick. Blueprint Prices shows what originals and copies really sell for on contracts.',
+  ['Uses blueprint copies first and keeps them with their owner', 'Materials with where you already have them, plus a Multibuy list', 'Copies priced per run, with ME and TE', 'Only single-blueprint contracts, so packs don’t skew prices'],
+  [('D6-split', 'Job splitter'), ('D7-bpprices', 'Blueprint prices')], 'two')
+feature(S, 'Ice and ore sites, moon chunks', 'Sightings come from your probe scans and intel channels, with an alert when ice or an ore site turns up near your pilots. Directors are told when moon chunks are about to arrive and when they’re ready.',
+  ['Copy the probe scanner in game and it’s added by itself', 'Sites gone on a later scan are crossed out', 'Remembers which systems have had ice', 'Moon chunks with jumps from your nearest pilot'],
+  [('DB-mining', 'Ice and ore sightings'), ('DC-moonchunks', 'Moon chunks')], 'two')
+feature(S, 'Corp fuel and leaderboard', 'Fuel shows each structure’s bay, burn a day and days left, and how long the fuel blocks and magmatic gas in corp hangars will last. The leaderboard ranks members by ratting tax and moon mining.',
+  ['Burn worked out from the bay and CCP’s run-out time', 'Reserves listed by hangar and fuel type', 'Ratting earnings worked back from the corp’s tax', 'Moon ore mined at corp drills, per member'],
+  [('D9-fuel', 'Structure fuel'), ('DA-leaderboard', 'Ratting leaderboard')], 'two')
+feature(S, 'Killmail appraisal and offline mode', 'Paste a kill link into Appraisal to see what dropped and what was destroyed. When Tranquility is down the app says so, shows the last data it loaded and reloads by itself when the server is back.',
+  ['Works with zKillboard links and in-game kill links', 'Dropped, destroyed and hull values at hub prices', 'Banner with how long the server has been down', 'Checks every 30 seconds, no endless spinners'],
+  [('D8-killappraise', 'Appraising a kill'), ('D1-offline', 'Server offline banner')], 'two')
+feature(S, 'Intel Watch details and a clearer live map', 'Click a kill spike near you for the kills, attackers and camps behind it, or a pilot in Local for what they said, what they fly and why they were graded. The live map no longer overlaps systems.',
+  ['Tag a pilot as hostile from the Local list', 'Links to System Intel and zKillboard', 'Constellation names and extra detail when zoomed in', 'The map uses the full width of the panel'],
+  [('DD-intel-expand', 'Kill activity details'), ('42-livemap', 'Live map')], 'two')
 
 # ---------- New in 1.11 ----------
 S = 'New in 1.11'
@@ -90,27 +120,6 @@ feature(S, 'Gate camps and busy hours', 'A gate camp mode for pilots who want a 
 feature(S, 'Compare skills, streamer mode and incursions', 'Compare up to 10 pilots\u2019 skills side by side with CSV export. Streamer mode blurs names, wallets and locations. Incursion payouts show as their own income with ISK per hour.',
   ['Only show skills where pilots differ', 'Skills and queues to CSV', 'Ctrl+Shift+H toggles streamer mode', 'Planner removes skills you\u2019ve already trained'],
   [('A1-compare', 'Compare skills'), ('A9-streamer', 'Streamer mode')], 'two')
-
-# ---------- New in 1.10 ----------
-S = 'New in 1.10'
-feature(S, 'Mail and calendar for every pilot', 'One inbox for all your pilots, newest first. Read, reply, reply to all, forward and write new mail from any pilot, and answer calendar invites without logging in.',
-  ['Filter by pilot or unread, and search subjects and senders', 'Mail sent to several of your pilots shows once', 'Accept, Maybe or Decline on each calendar invite', 'Sending is opt-in and needs extra permissions you grant'],
-  [('88-mail-all', 'Mail for all pilots'), ('90-calendar', 'Calendar answers')], 'two')
-feature(S, 'Fit stats, and fits to and from the game', 'The fit checker now works out damage, tank and capacitor with all skills at V or any of your pilots, using EVEShip.fit’s open-source engine.',
-  ['DPS and volley, EHP and resists per layer, active and passive tank', 'Capacitor stability, speed, align time and targeting', 'Save to game puts a fit in the pilot’s in-game fittings', 'Check fit on saved fittings, kills and Wall of Shame losses'],
-  [('64-fit', 'Fit checker with stats')])
-feature(S, 'Price alerts', 'Watch items at any trade hub and get a Windows or phone alert when the price drops below or rises above your line.',
-  ['Lowest sell or highest buy, at Jita, Amarr, Dodixie, Rens or Hek', 'Each alert fires once and re-arms when the price moves back', 'Price history for every item on the list', 'Price alert button on item cards and in the item database'],
-  [('86-prices', 'Price alert watchlist'), ('87-price-add', 'Adding an alert')], 'two')
-feature(S, 'Asset finder', 'Search every pilot’s hangars at once by item, group, station or system. Sort by jumps from any system, or make a plan for gathering it all in one place.',
-  ['Pilot, system, security, region, m³ and value for each place', 'Open a place to see every stack there', 'Gather plan: nearest first, with volume and a ship-size hint', 'Places with no gate route listed separately'],
-  [('94-asset-finder', 'Asset search, sorted by jumps'), ('95-asset-plan', 'Gather plan')], 'two')
-feature(S, 'Ore values and copying EVE settings', 'Ore values shows what ore, moon ore, ice and gas earn per m³ mined: raw, compressed or reprocessed at your yield. Copy EVE settings copies a pilot’s window layout or an account’s hotkeys to your others.',
-  ['ISK per hour from your own mining rate', 'What one batch reprocesses into', 'Settings copies are backed up first, with one-click undo', 'Warns you if EVE is still running'],
-  [('96-ores', 'Ore values'), ('97-eve-settings', 'Copy EVE settings')], 'two')
-feature(S, 'Quiet hours, updates and backups', 'Quiet hours silence alerts overnight, with exceptions for being attacked or hostiles near you. Updates install in one click, and a password-locked backup moves everything to a new PC.',
-  ['Alerts on or off for each pilot', 'Under-attack alert from the combat log, with an overlay flash', 'Updates checked against the release checksum, data kept', 'Privacy page: what each permission is for and who the app talks to'],
-  [('93-quiet-hours', 'Quiet hours and per-pilot alerts'), ('85-update', 'One-click update')], 'two')
 
 # ---------- Quick looks ----------
 S = 'Quick looks'

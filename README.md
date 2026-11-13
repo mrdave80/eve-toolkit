@@ -22,7 +22,12 @@ A free Windows desktop app for EVE Online pilots, corporations and alliances. Sk
 | ![What to build](docs/screenshots/what-to-build.jpg) | ![Agent finder](docs/screenshots/agent-finder.jpg) |
 | ![D-scan roles and warnings](docs/screenshots/dscan.jpg) | ![PI watchdog](docs/screenshots/pi-watchdog.jpg) |
 | ![Route planner places and favourites](docs/screenshots/route-places.jpg) | ![Daily goals](docs/screenshots/daily-rewards.jpg) |
-| ![System Intel](docs/screenshots/system-intel.jpg) | ![Help and guides](docs/screenshots/help.jpg) |
+| ![System Intel with battle reports](docs/screenshots/system-intel.jpg) | ![Help and guides](docs/screenshots/help.jpg) |
+| ![Station trading scanner](docs/screenshots/station-trading.jpg) | ![Job splitter](docs/screenshots/job-splitter.jpg) |
+| ![Blueprint prices from contracts](docs/screenshots/blueprint-prices.jpg) | ![Wormhole rolling planner](docs/screenshots/wormhole-rolling.jpg) |
+| ![Ice and ore sites](docs/screenshots/ice-ore-sites.jpg) | ![Kill details in Intel Watch](docs/screenshots/intel-details.jpg) |
+| ![Corp structure fuel](docs/screenshots/corp-fuel.jpg) | ![Corp ratting leaderboard](docs/screenshots/corp-leaderboard.jpg) |
+| ![Killmail appraisal](docs/screenshots/kill-appraisal.jpg) | |
 
 Screenshots use demo data with made-up pilots.
 

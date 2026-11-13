@@ -1,6 +1,6 @@
 # Changelog
 
-## Next release
+## 1.12.0
 
 - System Intel (Tools → Intel): search a system and see the last 6, 12, 24 or 48 hours: player kills by hour, who is killing and in what ships, where kills happen (with gate and undock camps called out), the most active pilots, every kill with its attackers, your own intel channel reports for the system, and what's happening within two jumps right now. Also on every system card.
 - Help & guides (sidebar, the ? button or F1): a guide for every tool with step-by-step instructions, tips and screenshots, searchable and also found by Ctrl+K. ? opens the guide for the page you're on, and **Walk me through it** opens the tool with a step panel that highlights each control in turn.

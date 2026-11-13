@@ -152,7 +152,7 @@ app.whenReady().then(async () => {
   const only = process.env.ONLY ? process.env.ONLY.split(',') : null;
   for (const [name, ...steps] of SHOTS) {
     if (only && !only.some(o => name.startsWith(o))) continue;
-    await js(`typeof closeModal === 'function' && closeModal(); typeof closeSearch === 'function' && closeSearch(); document.getElementById('upd-banner')?.remove(); document.getElementById('tq-banner')?.remove(); document.documentElement.removeAttribute('data-streamer'); typeof endWalk === 'function' && endWalk()`);
+    await js(`typeof closeModal === 'function' && closeModal(); typeof closeSearch === 'function' && closeSearch(); document.getElementById('upd-banner')?.remove(); document.getElementById('tq-banner')?.remove(); document.documentElement.removeAttribute('data-streamer'); typeof endWalk === 'function' && endWalk(); if (typeof tqState !== 'undefined' && tqState.online === false) updateServerStatus(); if (typeof mapState !== 'undefined') mapState.view = null`);
     for (const s of steps) { await js(s); await wait(900); }
     await snap(name);
   }
