@@ -207,7 +207,7 @@ const HELP = [
     summary: 'Grade everyone in Local, read d-scans for danger, and watch intel channels for hostiles near your pilots.',
     steps: ['Copy Local in game (select all, Ctrl+C) and paste, or turn on the clipboard watcher.', 'Paste a d-scan to see ships by role and a **Worth knowing** list: recons, interdictors, cynos, bubbles and probes.',
       '**Intel Watch**: pick your intel channels and how many jumps count as near.'],
-    tips: ['Alerts can be spoken, sent to your phone and shown on the overlay.'],
+    tips: ['Click a row under **Kill activity near you** or **Threats in Local** for the details behind it.', 'Alerts can be spoken, sent to your phone and shown on the overlay.'],
     shots: [['98-dscan', 'D-scan warnings'], ['22-local', 'Local analysis'], ['23-intel-watch', 'Intel Watch']] },
   { id: 'whres', group: 'Intel', title: 'Wormhole residents and Wall of Shame', where: 'Tools → Intel', open: { view: 'tools', toolsTab: 't-whres' }, ctx: ['t-whres', 't-shame'],
     summary: 'Who lives in a wormhole, and the worst losses of the day with what went wrong.',

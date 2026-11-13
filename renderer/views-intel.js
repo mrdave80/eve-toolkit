@@ -92,12 +92,16 @@ async function tIntel() {
 function drawIntelFeed() {
   const pb = $('#it-pilots'), fb = $('#it-feed'), sb = $('#it-spikes'), lb = $('#it-local');
   if (!pb || !fb) return;
-  if (sb) sb.innerHTML = String(intelState.spikes.length ? html`<table><tbody>${intelState.spikes.slice(0, 12).map(s => html`<tr><td><b>${s.system}</b> ${secBadge(s.security)}</td>
-      <td><span class="badge ${s.zone === 'hs' ? 'red' : 'gold'}">${s.shipKills} ships</span>${s.podKills ? html` <span class="dim">${s.podKills} pods</span>` : ''}</td><td class="muted">${s.near.jumps}j from ${s.near.pilot}</td><td class="dim">${s.zone === 'hs' ? 'possible gank fleet' : 'fighting nearby'}</td></tr>`)}</tbody></table>`
+  if (sb) sb.innerHTML = String(intelState.spikes.length ? html`<table><tbody>${intelState.spikes.slice(0, 12).map(s => xRow('isp' + s.systemId, html`<td><b>${s.system}</b> ${secBadge(s.security)}</td>
+      <td><span class="badge ${s.zone === 'hs' ? 'red' : 'gold'}">${s.shipKills} ships</span>${s.podKills ? html` <span class="dim">${s.podKills} pods</span>` : ''}</td><td class="muted">${s.near.jumps}j from ${s.near.pilot}</td><td class="dim">${s.zone === 'hs' ? 'possible gank fleet' : 'fighting nearby'}</td>`,
+      '', 4, { load: () => spikeDetail(s), title: 'Click for the kills, who is doing them and where' }))}</tbody></table>`
     : html`<div class="muted">${intelState.cfg && intelState.cfg.spike ? 'Nothing unusual within range in the last hour.' : 'Turn on kill-spike watch to see this.'}</div>`);
-  if (lb) lb.innerHTML = String(intelState.localEvents.length ? html`<table><tbody>${intelState.localEvents.slice(0, 20).map(ev => html`<tr class="${ev.alert ? 'intel-alert' : ''}"><td class="dim nowrap">${Math.round((Date.now() - Date.parse(ev.at)) / 60000)}m ago</td>
-      <td><a href="#" data-pilot="${ev.pilot.id}">${ev.pilot.name}</a></td><td>${threatBadge({ level: ev.level, tone: ev.alert ? 'red' : ev.pilot.tone, score: ev.pilot.score }, true)} ${flagChips(ev.pilot.flags, 2)}</td><td class="muted">${ev.system || ''}${ev.listener ? ' · ' + ev.listener : ''}</td></tr>`)}</tbody></table>`
+  if (lb) lb.innerHTML = String(intelState.localEvents.length ? html`<table><tbody>${intelState.localEvents.slice(0, 20).map(ev => xRow('ilc' + ev.pilot.id + ':' + ev.at, html`<td class="dim nowrap">${agoShort(ev.at)}</td>
+      <td><a href="#" data-pilot="${ev.pilot.id}">${ev.pilot.name}</a></td><td>${threatBadge({ level: ev.level, tone: ev.alert ? 'red' : ev.pilot.tone, score: ev.pilot.score }, true)} ${flagChips(ev.pilot.flags, 2)}</td><td class="muted">${ev.system || ''}${ev.listener ? ' · ' + ev.listener : ''}</td>`,
+      '', 4, { cls: ev.alert ? 'intel-alert' : '', load: () => localThreatDetail(ev), title: 'Click for what they said, what they fly and recent kills' }))}</tbody></table>`
     : html`<div class="muted" style="padding:0 18px 14px">Pilots who speak in Local are graded here.</div>`);
+  if (sb) xOpenLazy(sb);
+  if (lb) xOpenLazy(lb);
   pb.innerHTML = String(intelState.pilots.length ? html`<div class="pi-chips">${intelState.pilots.map(p => html`<span class="badge">${p.pilot}: <b>${p.system}</b></span>`)}</div>` : html`<div class="muted">Locations appear once Local logs or ESI report them.</div>`);
   const now = Date.now();
   fb.innerHTML = String(intelState.reports.length ? html`<table><tbody>${intelState.reports.slice(0, 80).map(r => html`<tr class="${r.alert ? 'intel-alert' : r.clear ? 'intel-clear' : ''}">
@@ -106,6 +110,52 @@ function drawIntelFeed() {
       <td class="right nowrap">${r.systems.map(s => html`<span class="badge ${s.near && s.near.jumps <= (intelState.cfg ? intelState.cfg.jumps : 5) ? (r.clear ? 'green' : 'red') : ''}">${s.name}${s.near ? ' · ' + s.near.jumps + 'j' : ''}</span> `)}${r.clear ? raw('<span class="badge green">clear</span>') : ''}</td></tr>`)}</tbody></table>`
     : html`<div class="muted" style="padding:14px 18px">${intelState.cfg && intelState.cfg.enabled ? 'Waiting for reports…' : 'Turn on intel watch to start.'}</div>`);
 }
+
+// "883m ago" is hard to read: minutes, then hours, then days
+function agoShort(t) { const m = Math.max(0, Math.round((Date.now() - Date.parse(t)) / 60000)); return m < 60 ? m + 'm ago' : m < 48 * 60 ? Math.round(m / 60) + 'h ago' : Math.round(m / 1440) + 'd ago'; }
+
+/** A kill spike opened: the last two hours of kills there, who's doing them, in what, and where. */
+async function spikeDetail(s) {
+  const r = await api.systemIntel(s.systemId, 2, false, 30);
+  if (!r.ok) return html`<div class="error">${r.error}</div>`;
+  const d = r.data;
+  const kills = d.kills.filter(k => !k.npc).slice(0, 8);
+  const camp = d.places.find(p => (p.kind === 'gate' || p.kind === 'station') && p.kills >= 2);
+  return html`<div style="display:grid;grid-template-columns:1.6fr 1fr;gap:16px;align-items:start">
+    <div>${d.notes.length ? html`<div style="margin-bottom:8px">${d.notes.slice(0, 3).map(n => html`<div class="${n.tone}" style="font-size:12.5px">${n.tone === 'neg' ? '⚠ ' : '• '}${n.text}</div>`)}</div>` : ''}
+      ${kills.length ? html`<table><thead><tr><th>When</th><th>Lost</th><th>Where</th><th>By</th><th class="right">ISK</th></tr></thead><tbody>${kills.map(k => html`<tr>
+        <td class="dim nowrap" style="font-size:12px">${agoShort(k.time)}</td><td style="font-size:12.5px">${icon(k.victim.ship, 16)}${k.victim.shipName}<div class="dim" style="font-size:11px">${k.victim.name || ''}${k.victim.corpName ? ' · ' + k.victim.corpName : ''}</div></td>
+        <td style="font-size:12px">${k.where.label}</td><td style="font-size:12px">${k.attackerCount ? html`${k.attackerCount} · ${k.attackerGroups.slice(0, 2).join(', ')}` : 'NPCs'}</td>
+        <td class="right num" style="font-size:12px">${fmtCompact(k.value)} <a href="#" data-link="https://zkillboard.com/kill/${k.id}/" title="zKillboard">↗</a></td></tr>`)}</tbody></table>`
+        : html`<div class="muted">zKillboard doesn't have these kills yet. CCP's count updates hourly and zKillboard can lag a few minutes.</div>`}</div>
+    <div>${d.attackerGroups.length ? html`<div class="dim" style="font-size:11px;letter-spacing:.06em;text-transform:uppercase">Who's killing</div>${d.attackerGroups.slice(0, 4).map(g => html`<div class="skill-row" style="font-size:12.5px"><span>${g.name}</span><span class="num">${g.kills}</span></div>`)}` : ''}
+      ${d.attackerShips.length ? html`<div class="dim" style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;margin-top:8px">In</div><div style="font-size:12.5px">${d.attackerShips.slice(0, 5).map(x => html`<span style="margin-right:10px">${icon(x.typeId, 14)}${x.name} <span class="dim">${x.kills}</span></span>`)}</div>` : ''}
+      ${camp ? html`<div style="margin-top:8px"><span class="badge red">camp</span> <span style="font-size:12.5px">${camp.label} · ${camp.kills} kills${camp.pods ? ', pods too' : ''}</span></div>` : ''}
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px"><button class="btn btn-ghost" style="padding:3px 9px;font-size:12px" data-si-open="${s.system}">System Intel</button><button class="btn btn-ghost" style="padding:3px 9px;font-size:12px" data-system="${s.system}">System card</button><a class="btn btn-ghost" style="padding:3px 9px;font-size:12px" href="#" data-link="https://zkillboard.com/system/${s.systemId}/">zKill ↗</a></div></div></div>`;
+}
+
+/** A pilot who spoke in Local, opened: what they said, how they were graded and what they fly. */
+async function localThreatDetail(ev) {
+  const r = await api.pilot.profile(ev.pilot.id);
+  const p = r.ok ? r.data : null;
+  const flags = p ? (p.flags || []) : (ev.pilot.flags || []);
+  return html`<div style="display:grid;grid-template-columns:1fr 1.4fr;gap:16px;align-items:start">
+    <div>${ev.text ? html`<div style="font-size:12.5px;margin-bottom:8px"><span class="dim">Said in Local:</span> “${ev.text}”</div>` : ''}
+      ${p ? html`<div style="font-size:12.5px">${p.corporation && p.corporation.name ? html`${p.corporation.name}${p.corporation.ticker ? ` [${p.corporation.ticker}]` : ''}` : ''}${p.alliance ? html` · ${p.alliance.name}` : ''}</div>
+        <div class="dim" style="font-size:12px">${p.security !== null && p.security !== undefined ? `Security ${Number(p.security).toFixed(1)}` : ''}${p.stats ? ` · ${fmtNum(p.stats.kills)} kills, ${fmtNum(p.stats.losses)} losses${p.stats.danger !== null ? ` · ${p.stats.danger}% dangerous` : ''}` : ''}${p.lastKillAt ? ` · last kill ${agoShort(p.lastKillAt)}` : ''}</div>` : html`<div class="dim" style="font-size:12px">${r.error || ''}</div>`}
+      ${flags.length ? html`<div style="margin-top:8px">${flags.map(f => html`<div style="font-size:12.5px;margin-bottom:4px"><span class="badge ${f.tone || ''}">${f.label}</span> <span class="dim">${f.why || ''}</span></div>`)}</div>` : ''}
+      ${p && p.reasons && p.reasons.length ? html`<div class="dim" style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;margin-top:8px">Why this grade</div>${p.reasons.slice(0, 4).map(x => html`<div style="font-size:12px">${x.pts > 0 ? '+' : ''}${x.pts} · ${x.text}</div>`)}` : ''}</div>
+    <div>${p && p.topShips && p.topShips.length ? html`<div class="dim" style="font-size:11px;letter-spacing:.06em;text-transform:uppercase">Flies</div><div style="font-size:12.5px;margin-bottom:8px">${p.topShips.slice(0, 6).map(x => html`<span style="margin-right:10px">${icon(x.typeId, 14)}${x.name} <span class="dim">${x.kills}</span></span>`)}</div>` : ''}
+      ${p && p.kills && p.kills.length ? html`<div class="dim" style="font-size:11px;letter-spacing:.06em;text-transform:uppercase">Recent kills</div><table><tbody>${p.kills.slice(0, 5).map(k => html`<tr><td class="dim nowrap" style="font-size:12px">${agoShort(k.time)}</td><td style="font-size:12px">${k.shipName || '?'} → ${k.victimShipName || '?'}</td><td style="font-size:12px">${k.system || ''}</td><td class="dim" style="font-size:12px">${k.solo ? 'solo' : k.attackers + ' pilots'}</td></tr>`)}</tbody></table>` : html`<div class="muted" style="font-size:12.5px">No recent kills on zKillboard.</div>`}
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px"><button class="btn btn-ghost" style="padding:3px 9px;font-size:12px" data-pilot="${ev.pilot.id}">Full profile</button><a class="btn btn-ghost" style="padding:3px 9px;font-size:12px" href="#" data-link="https://zkillboard.com/character/${ev.pilot.id}/">zKill ↗</a>
+        <button class="btn btn-ghost" style="padding:3px 9px;font-size:12px" data-it-tag="${ev.pilot.id}|${ev.pilot.name}">Tag as hostile</button></div></div></div>`;
+}
+document.addEventListener('click', async e => {
+  const o = e.target.closest('[data-si-open]');
+  if (o) { e.preventDefault(); siState.q = o.dataset.siOpen; siState.data = null; state.toolsTab = 't-sysintel'; go('tools'); setTimeout(() => { const b = document.getElementById('si-go'); if (b) b.click(); }, 300); return; }
+  const t = e.target.closest('[data-it-tag]');
+  if (t) { e.preventDefault(); const [id, name] = t.dataset.itTag.split('|'); const r = await api.pilot.watch(Number(id), name, 'hostile', 'Tagged from Threats in Local'); toast(r.ok ? `${name} tagged as hostile: you'll be alerted whenever they're reported` : r.error, !r.ok); }
+});
 
 // ---------- Local & D-scan ----------
 

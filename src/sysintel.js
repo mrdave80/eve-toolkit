@@ -33,7 +33,8 @@ async function report(q, hoursIn, o = {}) {
   const id = typeof q === 'number' || /^\d+$/.test(String(q)) ? Number(q) : sde.systemIdByName(String(q || '').trim());
   const s = id ? sde.system(id) : null;
   if (!s) throw new Error(`Unknown system "${q}".`);
-  const hours = HOURS.includes(Number(hoursIn)) ? Number(hoursIn) : 24;
+  // The tool offers 6/12/24/48; other screens may ask for a short look-back (1–48 h)
+  const hours = Number.isInteger(Number(hoursIn)) && Number(hoursIn) >= 1 && Number(hoursIn) <= 48 ? Number(hoursIn) : 24;
   const key = `${id}:${hours}`;
   const hit = cache.get(key);
   if (hit && !o.refresh && Date.now() - hit.at < 120000) return hit.data;

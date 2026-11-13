@@ -1070,7 +1070,7 @@ handle('agents:options', () => agents.options());
 handle('agents:find', o => agents.find(o || {}));
 handle('agents:lpFor', (item, from) => agents.lpFor(item, from));
 handle('hunt:camps', o => require('./hunting').camps(o || {}));
-handle('sys:intel', (q, hours, refresh) => require('./sysintel').report(q, hours, { refresh: !!refresh }));
+handle('sys:intel', (q, hours, refresh, max) => require('./sysintel').report(q, hours, { refresh: !!refresh, max: Number(max) || undefined }));
 handle('sys:activity', id => syscard.activity(id));
 handle('sys:card', q => syscard.card(q));
 // ---------- Price alerts ----------
