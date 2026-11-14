@@ -101,6 +101,7 @@ async function renderAbout() {
       <img src="${portrait(AUTHOR.id, 256)}" alt="">
       <div><h2>EVE Toolkit</h2>
         <div class="muted">Version ${v.version || ''} · made by <b style="color:var(--text)">${AUTHOR.name}</b></div>
+        <div style="display:flex;gap:10px;align-items:center;margin-top:8px"><button class="btn btn-ghost" data-updcheck style="padding:3px 11px;font-size:12.5px">Check for updates</button><span class="dim" style="font-size:12px" data-updlast></span></div>
         <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
           <button class="btn btn-ghost" data-ext="${AUTHOR_LINKS.evewho}">${AUTHOR.name} on EveWho ↗</button>
           <button class="btn btn-ghost" data-ext="${AUTHOR_LINKS.zkill}">zKillboard ↗</button>
@@ -158,6 +159,7 @@ async function renderAbout() {
   $('#ab-diag').onclick = async () => { const r = await api.diag.copy(); toast(r.ok ? 'Diagnostics copied. Paste into an EVE mail or a text file.' : r.error, !r.ok); };
   $('#ab-logs').onclick = () => api.diag.openFolder();
   $('#ab-view').onclick = async () => { const r = await api.diag.report(); openModal('Diagnostics', html`<pre class="mono-area" style="white-space:pre-wrap;font-size:11.5px;max-height:60vh;overflow:auto;background:var(--bg-2);padding:10px;border-radius:6px;margin:0">${r.ok ? r.data : r.error}</pre>`, { submit: 'Copy', onSubmit: async () => { await api.diag.copy(); toast('Copied'); } }); };
+  fillUpdLast();
   $('#ab-copy').onclick = async () => { await api.copy($('#ab-details').textContent); toast('Copied. Paste it into an EVE mail to ' + AUTHOR.name); };
 }
 

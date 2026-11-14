@@ -81,7 +81,7 @@ function drawFit(box = $('#ft-out'), d = fitState.data) {
   box.innerHTML = String(html`<div class="panel"><div style="display:flex;gap:14px;align-items:center">
       <img src="https://images.evetech.net/types/${d.shipTypeId}/render?size=128" width="72" height="72" style="border-radius:8px;border:1px solid var(--line-2)" alt="">
       <div style="flex:1"><div style="font-size:20px;font-weight:600">${d.name}</div><div class="muted">${d.ship} · ${fmtCompact(d.cost.total)} ISK <span class="dim">(hull ${fmtCompact(d.cost.hull)}, fittings ${fmtCompact(d.cost.fittings)})</span></div></div>
-      <div style="display:flex;flex-direction:column;gap:6px"><button class="btn btn-primary" id="ft-pyfa">Open in Pyfa</button><button class="btn btn-ghost" id="ft-appraise">Appraise</button><button class="btn btn-ghost" id="ft-save">Save to game</button></div></div>
+      <div style="display:flex;flex-direction:column;gap:6px"><button class="btn btn-primary" id="ft-pyfa">Open in Pyfa</button><button class="btn btn-ghost" id="ft-appraise">Appraise</button><button class="btn btn-ghost" id="ft-save">Save to game</button><button class="btn btn-ghost" id="ft-lib">Add to library</button></div></div>
       ${d.unknown.length ? html`<div class="notice" style="margin-top:10px">Not recognised: ${d.unknown.join(', ')}</div>` : ''}
       ${sc.problems.length ? html`<div class="notice" style="margin-top:10px">Too many modules: ${sc.problems.map(p => `${p.over} over in ${p.slot === 'turrets' ? 'turret hardpoints' : p.slot === 'launchers' ? 'launcher hardpoints' : SLOT_LABEL[p.slot].toLowerCase()}`).join(', ')}.</div>` : ''}</div>
     <div id="ft-stats">${fitStatsPanel(d, box)}</div>
@@ -115,6 +115,7 @@ function drawFit(box = $('#ft-out'), d = fitState.data) {
   box.querySelector('#ft-pyfa').onclick = async () => { await api.copy(d.eft); toast('Fit copied. In Pyfa, import it from the clipboard.'); };
   box.querySelector('#ft-appraise').onclick = () => appraiseFitModal(d);
   box.querySelector('#ft-save').onclick = () => openSaveFitModal(d);
+  box.querySelector('#ft-lib').onclick = async () => { const r = await api.fitlib.add(d.eft, { source: 'checker' }); if (!r.ok) return toast(r.error, true); toast(r.data.added ? 'Added to your fit library' : 'That fit is already in your library'); };
 }
 
 async function appraiseFitModal(d) {
@@ -142,7 +143,63 @@ async function appraiseFitModal(d) {
   body.insertBefore(box, foot);
 }
 
-api.fit.onEngine(st => {
+if (api.fit.onEngine) api.fit.onEngine(st => {
   if (st.phase !== 'downloading') return;
   const l = document.querySelector('#ft-out .loading, #pop-fit .loading'); if (l) l.innerHTML = String(html`<div class="spinner"></div>Downloading the fit stats data, one time only (about 10 MB)… ${st.pct || 0}%`);
 });
+
+
+// ================= Fit library =================
+
+const libState = { data: null, folder: '', q: '', fly: '' };
+async function tFitLib(stillCurrent) {
+  if (!libState.data) {
+    setContent(loadingView('Reading your fits and checking who can fly them…'));
+    const r = await api.fitlib.list();
+    if (stillCurrent && !stillCurrent()) return;
+    if (!r.ok) return setContent(errorView(r));
+    libState.data = r.data;
+  }
+  drawFitLib();
+}
+async function reloadFitLib() { const r = await api.fitlib.list(); if (r.ok) { libState.data = r.data; drawFitLib(); } }
+function drawFitLib() {
+  const s = libState, d = s.data, q = s.q.toLowerCase();
+  const fits = d.fits.filter(f => (!s.folder || (s.folder === '-' ? !f.folder : f.folder === s.folder)) && (!q || `${f.name} ${f.ship} ${f.group} ${f.notes}`.toLowerCase().includes(q)) && (!s.fly || (s.fly === 'yes' ? f.canFly : !f.canFly)));
+  const groups = new Map(); for (const f of fits) { const k = f.folder || 'Unsorted'; (groups.get(k) || groups.set(k, []).get(k)).push(f); }
+  setContent(html`<div class="toolbar" style="flex-wrap:wrap">
+      <select id="fl-folder" class="crumb-select"><option value="">All folders (${d.fits.length})</option>${d.folders.map(f => html`<option value="${f}" ${raw(s.folder === f ? 'selected' : '')}>${f}</option>`)}<option value="-" ${raw(s.folder === '-' ? 'selected' : '')}>Unsorted</option></select>
+      <select id="fl-fly" class="crumb-select"><option value="">Anyone</option><option value="yes" ${raw(s.fly === 'yes' ? 'selected' : '')}>A pilot can fly it</option><option value="no" ${raw(s.fly === 'no' ? 'selected' : '')}>Nobody can fly it yet</option></select>
+      <input type="search" id="fl-q" placeholder="Search fits, ships, notes…" value="${s.q}" style="min-width:220px">
+      <span style="flex:1"></span>
+      <button class="btn btn-ghost" id="fl-paste">+ Paste fits</button><button class="btn btn-ghost" id="fl-game">Import in-game fittings</button><button class="btn btn-ghost" id="fl-doc">Import doctrines</button><button class="btn btn-ghost" id="fl-export">Copy all as EFT</button></div>
+    ${fits.length ? [...groups.entries()].map(([folder, list]) => html`<div class="panel" style="padding:0;margin-bottom:14px"><div style="padding:12px 16px"><h3 style="margin:0">${folder} <span class="dim" style="text-transform:none;letter-spacing:0">· ${list.length}</span></h3></div><table><thead><tr><th>Fit</th><th>Ship</th><th>Your pilots</th><th>Notes</th></tr></thead><tbody>
+      ${list.map(f => xRow('fl' + f.id, html`<td><b>${f.name}</b></td><td>${icon(f.shipTypeId, 18)}${f.ship}<div class="dim" style="font-size:11.5px">${f.group}</div></td>
+        <td style="font-size:12.5px">${f.pilots.length ? html`${f.pilots.filter(p => p.canFly).map(p => html`<span class="badge green" style="margin:1px 4px 1px 0">${p.name}</span>`)}${f.pilots.filter(p => !p.canFly).sort((a, b) => a.minutes - b.minutes).slice(0, 2).map(p => html`<span class="badge" style="margin:1px 4px 1px 0" title="${p.missing} skills missing">${p.name} · ${fmtDuration(p.minutes * 60000, true)}</span>`)}` : html`<span class="dim">—</span>`}</td>
+        <td class="muted" style="font-size:12px;max-width:280px">${f.notes}</td>`,
+        html`<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px"><pre class="mono-area" style="margin:0;max-height:300px;overflow:auto;font-size:12px">${f.eft}</pre>
+          <div><div class="field"><label>Name</label><input type="text" data-flname="${f.id}" value="${f.name}"></div><div class="field"><label>Folder</label><input type="text" data-flfolder="${f.id}" value="${f.folder}" list="fl-folders" placeholder="e.g. PvP, Mining, Doctrine"></div>
+            <div class="field"><label>Notes</label><textarea rows="2" data-flnotes="${f.id}">${f.notes}</textarea></div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn btn-primary" style="padding:3px 10px;font-size:12px" data-flcheck="${f.id}">Open in Fit Checker</button><button class="btn btn-ghost" style="padding:3px 10px;font-size:12px" data-flcopy="${f.id}">Copy EFT</button><button class="btn btn-ghost" style="padding:3px 10px;font-size:12px" data-flgame="${f.id}">Save to game</button><button class="btn btn-danger" style="padding:3px 10px;font-size:12px" data-fldel="${f.id}">Delete</button></div>
+            <div class="dim" style="font-size:12px;margin-top:8px">${f.pilots.map(p => `${p.name}: ${p.canFly ? 'can fly it' : `${p.missing} skill${p.missing === 1 ? '' : 's'} to train, about ${fmtDuration(p.minutes * 60000, true)}`}`).join(' · ')}</div></div></div>`, 4))}</tbody></table></div>`)
+      : emptyBox(d.fits.length ? 'No fits match.' : 'Your fit library is empty. Paste fits, import your pilots’ in-game fittings, or press Add to library in the Fit Checker.')}
+    <datalist id="fl-folders">${d.folders.map(f => html`<option value="${f}">`)}</datalist>`);
+  $('#fl-folder').onchange = e => { s.folder = e.target.value; drawFitLib(); };
+  $('#fl-fly').onchange = e => { s.fly = e.target.value; drawFitLib(); };
+  $('#fl-q').oninput = e => { s.q = e.target.value; const pos = e.target.selectionStart; drawFitLib(); const i = $('#fl-q'); i.focus(); i.setSelectionRange(pos, pos); };
+  $('#fl-paste').onclick = () => openModal('Paste fits', html`${field('Fits in EFT format', textarea('text', '', 12), 'Paste one or many. Each starts with a line like [Vexor, My fit].')}${field('Folder (optional)', inputText('folder', s.folder && s.folder !== '-' ? s.folder : '', 'e.g. PvP'))}`, {
+    submit: 'Add', onSubmit: async v => { const r = await api.fitlib.importText(v.text, v.folder); if (!r.ok) { toast(r.error, true); return true; } toast(`${r.data.added} fit${r.data.added === 1 ? '' : 's'} added${r.data.dupes ? `, ${r.data.dupes} already there` : ''}`); reloadFitLib(); } });
+  const imp = async (fn, what) => { toast(`Importing ${what}…`); const r = await fn(); if (!r.ok) return toast(r.error, true); toast(`${r.data.added} new fit${r.data.added === 1 ? '' : 's'}${r.data.dupes ? `, ${r.data.dupes} already there` : ''}${r.data.errors && r.data.errors.length ? ` (${r.data.errors[0]})` : ''}`); reloadFitLib(); };
+  $('#fl-game').onclick = () => imp(api.fitlib.importGame, 'in-game fittings');
+  $('#fl-doc').onclick = () => imp(api.fitlib.importDoctrines, 'doctrines');
+  $('#fl-export').onclick = async () => { const r = await api.fitlib.exportAll(s.folder && s.folder !== '-' ? s.folder : null); if (r.ok) { navigator.clipboard.writeText(r.data); toast('Copied. Pyfa and the game can import EFT text.'); } };
+  const fitOf = id => d.fits.find(f => f.id === id);
+  const save = (id, patch) => api.fitlib.update(id, patch).then(r => { if (!r.ok) toast(r.error, true); else { Object.assign(fitOf(id), r.data); if (patch.folder !== undefined && !d.folders.includes(patch.folder) && patch.folder) d.folders.push(patch.folder); } });
+  document.querySelectorAll('[data-flname]').forEach(i => i.onchange = () => save(i.dataset.flname, { name: i.value }));
+  document.querySelectorAll('[data-flfolder]').forEach(i => i.onchange = () => save(i.dataset.flfolder, { folder: i.value }).then(drawFitLib));
+  document.querySelectorAll('[data-flnotes]').forEach(i => i.onchange = () => save(i.dataset.flnotes, { notes: i.value }));
+  document.querySelectorAll('[data-flcheck]').forEach(b => b.onclick = () => { fitState.text = fitOf(b.dataset.flcheck).eft; fitState.data = null; fitState.pending = true; state.toolsTab = 't-fit'; go('tools'); });
+  document.querySelectorAll('[data-flcopy]').forEach(b => b.onclick = () => { navigator.clipboard.writeText(fitOf(b.dataset.flcopy).eft); toast('Fit copied'); });
+  document.querySelectorAll('[data-flgame]').forEach(b => b.onclick = () => { const f = fitOf(b.dataset.flgame); openSaveFitModal({ eft: f.eft, name: f.name, ship: f.ship }); });
+  document.querySelectorAll('[data-fldel]').forEach(b => b.onclick = async () => { if (!b.dataset.sure) { b.dataset.sure = '1'; b.textContent = 'Click again to delete'; return; } await api.fitlib.remove(b.dataset.fldel); d.fits = d.fits.filter(f => f.id !== b.dataset.fldel); drawFitLib(); });
+}

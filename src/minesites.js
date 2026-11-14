@@ -4,6 +4,7 @@
    messages that mention ice or an ore site with a system. New ones within your range raise an alert. */
 const store = require('./store');
 const sde = require('./sde');
+const ice = require('./icesystems');
 const { get, safe, ok } = require('./esi');
 
 const ICE = /\b(ice|icicle|glacial|glaze|glitter|gelidus|krystallos|glare crust)\b/i;
@@ -112,17 +113,20 @@ function fromChat(text, systems, who) {
 /** Sightings with jumps from a pilot or system, newest first. */
 function list(o = {}) {
   const D = data(); prune();
-  const from = o.fromSystemId ? Number(o.fromSystemId) : null;
+  const from = o.fromSystemId ? Number(o.fromSystemId) : o.from && sde.ready() ? sde.systemIdByName(String(o.from)) : null;
+  if (o.from && !from) throw new Error(`Unknown system "${o.from}".`);
   const max = Number(o.maxJumps) || 15;
   const out = [];
   for (const [id, s] of Object.entries(D.systems)) {
     const sysId = Number(id), sy = sde.ready() ? sde.system(sysId) : null;
     const j = from ? jumps(from, sysId, max) : null;
     const near = from ? null : nearestPilot(sysId, max);
-    for (const x of s.sites) out.push({ ...x, systemId: sysId, system: sy ? sy.name : String(id), security: sy ? sy.security : null, region: sy ? sy.region : '', jumps: from ? j : near ? near.jumps : null, nearPilot: near ? near.pilot : null });
+    for (const x of s.sites) out.push({ ...x, iceSystem: ice.isIce(sysId), systemId: sysId, system: sy ? sy.name : String(id), security: sy ? sy.security : null, region: sy ? sy.region : '', jumps: from ? j : near ? near.jumps : null, nearPilot: near ? near.pilot : null });
   }
   const known = Object.entries(D.systems).filter(([, s]) => s.ever.ice).map(([id, s]) => { const sy = sde.ready() ? sde.system(Number(id)) : null; return { systemId: Number(id), system: sy ? sy.name : id, security: sy ? sy.security : null, region: sy ? sy.region : '', times: s.ever.ice, jumps: from ? jumps(from, Number(id), max) : null }; });
-  return { cfg: D.cfg, sites: out.sort((a, b) => (a.gone - b.gone) || b.lastSeen.localeCompare(a.lastSeen)), knownIce: known.sort((a, b) => (a.jumps ?? 99) - (b.jumps ?? 99)) };
+  const starts = from ? [{ systemId: from, pilot: null }] : positions().map(p => ({ systemId: p.systemId, pilot: p.pilot }));
+  const iceNear = ice.nearest(starts, { maxJumps: max, limit: 40 }).map(x => ({ ...x, seen: (D.systems[x.systemId] || { ever: {} }).ever.ice || 0, live: ((D.systems[x.systemId] || { sites: [] }).sites || []).filter(y => y.kind === 'ice' && !y.gone).length }));
+  return { iceNear, iceInfo: ice.info(), pilotsKnown: starts.length, cfg: D.cfg, sites: out.sort((a, b) => (a.gone - b.gone) || b.lastSeen.localeCompare(a.lastSeen)), knownIce: known.sort((a, b) => (a.jumps ?? 99) - (b.jumps ?? 99)) };
 }
 
 function setCfg(p = {}) {

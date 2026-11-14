@@ -190,4 +190,4 @@ async function checkReqs(reqMap, charIds, audits = {}) {
   return { requirements: reqs, pilots: out };
 }
 
-module.exports = { checkReqs, plans, savePlan, deletePlan, addToEntries, addTypeRequirements, parseText, exportText, compute, optimiseRemap, canFly, charState, spFor };
+module.exports = { checkAgainst, checkReqs, plans, savePlan, deletePlan, addToEntries, addTypeRequirements, parseText, exportText, compute, optimiseRemap, canFly, charState, spFor };

@@ -419,6 +419,7 @@ async function renderSettings() {
         <div class="field"><label for="s-incj">Incursion alert range (jumps from any pilot)</label><input id="s-incj" type="number" min="1" max="30" value="${st.incursionJumps || 10}" style="max-width:140px"></div>
         <label class="check"><input type="checkbox" id="s-tray" ${raw(st.minimizeToTray ? 'checked' : '')}> Keep running in the system tray when the window is closed</label>
         <label class="check"><input type="checkbox" id="s-autoupd" ${raw(st.autoUpdate ? 'checked' : '')}> Download updates in the background and install them when I close the app</label>
+        <div style="display:flex;gap:10px;align-items:center;margin:0 0 12px"><button type="button" class="btn btn-ghost" data-updcheck style="padding:3px 11px;font-size:12.5px">Check for updates</button><span class="dim" style="font-size:12px" data-updlast></span></div>
         <div class="field"><label for="s-prices">Prices for lists of items</label><select id="s-prices" style="max-width:420px"><option value="fuzzwork" ${raw((st.priceSource || 'fuzzwork') === 'fuzzwork' ? 'selected' : '')}>Fuzzwork Market: hundreds of items in one request (recommended)</option><option value="esi" ${raw(st.priceSource === 'esi' ? 'selected' : '')}>CCP's ESI only: one request per item, slower</option></select><div class="dim" style="font-size:12px;margin-top:4px">Used by appraisals, build costs, What to Build and similar. Live order books always come from ESI, and ESI fills in anything Fuzzwork doesn't have.</div></div>
         <div class="dim" style="margin:14px 0 6px">Quiet hours (no Windows, phone or spoken alerts):</div>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:8px"><label class="check" style="margin:0"><input type="checkbox" id="s-qon" ${raw(st.quiet && st.quiet.enabled ? 'checked' : '')}> From</label>
@@ -464,6 +465,7 @@ async function renderSettings() {
     </div>`);
 
   document.querySelectorAll('[data-sfold]').forEach(d => d.addEventListener('toggle', () => { settingsOpen[d.dataset.sfold] = d.open; try { localStorage.setItem('settingsOpen', JSON.stringify(settingsOpen)); } catch {} }));
+  fillUpdLast();
   $('#s-openall').onclick = e => { e.preventDefault(); document.querySelectorAll('[data-sfold]').forEach(d => { d.open = true; }); };
   $('#s-closeall').onclick = e => { e.preventDefault(); document.querySelectorAll('[data-sfold]').forEach(d => { d.open = false; }); };
   $('#bk-make').onclick = () => openModal('Make a backup', html`${field('Password', html`<input type="password" name="pw" autocomplete="new-password">`, 'At least 8 characters. There is no way to recover a backup without it.')}${field('Password again', html`<input type="password" name="pw2" autocomplete="new-password">`)}`, {
@@ -1070,6 +1072,29 @@ api.onOverviewUpdate(list => {
 });
 
 // ================= Boot =================
+
+/** "Check for updates" buttons: ask GitHub now and say what was found. */
+function updLastText(c) {
+  if (!c || !c.at) return '';
+  return c.ok ? (c.update ? `Version ${c.update.version} is available` : `Up to date (${c.current}) · checked ${Date.now() - c.at < 60000 ? 'just now' : timeAgo(new Date(c.at).toISOString())}`) : `Last check failed: ${c.error || 'no answer'}`;
+}
+async function checkUpdatesNow(btn) {
+  const label = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = 'Checking…'; }
+  const r = await api.update.check();
+  if (btn) { btn.disabled = false; btn.textContent = label; }
+  if (!r.ok) return toast(r.error, true);
+  const c = r.data;
+  document.querySelectorAll('[data-updlast]').forEach(el => { el.textContent = updLastText(c); });
+  if (c.update) {
+    document.getElementById('upd-banner')?.remove();
+    showUpdateBanner(c.update);
+    openUpdateModal(c.update, false);
+  } else if (c.ok) toast(`You're on the latest version (${c.current})`);
+  else toast(`Couldn't check for updates: ${c.error || 'no answer from GitHub'}`, true);
+}
+document.addEventListener('click', e => { const b = e.target.closest && e.target.closest('[data-updcheck]'); if (b) { e.preventDefault(); checkUpdatesNow(b); } });
+async function fillUpdLast() { const r = await api.update.lastCheck(); if (r.ok) document.querySelectorAll('[data-updlast]').forEach(el => { el.textContent = updLastText(r.data); }); }
 
 function showUpdateBanner(u) {
   if (!u || document.getElementById('upd-banner')) return;

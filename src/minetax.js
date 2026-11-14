@@ -12,7 +12,7 @@ const { get, getAllPages, safe, ok, resolveNames, marketPrices } = require('./es
 
 const H = 3600000, DAY = 24 * H;
 const PERIODS = { '6h': 6 * H, '12h': 12 * H, '24h': DAY, '48h': 2 * DAY, week: 7 * DAY, month: 30 * DAY };
-const DEFAULTS = { rate: 10, basis: 'refined', yieldPct: 87.5, oreSet: 'moon', ores: [], payee: null, period: 'since' };
+const DEFAULTS = { rate: 10, basis: 'refined', yieldPct: 87.5, refineTax: 5, oreSet: 'moon', ores: [], payee: null, period: 'since' };
 
 function book() { const d = store.get(); d.miningLog = d.miningLog || {}; return d.miningLog; }
 function pilotBook(id) { const b = book(); b[id] = b[id] || { snap: {}, events: [], since: null, cfg: { ...DEFAULTS }, payments: [] }; b[id].cfg = { ...DEFAULTS, ...b[id].cfg }; return b[id]; }
@@ -64,6 +64,30 @@ async function payments(charId) {
   return p.payments;
 }
 
+/** What each ore refines into at the given yield, after the refinery takes its tax (a share of the
+    minerals), valued at Jita buy. Leftover units that don't make a full batch stay as ore. Sets o.minerals
+    on each ore and returns the totals for everything. */
+async function mineralsFor(ores, yieldPct, taxPct) {
+  if (!sde.ready()) return { yieldPct, taxPct, list: [], value: 0, taxValue: 0 };
+  const keep = (yieldPct / 100) * (1 - taxPct / 100), took = (yieldPct / 100) * (taxPct / 100);
+  const ids = new Set();
+  const per = ores.map(o => { const m = sde.reprocess(o.typeId); const portion = ((sde.type(o.typeId) || {}).portionSize) || 1; if (m) m.forEach(([x]) => ids.add(x)); return { o, m, portion }; });
+  const pr = ids.size ? await market.prices([...ids], 'Jita').catch(() => ({})) : {};
+  const price = id => { const x = pr[id] || {}; return x.buy ?? x.avg ?? 0; };
+  const name = id => (sde.type(id) || {}).name || String(id);
+  const total = new Map();
+  for (const { o, m, portion } of per) {
+    if (!m) { o.minerals = null; continue; }
+    const batches = Math.floor(o.qty / portion);
+    o.leftover = o.qty - batches * portion;
+    o.minerals = m.map(([x, q]) => { const qty = Math.floor(batches * q * keep), tax = Math.floor(batches * q * took); return { typeId: x, name: name(x), qty, tax, value: qty * price(x) }; }).filter(x => x.qty || x.tax);
+    o.mineralValue = o.minerals.reduce((n, x) => n + x.value, 0);
+    for (const x of o.minerals) { const t = total.get(x.typeId) || { typeId: x.typeId, name: x.name, qty: 0, tax: 0, value: 0, taxedQty: 0 }; t.qty += x.qty; t.tax += x.tax; t.value += x.value; if (o.taxed) t.taxedQty += x.qty; total.set(x.typeId, t); }
+  }
+  const list = [...total.values()].sort((a, b) => b.value - a.value);
+  return { yieldPct, taxPct, list, value: list.reduce((n, x) => n + x.value, 0), taxValue: list.reduce((n, x) => n + x.tax * price(x.typeId), 0) };
+}
+
 /** Ore value per unit for each basis. */
 async function unitValues(typeIds, basis, yieldPct) {
   const out = {};
@@ -97,7 +121,7 @@ function windowStart(p, period, now) {
  */
 async function report(charId, o = {}) {
   const p = pilotBook(charId);
-  for (const k of ['rate', 'basis', 'yieldPct', 'oreSet', 'ores', 'period']) if (o[k] !== undefined) p.cfg[k] = o[k];
+  for (const k of ['rate', 'basis', 'yieldPct', 'refineTax', 'oreSet', 'ores', 'period']) if (o[k] !== undefined) p.cfg[k] = o[k];
   const c = p.cfg;
   const rows = await track(charId);
   await payments(charId);
@@ -121,7 +145,8 @@ async function report(charId, o = {}) {
       add(r.type_id, r.solar_system_id, Math.max(0, r.quantity - later));
     }
   }
-  for (const e of p.events) if (e[0] >= Math.max(start, exactFrom) && e[0] <= end) add(e[1], e[2], e[3]);
+  const sincePaid = c.period === 'since' && !o.from;
+  for (const e of p.events) if ((sincePaid ? e[0] > start : e[0] >= start) && e[0] >= exactFrom && e[0] <= end) add(e[1], e[2], e[3]);
 
   const typeIds = [...new Set([...items.values()].map(x => x.typeId))];
   const allIds = [...new Set(rows.map(r => r.type_id))];
@@ -138,6 +163,7 @@ async function report(charId, o = {}) {
   const ores = [...byOre.values()].map(x => { const unit = values[x.typeId] || 0; const value = unit * x.qty; return { ...x, unit, value, tax: x.taxed ? value * rate : 0, systems: Object.entries(x.systems).map(([n, q]) => ({ name: n, qty: q })) }; })
     .sort((a, b) => b.value - a.value);
   const taxed = ores.filter(x => x.taxed);
+  const minerals = await mineralsFor(ores, Number(c.yieldPct) || 87.5, Math.max(0, Math.min(100, Number(c.refineTax) || 0)));
   const tax = taxed.reduce((n, x) => n + x.tax, 0);
   // hourly bars for short windows, daily otherwise
   const span = end - start, step = span <= 2 * DAY + 1 ? H : DAY;
@@ -151,6 +177,7 @@ async function report(charId, o = {}) {
     cfg: c, period: c.period, from: new Date(start).toISOString(), to: new Date(end).toISOString(), approx, trackedSince: new Date(exactFrom).toISOString(), checkedAt: new Date(p.checkedAt).toISOString(),
     ores, availableOres: allIds.map(t => ({ typeId: t, name: names[t] || (sde.type(t) || {}).name, kind: kindOf(t) })).sort((a, b) => a.kind.localeCompare(b.kind) || String(a.name).localeCompare(String(b.name))),
     totals: { qty: ores.reduce((n, x) => n + x.qty, 0), value: ores.reduce((n, x) => n + x.value, 0), taxedValue: taxed.reduce((n, x) => n + x.value, 0), tax, paid: paidInWindow, owing: Math.max(0, tax - (c.period === 'since' ? 0 : paidInWindow)) },
+    minerals,
     payments: p.payments.slice(-10).reverse(), payee: c.payee, buckets, step: step === H ? 'hour' : 'day'
   };
 }

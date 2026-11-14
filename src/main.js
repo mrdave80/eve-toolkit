@@ -440,16 +440,18 @@ updater.setListener(st => { if (win && !win.isDestroyed()) win.webContents.send(
 // Official releases: https://github.com/mrdave80/eve-toolkit/releases. A custom feed in Settings overrides it.
 const RELEASES_API = 'https://api.github.com/repos/mrdave80/eve-toolkit/releases/latest';
 const RELEASES_PAGE = 'https://github.com/mrdave80/eve-toolkit/releases/latest';
+let lastUpdateCheck = null;
 async function checkForUpdate() {
   const custom = store.get().settings.updateUrl;
   const url = custom && /^https:\/\//.test(custom) ? custom : RELEASES_API;
   try {
     const r = await fetch(url, { headers: { 'User-Agent': 'EVE-Toolkit-Desktop', Accept: 'application/vnd.github+json, application/json' }, signal: AbortSignal.timeout(20000) });
-    if (!r.ok) return updateInfo;
+    if (!r.ok) { lastUpdateCheck = { at: Date.now(), ok: false, error: `GitHub answered ${r.status}` }; return updateInfo; }
     const j = await r.json();
     // GitHub release ("tag_name": "v1.8.9") or a simple feed ({ "version": "1.8.9", "url": "...", "notes": "..." })
     const version = String(j.version || j.tag_name || '').replace(/^v/i, '');
-    if (!/^\d+\.\d+\.\d+/.test(version) || j.draft || j.prerelease) return updateInfo;
+    if (!/^\d+\.\d+\.\d+/.test(version) || j.draft || j.prerelease) { lastUpdateCheck = { at: Date.now(), ok: false, error: 'No release found' }; return updateInfo; }
+    lastUpdateCheck = { at: Date.now(), ok: true, latest: version };
     if (newerVersion(version, app.getVersion())) {
       const notes = String(j.notes || j.body || '').replace(/\r/g, '').slice(0, 1500);
       updateRelease = j;
@@ -460,9 +462,11 @@ async function checkForUpdate() {
       const d = store.get();
       if (!seen(d, 'update:' + version)) notify('EVE Toolkit update available', `Version ${version} is ready to download.`, 'app');
     }
-  } catch (e) { diag.warn('update', e.message); }
+  } catch (e) { diag.warn('update', e.message); lastUpdateCheck = { at: Date.now(), ok: false, error: e.name === 'TimeoutError' ? 'GitHub didn\u2019t answer in time' : e.message }; }
   return updateInfo;
 }
+handle('update:check', async () => { await checkForUpdate(); return { current: app.getVersion(), update: updateInfo, ...(lastUpdateCheck || {}) }; });
+handle('update:lastCheck', () => ({ current: app.getVersion(), update: updateInfo, ...(lastUpdateCheck || {}) }));
 setTimeout(() => checkForUpdate(), 20000);
 setInterval(() => checkForUpdate(), 12 * 3600000);
 
@@ -661,6 +665,7 @@ handle('esi:blueprints', id => extra.blueprints(id));
 handle('esi:planets', id => extra.planets(id));
 handle('esi:mining', id => extra.mining(id));
 handle('mine:tax', (id, o) => require('./minetax').report(Number(id), o || {}));
+handle('mine:build', o => require('./minebuild').plan(o || {}));
 handle('mine:payee', (id, name) => require('./minetax').setPayee(Number(id), name));
 handle('mine:paid', (id, amount, note) => require('./minetax').markPaid(Number(id), amount, note));
 handle('mine:unpay', (id, pid) => require('./minetax').removePayment(Number(id), pid));
@@ -744,6 +749,8 @@ handle('clipboard:write', text => { clipwatch.ignoreText(String(text)); clipboar
 async function haveMap(charId) { return (await skillplan.charState(charId)).levels; }
 handle('plan:list', charId => skillplan.plans(charId));
 handle('plan:save', plan => skillplan.savePlan(plan));
+handle('train:ship', (q, ids) => require('./trainnext').forShip(q, ids));
+handle('train:suggest', (id, o) => require('./trainnext').suggestions(id, o));
 handle('plan:delete', id => skillplan.deletePlan(id));
 handle('plan:compute', plan => skillplan.compute(plan));
 handle('plan:remap', plan => skillplan.optimiseRemap(plan));
@@ -840,6 +847,7 @@ handle('places:prepare', () => places.prepare());
 handle('nav:route', (a, b, o) => nav.route(a, b, o));
 handle('couriers:find', o => couriers.find(o || {}));
 handle('map:region', (id, o) => livemap.region(id, o || {}));
+handle('map:universe', o => livemap.universe(o || {}));
 handle('hunt:find', o => hunting.find(o || {}));
 handle('wh:residents', q => whresidents.check(q));
 handle('diag:report', () => diag.report({ store, sde }));
@@ -1164,6 +1172,14 @@ handle('daily:news', async () => { await daily.fetchNews(true); return daily.sta
 
 // ================= Doctrines =================
 
+handle('fitlib:list', () => require('./fitlib').list());
+handle('fitlib:add', (eft, o) => require('./fitlib').add(eft, o || {}));
+handle('fitlib:importText', (text, folder) => require('./fitlib').importText(text, folder));
+handle('fitlib:importGame', () => require('./fitlib').importGame());
+handle('fitlib:importDoctrines', () => require('./fitlib').importDoctrines());
+handle('fitlib:update', (id, p) => require('./fitlib').update(id, p));
+handle('fitlib:remove', id => require('./fitlib').remove(id));
+handle('fitlib:export', folder => require('./fitlib').exportAll(folder));
 handle('doc:parseEft', text => doctrines.parseEft(text));
 handle('doc:evaluate', (doctrine, hub) => doctrines.evaluate(doctrine, store.get().characters.filter(c => !c.needsReauth).map(c => c.id), workspace.get().audits, hub));
 

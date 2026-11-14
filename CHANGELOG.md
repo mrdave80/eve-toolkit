@@ -3,6 +3,20 @@
 ## Next release
 
 - Pilot → Industry → Mining: pick 6, 12, 24 or 48 hours, a week, a month or since your last payment. A moon tax calculator works out what you owe the corp that owns the refinery: set the rate, choose refined value (at your refinery's yield), Jita buy or sell, or CCP's average, and choose which ores are taxed. Payments to the holding corp are found in your wallet, and **Copy for corp mail** gives a ready-to-send line. CCP's ledger only records days, so the app keeps its own timed log every 15 minutes for the hour periods.
+- Mining: click an ore to see the minerals it refines into, and **Minerals from everything mined** totals them for the period at your refining yield after the refinery's tax (set both on the page).
+- Mining → **Plan a build with it**: pick one of your blueprints (original or copy, with its ME) or anything buildable, and how many. It lists every mineral the whole build needs (components too, if you like), what your mining already covers, and the ore to mine for the rest, plus anything that doesn't come from ore. It warns when a copy hasn't enough runs.
+- Needs attention on the All pilots page: expired logins, empty skill queues, finished jobs, stopped PI, unread mail, contracts waiting on you, outbid orders, low or reinforced structures and ready moon chunks, each one click from the page that fixes it.
+- Alerts inbox: the bell in the top bar keeps the last two days of alerts (including ones held back in quiet hours). Click one to open what it's about. **Alert types** turns each kind of alert on or off.
+- Pinned tools: ★ on any tool pins it to a Pinned tab in Tools, with the tools you used last beside it.
+- Contracts and Notifications boards for all pilots in the sidebar: one list across every pilot, with contracts needing your action first and notifications sorted by kind. A contract between two of your pilots, or a corp notice every pilot got, shows once.
+- Prices now come from Fuzzwork's market aggregates by default (much faster, hub buy and sell in one call), falling back to CCP's market if it's down. Settings → Prices switches back to CCP only.
+- **Check for updates** on About & support and in Settings: asks GitHub straight away and says whether you're up to date, instead of waiting for the next check.
+- Quiet updates (Settings → Notifications and behaviour): new versions download in the background and install when you close the app.
+- Fit Library (Tools → Fitting): keep fits in folders with notes, import pasted EFT, your pilots' in-game fittings and your doctrines, see which pilots can fly each one and how long the rest need, and copy everything back out as EFT. **Add to library** in the Fit Checker.
+- What to Train (Tools → Pilots): CCP's ship masteries I–V for every pilot, with the time to the next level and one click to make a skill plan, plus the certificates each pilot is closest to raising. Needs a one-time game data update.
+- Ice & Ore Sites → Where ice spawns: the systems where ice belts can appear, nearest to your pilots (or any system) first, with how many belts and your own sightings. Snowflakes on the live map mark them. This is community data, since CCP doesn't publish it; Perrigen Falls isn't covered yet. Ice reported in a system that's not on the list is flagged.
+- Live map → New Eden: the whole map, one box per region, with kills, ratting, traffic or sovereignty as heat, your pilots and intel. Click a region, then Open (or double-click) to go into it.
+- Fixed: one-click update of the portable version closed the app and didn't reopen it. The update now runs separately from the app, falls back to placing the new version beside the old one if the file stays locked, and logs every step to logs/update.log. Updating from 1.12.0 portable still needs a manual download this one time.
 
 ## 1.12.0
 

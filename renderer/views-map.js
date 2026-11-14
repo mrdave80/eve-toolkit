@@ -18,9 +18,9 @@ async function renderLiveMap(stillCurrent) {
   if (stillCurrent && !stillCurrent()) return;
   if (!rg.ok) return setContent(errorView(rg));
   mapState.pilots = loc.ok ? loc.data : [];
-  if (!mapState.regionId) mapState.regionId = (mapState.pilots.find(p => p.regionId) || {}).regionId || 10000002;
+  if (mapState.regionId === null || mapState.regionId === undefined) mapState.regionId = (mapState.pilots.find(p => p.regionId) || {}).regionId || 10000002;
   setContent(html`<div class="toolbar">
-      <select id="mp-region" class="crumb-select">${rg.data.map(r => html`<option value="${r.id}" ${raw(r.id === mapState.regionId ? 'selected' : '')}>${r.name}</option>`)}</select>
+      <select id="mp-region" class="crumb-select"><option value="0" ${raw(mapState.regionId === 0 ? 'selected' : '')}>New Eden: all regions</option>${rg.data.map(r => html`<option value="${r.id}" ${raw(r.id === mapState.regionId ? 'selected' : '')}>${r.name}</option>`)}</select>
       <select id="mp-heat" class="crumb-select">${Object.entries(HEAT).map(([k, h]) => html`<option value="${k}" ${raw(k === mapState.heat ? 'selected' : '')}>${h.label}</option>`)}</select>
       <select id="mp-intel" class="crumb-select">${[[0, 'No intel pins'], [15, 'Intel: last 15 min'], [30, 'Intel: last 30 min'], [60, 'Intel: last hour']].map(([v, l]) => html`<option value="${v}" ${raw(v === mapState.intelMins ? 'selected' : '')}>${l}</option>`)}</select>
       <button class="btn btn-ghost" id="mp-fit">Fit</button><button class="btn btn-ghost" id="mp-refresh">⟳ Update</button>
@@ -39,7 +39,7 @@ async function renderLiveMap(stillCurrent) {
 }
 
 async function loadMap(force) {
-  const r = await api.map.region(mapState.regionId, { force: !!force });
+  const r = mapState.regionId === 0 ? await api.map.universe({ force: !!force }) : await api.map.region(mapState.regionId, { force: !!force });
   const box = $('#mp-box'); if (!box) return;
   if (!r.ok) { box.innerHTML = String(errorView(r)); return; }
   mapState.data = r.data; mapState.layout = layoutMap(r.data, box.clientWidth && box.clientHeight ? box.clientWidth / box.clientHeight : 1.4);
@@ -117,9 +117,9 @@ function drawMap() {
   if (!d || !L || !box) return;
   const h = HEAT[mapState.heat];
   const max = Math.max(1, ...d.systems.map(h.val));
-  const pins = intelPins();
+  const pins = d.universe ? new Map([...intelPins()].reduce((m, [sid, p]) => { const r = d.systemRegion && d.systemRegion[sid]; if (r) { const q = m.get(r) || { count: 0, clear: true }; q.count += p.count; q.clear = q.clear && p.clear; m.set(r, q); } return m; }, new Map())) : intelPins();
   const pilotsAt = new Map();
-  for (const p of mapState.pilots) if (p.systemId) (pilotsAt.get(p.systemId) || pilotsAt.set(p.systemId, []).get(p.systemId)).push(p.name);
+  for (const p of mapState.pilots) { const k = d.universe ? p.regionId : p.systemId; if (k) (pilotsAt.get(k) || pilotsAt.set(k, []).get(k)).push(p.name); }
   const P = id => L.pos.get(id);
   const vb = mapState.view || { x: L.box.minX, y: L.box.minY, w: L.box.maxX - L.box.minX, h: L.box.maxY - L.box.minY };
   mapState.view = vb;
@@ -140,6 +140,7 @@ function drawMap() {
     const sel = mapState.sel === id;
     const pin = pins.get(id);
     if (pin) svg += `<rect x="${p.x - HW - 5}" y="${p.y - HH - 5}" width="${MP_W + 10}" height="${MP_H + 10}" rx="9" fill="none" style="stroke:${pin.clear ? 'var(--green)' : 'var(--red)'}" stroke-width="2.5"><animate attributeName="opacity" values="1;.25;1" dur="1.6s" repeatCount="indefinite"/></rect>`;
+    if (s.ice && !s.isRegion && mapState.showIce !== false) svg += `<g><title>${s.isRegion ? `${s.ice} system${s.ice > 1 ? 's' : ''} where ice can spawn` : `Ice can spawn here (${s.ice} belt${s.ice > 1 ? 's' : ''})`}</title><circle cx="${p.x + HW}" cy="${p.y + HH}" r="6" style="fill:var(--bg);stroke:#7cc8ff" stroke-width="1.6"/><path d="M${p.x + HW} ${p.y + HH - 3.5}V${p.y + HH + 3.5}M${p.x + HW - 3} ${p.y + HH - 1.8}L${p.x + HW + 3} ${p.y + HH + 1.8}M${p.x + HW - 3} ${p.y + HH + 1.8}L${p.x + HW + 3} ${p.y + HH - 1.8}" style="stroke:#7cc8ff" stroke-width="1.1"/></g>`;
     const v = !s.ext && h.color ? h.val(s) : 0;
     const name = s.name.length > 11 ? s.name.slice(0, 10) + '…' : s.name;
     svg += `<g class="mp-node" data-sys="${id}" style="cursor:pointer" opacity="${s.ext ? 0.55 : 1}"><title>${esc(s.name)}${s.ext ? ' · ' + esc(s.region) : ''} (${Number(s.security).toFixed(1)})</title>
@@ -148,7 +149,7 @@ function drawMap() {
       <text x="${p.x + 2}" y="${p.y + 4}" text-anchor="middle" style="fill:var(--text);font-size:11px;font-weight:600">${esc(name)}</text>
       ${s.ext ? `<text x="${p.x}" y="${p.y + HH + 10}" text-anchor="middle" style="fill:var(--dim);font-size:8.5px">${esc(s.region)}</text>` : ''}
       ${v ? `<g><rect x="${p.x + HW - 12}" y="${p.y - HH - 9}" width="${String(v).length * 6 + 8}" height="13" rx="6.5" style="fill:${h.color}"/><text x="${p.x + HW - 8}" y="${p.y - HH + 1}" style="fill:#fff;font-size:9px;font-weight:700">${v}</text></g>` : ''}
-      ${!s.ext ? `<text class="mp-detail" x="${p.x}" y="${p.y + HH + 9}" text-anchor="middle" style="fill:var(--dim);font-size:7.5px">${Number(s.security).toFixed(1)} · ${s.jumps || 0} jumps · ${s.npc || 0} NPC</text>` : ''}</g>`;
+      ${!s.ext ? `<text class="mp-detail" x="${p.x}" y="${p.y + HH + 9}" text-anchor="middle" style="fill:var(--dim);font-size:7.5px">${s.isRegion ? `${s.count} systems · ${s.jumps || 0} jumps` : `${Number(s.security).toFixed(1)} · ${s.jumps || 0} jumps · ${s.npc || 0} NPC`}</text>` : ''}</g>`;
     const here = pilotsAt.get(id);
     if (here) svg = svg.replace(/<text class="mp-detail"[^>]*>[^<]*<\/text><\/g>$/, "</g>");
     if (here) svg += `<g><rect x="${p.x - HW}" y="${p.y + HH + 2}" width="${MP_W}" height="13" rx="3" style="fill:var(--accent)"/><text x="${p.x}" y="${p.y + HH + 11.5}" text-anchor="middle" style="fill:var(--on-accent);font-size:8.5px;font-weight:700">${esc(here.length > 1 ? here.length + ' pilots' : here[0].split(' ')[0])}</text></g>`;
@@ -167,12 +168,18 @@ function drawMapLegend(max, h, pins) {
   const sov = new Map();
   for (const s of d.systems) if (s.sov) sov.set(s.sov, (sov.get(s.sov) || 0) + 1);
   box.innerHTML = String(html`<h3>${d.region}</h3>
-    <div class="muted" style="font-size:12px">${d.systems.length} systems · ${d.systems.reduce((n, s) => n + s.ship + s.pod, 0)} ships and pods killed in the last hour · ${d.systems.reduce((n, s) => n + s.npc, 0)} NPCs killed</div>
+    <div class="muted" style="font-size:12px">${d.universe ? html`${d.systems.length} regions, ${d.systems.reduce((n, s) => n + s.count, 0)} systems` : html`${d.systems.length} systems`} · ${d.systems.reduce((n, s) => n + s.ship + s.pod, 0)} ships and pods killed in the last hour · ${d.systems.reduce((n, s) => n + s.npc, 0)} NPCs killed</div>
     <div style="margin-top:8px;font-size:12px" class="muted">${h.color ? html`Busiest: ${[...d.systems].sort((a, b) => h.val(b) - h.val(a)).filter(s => h.val(s)).slice(0, 5).map(s => html`<a href="#" data-mp-go="${s.id}">${s.name}</a> (${h.val(s)}) `)}` : ''}</div>
     ${pins.size ? html`<div style="margin-top:6px;font-size:12px"><span class="badge red">${pins.size} system${pins.size > 1 ? 's' : ''} in intel</span></div>` : ''}
     ${mapState.heat === 'sov' ? html`<div style="margin-top:8px">${[...sov.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([id, n]) => html`<div style="font-size:12px;display:flex;align-items:center;gap:6px;margin:2px 0"><span style="width:10px;height:10px;border-radius:2px;background:hsl(${raw(String(hashHue(id)))},55%,45%)"></span>${d.sovNames[id] || id} <span class="dim">${n}</span></div>`)}</div>` : ''}
-    <div class="dim" style="font-size:11px;margin-top:8px">Border colour = security. Gold dashed = your jump bridges. J = wormhole from your maps. Pulsing ring = intel report (green = clear).</div>`);
+    <div class="dim" style="font-size:11px;margin-top:8px">Border colour = security. Gold dashed = your jump bridges. J = wormhole from your maps. Pulsing ring = intel report (green = clear).${d.systems.some(x => x.ice) ? html` ${d.universe ? html` Each box is a region: click one, then Open, or double-click it.` : ''} ${d.universe ? '' : html`Blue snowflake = ice can spawn (${d.systems.filter(x => x.ice).length} systems, community data).`}` : ''}</div>`);
   box.querySelectorAll('[data-mp-go]').forEach(a => a.onclick = e => { e.preventDefault(); mapState.sel = Number(a.dataset.mpGo); drawMap(); });
+}
+
+function openMapRegion(id) {
+  mapState.regionId = Number(id); mapState.sel = null; mapState.view = null;
+  const sel = $('#mp-region'); if (sel) sel.value = String(id);
+  loadMap();
 }
 
 function drawMapSide() {
@@ -180,12 +187,23 @@ function drawMapSide() {
   const d = mapState.data, L = mapState.layout;
   const s = mapState.sel && L.all.get(mapState.sel);
   if (!s) { box.innerHTML = String(html`<h3>System</h3><div class="muted">Click a system for details. Scroll to zoom, drag to pan.</div>`); return; }
+  if (s.isRegion) {
+    const here = mapState.pilots.filter(p => p.regionId === s.id);
+    box.innerHTML = String(html`<h3>${s.name} ${secBadge(s.security)}</h3>
+      <div class="muted" style="font-size:12px">${s.count} systems · borders ${s.gates} region${s.gates === 1 ? '' : 's'}${s.sov ? html` · mostly ${d.sovNames[s.sov] || 'sov ' + s.sov}` : ''}</div>
+      <div class="grid grid-2" style="margin:10px 0;gap:8px">${stat('Ship kills', s.ship + s.pod, `${s.pod} pods`, s.ship + s.pod ? 'neg' : '')}${stat('NPC kills', s.npc)}${stat('Jumps', s.jumps)}${stat('Ice systems', s.ice || 0)}</div>
+      ${here.length ? html`<div style="margin-bottom:6px">${here.map(p => html`<span class="badge accent">${p.name}</span> `)}</div>` : ''}
+      <button class="btn btn-primary" style="padding:4px 12px;font-size:12.5px" id="mp-open-region">Open ${s.name}</button>`);
+    $('#mp-open-region').onclick = () => openMapRegion(s.id);
+    return;
+  }
   const reports = (intelState.reports || []).filter(r => (r.systems || []).some(x => x.id === s.id)).slice(0, 4);
   const here = mapState.pilots.filter(p => p.systemId === s.id);
   const wh = d.wormholes.filter(w => w.inside === s.id);
   box.innerHTML = String(html`<h3>${s.name} ${secBadge(s.security)}</h3>
     <div class="muted" style="font-size:12px">${s.ext ? s.region : (s.constellation || '')}${s.sov ? html` · ${d.sovNames[s.sov] || 'sov ' + s.sov}` : ''}</div>
     ${s.ext ? '' : html`<div class="grid grid-2" style="margin:10px 0;gap:8px">${stat('Ship kills', s.ship + s.pod, `${s.pod} pods`, s.ship + s.pod ? 'neg' : '')}${stat('NPC kills', s.npc)}${stat('Jumps', s.jumps)}${stat('Gates', s.gates, s.gates === 1 ? 'Dead end' : '')}</div>`}
+    ${s.ice ? html`<div style="font-size:12px;margin-bottom:6px"><span class="badge" style="color:#7cc8ff;border-color:#7cc8ff">ice</span> Ice can spawn here · ${s.ice} belt${s.ice > 1 ? 's' : ''}</div>` : ''}
     ${here.length ? html`<div style="margin-bottom:6px">${here.map(p => html`<span class="badge accent">${p.name}</span> `)}</div>` : ''}
     ${wh.map(w => html`<div style="font-size:12px"><span class="badge" style="color:var(--purple);border-color:var(--purple)">${w.type}</span> to ${w.otherName}</div>`)}
     ${reports.length ? html`<h3 class="mh" style="margin-top:8px">Intel</h3>${reports.map(r => html`<div style="font-size:12px;margin-bottom:4px"><span class="dim">${Math.round((Date.now() - Date.parse(r.at)) / 60000)}m</span> ${r.text}</div>`)}` : ''}
@@ -218,6 +236,7 @@ function bindMapPanZoom() {
     svgEl.classList.toggle('mp-zoomed', nw < fitW * 0.55);
   };
   let drag = null, moved = false;
+  box.ondblclick = e => { const g = mapState.data && mapState.data.universe && e.target.closest && e.target.closest('[data-sys]'); if (g) openMapRegion(g.dataset.sys); };
   box.onpointerdown = e => { drag = { x: e.clientX, y: e.clientY, v: { ...mapState.view } }; moved = false; box.style.cursor = 'grabbing'; };
   window.onpointermove = e => {
     if (!drag) return;

@@ -280,6 +280,68 @@ const MINE_PERIODS = [['6h', '6 h'], ['12h', '12 h'], ['24h', '24 h'], ['48h', '
 const MINE_BASIS = [['refined', 'Refined value (what it reprocesses into)'], ['jitaBuy', 'Ore at Jita buy'], ['jitaSell', 'Ore at Jita sell'], ['average', 'CCP average price']];
 const MINE_SETS = [['moon', 'Moon ore'], ['all', 'Everything'], ['ore', 'Belt ore'], ['ice', 'Ice'], ['gas', 'Gas'], ['pick', 'Pick ores…']];
 
+const mineralRows = list => html`${list.map(m => html`<tr><td>${icon(m.typeId)}${m.name}</td><td class="right num">${fmtNum(m.qty)}</td><td class="right num dim">${m.tax ? fmtNum(m.tax) : '—'}</td><td class="right num">${fmtCompact(m.value)}</td></tr>`)}`;
+function mineralDetail(o, d) {
+  if (!o.minerals) return html`<div class="dim" style="font-size:12.5px">This doesn't refine into anything the game data knows about.</div>`;
+  const mi = d.minerals || {};
+  return html`<div style="display:flex;gap:18px;align-items:flex-start;flex-wrap:wrap"><table style="max-width:560px"><thead><tr><th>${fmtNum(o.qty - (o.leftover || 0))} ${o.name} refines into</th><th class="right">You get</th><th class="right" title="What the refinery keeps as its tax">Refinery keeps</th><th class="right">Jita buy</th></tr></thead><tbody>${mineralRows(o.minerals)}</tbody></table>
+    <div class="dim" style="font-size:12px;max-width:260px">At ${mi.yieldPct}% yield and ${mi.taxPct}% refining tax: ${fmtCompact(o.mineralValue || 0)} ISK of minerals.${o.leftover ? html` ${fmtNum(o.leftover)} units are left over (not a full batch) and stay as ore.` : ''}</div></div>`;
+}
+function mineralPanel(d) {
+  const mi = d.minerals; if (!mi) return '';
+  return html`<div class="panel" style="padding:0;margin-top:14px"><div style="padding:12px 16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><h3 style="margin:0;flex:1">Minerals from everything mined</h3>
+      <label class="dim" style="font-size:12px">Yield <input type="number" id="mt-myield" value="${mi.yieldPct}" min="30" max="100" step="0.1" style="${raw(inBox)};width:72px"> %</label>
+      <label class="dim" style="font-size:12px" title="The refinery keeps this share of the minerals. NPC stations start at 5% (less with standings); player refineries set their own.">Refining tax <input type="number" id="mt-rtax" value="${mi.taxPct}" min="0" max="100" step="0.1" style="${raw(inBox)};width:64px"> %</label>
+      <button class="btn btn-ghost" id="mt-mcopy" style="padding:3px 10px;font-size:12px">Copy list</button><button class="btn btn-primary" id="mt-build" style="padding:3px 10px;font-size:12px">Plan a build with it</button></div>
+    ${mi.list.length ? html`<table><thead><tr><th>Mineral</th><th class="right">You get</th><th class="right">Refinery keeps</th><th class="right">Jita buy</th></tr></thead><tbody>${mineralRows(mi.list)}
+      <tr><td><b>Total</b></td><td></td><td class="right num dim">${mi.taxValue ? fmtCompact(mi.taxValue) + ' ISK' : '—'}</td><td class="right num"><b>${fmtCompact(mi.value)}</b></td></tr></tbody></table>` : emptyBox('Nothing to refine in this period')}
+    <div class="dim" style="font-size:12px;padding:10px 16px">Every ore mined in the period, refined at your yield after the refinery's tax, valued at Jita buy. Click an ore above for its own breakdown.</div></div>`;
+}
+
+const mbState = { product: '', qty: 1, me: 10, bp: '', bpRuns: 0, deep: true, oreSet: 'highsec', useMined: true };
+const MB_ORESETS = [['highsec', 'Highsec ore (Veldspar to Hemorphite)'], ['any', 'Any asteroid ore'], ['moon', 'Moon ore'], ['all', 'Any ore, moon ore or ice']];
+async function openMineBuild(c, d) {
+  const s = mbState;
+  openModal('Plan a build with your ore', html`<div class="grid" style="grid-template-columns:1fr 1fr;gap:10px 16px">
+      <div class="field" style="margin:0"><label>One of ${c.name}'s blueprints</label><select id="mb-bp"><option value="">Loading…</option></select></div>
+      <div class="field" style="margin:0"><label>Or anything that can be built</label><input type="search" id="mb-product" value="${s.product}"></div>
+      <div style="display:flex;gap:10px"><div class="field" style="margin:0;flex:1"><label>How many</label><input type="number" id="mb-qty" min="1" value="${s.qty}"></div><div class="field" style="margin:0;flex:1"><label>Blueprint ME</label><input type="number" id="mb-me" min="0" max="10" value="${s.me}"></div></div>
+      <div class="field" style="margin:0"><label>Ore to suggest</label><select id="mb-ores">${MB_ORESETS.map(([k, l]) => html`<option value="${k}" ${raw(s.oreSet === k ? 'selected' : '')}>${l}</option>`)}</select></div></div>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;margin:10px 0 4px"><label class="check" style="margin:0"><input type="checkbox" id="mb-deep" ${raw(s.deep ? 'checked' : '')}> Build the components too (down to minerals)</label>
+      <label class="check" style="margin:0"><input type="checkbox" id="mb-mined" ${raw(s.useMined ? 'checked' : '')}> Count what ${c.name} mined (${(MINE_PERIODS.find(x => x[0] === d.period) || [0, ''])[1].toLowerCase()})</label></div>
+    <div class="dim" style="font-size:12px">Refined at ${d.minerals ? d.minerals.yieldPct : 87.5}% yield after ${d.minerals ? d.minerals.taxPct : 5}% refining tax, as set on the Mining page.</div>
+    <div id="mb-out" style="margin-top:12px"></div>`, { wide: true, submit: 'Work it out', onSubmit: async () => { await runMineBuild(c, d); return true; } });
+  attachSearch($('#mb-product'), { placeholder: 'e.g. Retriever, Hammerhead I, Drake', onPick: it => { s.product = it.name; $('#mb-product').value = it.name; $('#mb-bp').value = ''; s.bpRuns = 0; } });
+  const r = await api.blueprints(c.id);
+  const sel = $('#mb-bp'); if (!sel) return;
+  const bps = r.ok ? r.data.slice().sort((a, b) => (a.name || '').localeCompare(b.name || '')) : [];
+  sel.innerHTML = String(html`<option value="">${bps.length ? 'Pick a blueprint…' : 'No blueprints found'}</option>${bps.map(b => html`<option value="${b.itemId}">${(b.name || '').replace(/ (Blueprint|Reaction Formula)$/, '')} · ${b.copy ? `copy, ${b.runs} run${b.runs === 1 ? '' : 's'}` : 'original'} · ME ${b.me}</option>`)}`);
+  sel.onchange = () => { const b = bps.find(x => String(x.itemId) === sel.value); if (!b) { s.bpRuns = 0; return; } s.bp = sel.value; s.product = b.name; $('#mb-product').value = b.name; $('#mb-me').value = b.me; s.bpRuns = b.copy ? b.runs : 0; };
+}
+async function runMineBuild(c, d) {
+  const s = mbState, out = $('#mb-out'); if (!out) return;
+  Object.assign(s, { product: $('#mb-product').value.trim(), qty: Number($('#mb-qty').value) || 1, me: Number($('#mb-me').value) || 0, deep: $('#mb-deep').checked, useMined: $('#mb-mined').checked, oreSet: $('#mb-ores').value });
+  if (!s.product) return toast('Pick a blueprint or type what to build', true);
+  out.innerHTML = String(loadingView('Working out the build…'));
+  const r = await api.mineTax.build({ charId: c.id, product: s.product, qty: s.qty, me: s.me, deep: s.deep, useMined: s.useMined, oreSet: s.oreSet, period: d.period, bpRuns: s.bpRuns });
+  if (!$('#mb-out')) return;
+  if (!r.ok) { out.innerHTML = String(errorView(r)); return; }
+  const p = r.data;
+  const short = p.minerals.filter(m => m.short > 0);
+  out.innerHTML = String(html`${p.notEnoughRuns ? html`<div class="notice" style="margin-bottom:10px">This needs ${p.runs} runs but the copy has ${p.copyRuns}. You'd need more copies, or build fewer.</div>` : ''}
+    <div class="grid grid-3" style="margin-bottom:12px">${stat('Building', `${fmtNum(p.qty)} × ${p.product.name}`, `${p.runs} run${p.runs === 1 ? '' : 's'} at ME ${p.me}`)}${stat('Minerals still needed', short.length ? fmtCompact(p.shortValue) + ' ISK' : 'None', short.length ? `${short.length} of ${p.minerals.length} kinds` : 'Your mining covers it', short.length ? 'gold' : 'pos')}${stat('Ore to mine', p.orePlan.length ? fmtNum(Math.round(p.oreM3)) + ' m³' : '—', p.orePlan.length ? `${p.orePlan.length} kind${p.orePlan.length === 1 ? '' : 's'}` : '')}</div>
+    <div class="grid" style="grid-template-columns:1fr 1fr;gap:14px;align-items:start">
+      <div class="panel" style="padding:0"><div style="padding:10px 14px"><h3 style="margin:0">Minerals for the whole build</h3></div><table><thead><tr><th>Mineral</th><th class="right">Need</th><th class="right">From your mining</th><th class="right">Still short</th></tr></thead><tbody>
+        ${p.minerals.map(m => html`<tr><td>${icon(m.typeId)}${m.name}</td><td class="right num">${fmtNum(m.need)}</td><td class="right num ${m.have ? 'pos' : 'dim'}">${m.have ? fmtNum(m.have) : '—'}</td><td class="right num ${m.short ? 'gold' : 'dim'}">${m.short ? fmtNum(m.short) : '✓'}</td></tr>`)}</tbody></table></div>
+      <div><div class="panel" style="padding:0;margin-bottom:12px"><div style="padding:10px 14px;display:flex;align-items:center;gap:8px"><h3 style="margin:0;flex:1">Ore to mine for the rest</h3>${p.orePlan.length ? html`<button class="btn btn-ghost" id="mb-copy" style="padding:2px 9px;font-size:12px">Copy</button>` : ''}</div>
+        ${p.orePlan.length ? html`<table><thead><tr><th>Ore</th><th class="right">Units</th><th class="right">m³</th></tr></thead><tbody>${p.orePlan.map(o => html`<tr title="${o.gives.map(g => `${fmtNum(g.qty)} ${g.name}`).join(', ')}"><td>${icon(o.typeId)}${o.name}<div class="dim" style="font-size:11px">${o.gives.filter(g => g.qty).map(g => `${fmtNum(g.qty)} ${g.name}`).join(' · ')}</div></td><td class="right num">${fmtNum(o.units)}</td><td class="right num">${fmtNum(Math.round(o.m3))}</td></tr>`)}</tbody></table>`
+          : html`<div class="muted" style="padding:0 14px 12px">${short.length ? 'None of the chosen ore gives what\u2019s missing. Try another ore choice.' : 'Nothing: your mining already covers every mineral.'}</div>`}
+        ${p.uncovered.length ? html`<div class="dim" style="font-size:12px;padding:0 14px 10px">Not in the chosen ore: ${p.uncovered.map(u => `${fmtNum(u.qty)} ${u.name}`).join(', ')}</div>` : ''}</div>
+        ${p.other.length ? html`<div class="panel" style="padding:0"><div style="padding:10px 14px"><h3 style="margin:0">Not from ore</h3><div class="dim" style="font-size:12px">Buy these, or make them (PI, salvage, ${p.deep ? 'or items it can\u2019t break down' : 'or tick Build the components too'})</div></div><table><tbody>${p.other.map(m => html`<tr><td>${icon(m.typeId)}${m.name}</td><td class="right num">${fmtNum(m.qty)}</td><td class="right num dim">${fmtCompact(m.value)}</td></tr>`)}</tbody></table></div>` : ''}</div></div>
+    <div class="dim" style="font-size:12px;margin-top:8px">The ore mix covers the most of what's missing per m³, at your yield after refining tax, with each ore rounded up to whole refining batches. It's a good mix, not always the smallest possible.${p.built.length ? ` Components built along the way: ${p.built.slice(0, 12).map(b => `${fmtNum(b.qty)} ${b.name}`).join(', ')}${p.built.length > 12 ? '…' : ''}.` : ''}</div>`);
+  const cp = $('#mb-copy'); if (cp) cp.onclick = () => { navigator.clipboard.writeText(p.orePlan.map(o => `${o.name}\t${o.units}`).join('\n')); toast('Copied'); };
+}
+
 function viewMining(d, c) {
   const cf = d.cfg, t = d.totals;
   const reload = async o => { const box = $('#mt-body'); if (box) box.style.opacity = '.5'; const r = await api.mineTax.report(c.id, o); if (!r.ok) return toast(r.error, true); viewMining(r.data, c); };
@@ -301,8 +363,9 @@ function viewMining(d, c) {
         ${d.buckets.some(b => b.qty) ? html`<div class="bars">${d.buckets.map(b => html`<div style="height:${(b.qty / max * 100).toFixed(1)}%" title="${label(b)}: ${fmtNum(b.qty)}"></div>`)}</div>
           <div class="bars-x"><span>${label(d.buckets[0])}</span><span>${label(d.buckets[d.buckets.length - 1])}</span></div>` : emptyBox('Nothing mined in this period')}</div>
         <div class="panel" style="padding:0"><table><thead><tr><th style="width:28px" title="Taxed"></th><th>Ore</th><th>Where</th><th class="right">Units</th><th class="right">Each</th><th class="right">Value</th><th class="right">Tax</th></tr></thead><tbody>
-          ${d.ores.length ? d.ores.map(o => html`<tr class="${o.taxed ? '' : 'dim'}"><td><input type="checkbox" data-mtore="${o.typeId}" ${raw(o.taxed ? 'checked' : '')} title="Include in tax"></td><td>${icon(o.typeId)}${o.name}<div class="dim" style="font-size:11px">${o.kind === 'moon' ? 'moon ore' : o.kind}</div></td>
-            <td style="font-size:12px" class="muted">${o.systems.map(x => x.name).join(', ')}</td><td class="right num">${fmtNum(o.qty)}</td><td class="right num dim">${fmtCompact(o.unit)}</td><td class="right num">${fmtCompact(o.value)}</td><td class="right num ${o.tax ? 'gold' : 'dim'}">${o.tax ? fmtCompact(o.tax) : '—'}</td></tr>`) : html`<tr><td colspan="7">${emptyBox('No mining in this period')}</td></tr>`}</tbody></table></div></div>
+          ${d.ores.length ? d.ores.map(o => xRow('mto' + o.typeId, html`<td><input type="checkbox" data-mtore="${o.typeId}" ${raw(o.taxed ? 'checked' : '')} title="Include in tax"></td><td>${icon(o.typeId)}${o.name}<div class="dim" style="font-size:11px">${o.kind === 'moon' ? 'moon ore' : o.kind}</div></td>
+            <td style="font-size:12px" class="muted">${o.systems.map(x => x.name).join(', ')}</td><td class="right num">${fmtNum(o.qty)}</td><td class="right num dim">${fmtCompact(o.unit)}</td><td class="right num">${fmtCompact(o.value)}</td><td class="right num ${o.tax ? 'gold' : 'dim'}">${o.tax ? fmtCompact(o.tax) : '—'}</td>`, mineralDetail(o, d), 7, { cls: o.taxed ? '' : 'dim', title: 'Click for the minerals it refines into' })) : html`<tr><td colspan="7">${emptyBox('No mining in this period')}</td></tr>`}</tbody></table></div>
+        ${mineralPanel(d)}</div>
       <div><div class="panel"><h3>Tax</h3>
         ${field('Tax rate', html`<div style="display:flex;gap:6px;align-items:center"><input type="number" id="mt-rate" value="${cf.rate}" min="0" max="100" step="0.5" style="width:90px"> %</div>`)}
         ${field('Worked out on', html`<select id="mt-basis">${MINE_BASIS.map(([k, l]) => html`<option value="${k}" ${raw(cf.basis === k ? 'selected' : '')}>${l}</option>`)}</select>`)}
@@ -323,6 +386,10 @@ function viewMining(d, c) {
     if (i.checked) ids.add(id); else ids.delete(id);
     reload({ oreSet: 'pick', ores: [...ids] });
   });
+  if ($('#mt-myield')) $('#mt-myield').onchange = e => reload({ yieldPct: Number(e.target.value) });
+  if ($('#mt-rtax')) $('#mt-rtax').onchange = e => reload({ refineTax: Number(e.target.value) });
+  if ($('#mt-mcopy')) $('#mt-mcopy').onclick = () => { navigator.clipboard.writeText(d.minerals.list.map(m => `${m.name}\t${m.qty}`).join('\n')); toast('Copied: paste into EVE’s Multibuy or a contract'); };
+  if ($('#mt-build')) $('#mt-build').onclick = () => openMineBuild(c, d);
   $('#mt-copy').onclick = () => { navigator.clipboard.writeText(summary()); toast('Copied. Paste it into an EVE mail to the corp.'); };
   $('#mt-payee-set').onclick = async () => { const r = await api.mineTax.payee(c.id, $('#mt-payee').value.trim()); if (!r.ok) return toast(r.error, true); toast(r.data ? `Payments to ${r.data.name} will be found in your wallet` : 'Cleared'); reload({}); };
   $('#mt-paid').onclick = async () => { const v = parseIsk($('#mt-amt').value); if (!(v > 0)) return toast('Enter an amount, e.g. 45m', true); const r = await api.mineTax.paid(c.id, v, ''); if (!r.ok) return toast(r.error, true); reload({}); };

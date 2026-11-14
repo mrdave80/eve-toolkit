@@ -6,8 +6,8 @@ const TOOLS_GROUPS = [
   ['Industry', [['t-build', 'Build Calculator'], ['t-wtb', 'What to Build'], ['t-split', 'Job Splitter'], ['t-bpc', 'Blueprint Prices'], ['t-invent', 'Invention'], ['t-reprocess', 'Reprocessing'], ['t-ores', 'Ore Values'], ['t-mining', 'Ice & Ore Sites'], ['t-moon', 'Moon Scan'], ['t-assets', 'Asset Finder']]],
   ['Navigation', [['t-route', 'Route Planner'], ['t-courier', 'Courier Contracts'], ['t-hunt', 'Hunting & Ratting'], ['t-agents', 'Agent Finder'], ['t-jump', 'Jump Planner'], ['t-universe', 'Universe']]],
   ['Intel', [['t-pilot', 'Pilot Intel'], ['t-sysintel', 'System Intel'], ['t-whres', 'Wormhole Residents'], ['t-shame', 'Wall of Shame'], ['t-intel', 'Intel Watch'], ['t-local', 'Local & D-scan'], ['t-combat', 'Combat Log']]],
-  ['Fitting', [['t-fit', 'Fit Checker']]],
-  ['Pilots', [['t-compare', 'Compare Skills']]],
+  ['Fitting', [['t-fit', 'Fit Checker'], ['t-fitlib', 'Fit Library']]],
+  ['Pilots', [['t-train', 'What to Train'], ['t-compare', 'Compare Skills']]],
   ['Client', [['t-eveset', 'Copy EVE Settings']]],
   ['Finance', [['t-networth', 'Net Worth'], ['t-income', 'Income'], ['t-pve', 'Ratting & Abyss'], ['t-farm', 'Skill Farm'], ['t-charval', 'Character Value'], ['t-insure', 'Insurance']]]
 ];
@@ -33,7 +33,7 @@ const iskCell = (v, cls = '') => html`<span class="num ${cls}">${v === null || v
 async function renderTools(stillCurrent) {
   const tab = state.toolsTab || 't-market';
   if (typeof noteToolUse === 'function') noteToolUse(tab);
-  const needsSde = ['t-mining', 't-split', 't-bpc', 't-station', 't-shame', 't-whres', 't-hunt', 't-courier', 't-market', 't-appraisal', 't-arbitrage', 't-build', 't-invent', 't-reprocess', 't-ores', 't-assets', 't-wtb', 't-agents', 't-sysintel', 't-route', 't-jump', 't-intel', 't-local'];
+  const needsSde = ['t-train', 't-fitlib', 't-mining', 't-split', 't-bpc', 't-station', 't-shame', 't-whres', 't-hunt', 't-courier', 't-market', 't-appraisal', 't-arbitrage', 't-build', 't-invent', 't-reprocess', 't-ores', 't-assets', 't-wtb', 't-agents', 't-sysintel', 't-route', 't-jump', 't-intel', 't-local'];
   if (needsSde.includes(tab)) {
     const info = await api.sde.info();
     if (!info.ok || !info.data.ready) return setContent(needSdeView('This tool'));
@@ -43,9 +43,9 @@ async function renderTools(stillCurrent) {
     't-build': tBuild, 't-invent': tInvent, 't-reprocess': tReprocess,
     't-courier': () => tCourier(), 't-hunt': () => tHunt(), 't-route': () => (typeof tRoute === 'function' ? tRoute() : null), 't-jump': () => (typeof tJump === 'function' ? tJump() : null), 't-universe': () => (typeof tUniverse === 'function' ? tUniverse(stillCurrent) : null),
     't-pilot': tPilot, 't-whres': () => tWhRes(), 't-shame': () => tShame(), 't-intel': () => (typeof tIntel === 'function' ? tIntel() : null), 't-local': () => (typeof tLocal === 'function' ? tLocal() : null), 't-combat': () => (typeof tCombat === 'function' ? tCombat() : null),
-    't-fit': () => tFit(),
+    't-fit': () => tFit(), 't-fitlib': () => tFitLib(stillCurrent),
     't-items': () => tItems(), 't-bargain': () => tBargains(), 't-charval': () => tCharValue(stillCurrent),
-    't-trade': () => tTrade(stillCurrent), 't-station': () => tStation(stillCurrent), 't-assets': () => tAssetFinder(), 't-wtb': () => tWhatToBuild(), 't-split': () => tJobSplit(stillCurrent), 't-bpc': () => tBpPrices(stillCurrent), 't-agents': () => tAgents(), 't-sysintel': () => tSysIntel(), 't-ores': () => tOres(), 't-mining': () => tMining(stillCurrent), 't-eveset': () => tEveSettings(), 't-compare': () => tCompareSkills(), 't-prices': () => tPriceWatch(), 't-moon': () => tMoon(),
+    't-trade': () => tTrade(stillCurrent), 't-station': () => tStation(stillCurrent), 't-assets': () => tAssetFinder(), 't-wtb': () => tWhatToBuild(), 't-split': () => tJobSplit(stillCurrent), 't-bpc': () => tBpPrices(stillCurrent), 't-agents': () => tAgents(), 't-sysintel': () => tSysIntel(), 't-ores': () => tOres(), 't-mining': () => tMining(stillCurrent), 't-eveset': () => tEveSettings(), 't-compare': () => tCompareSkills(), 't-train': () => tTrain(stillCurrent), 't-prices': () => tPriceWatch(), 't-moon': () => tMoon(),
     't-farm': () => tFarm(stillCurrent), 't-insure': () => tInsure(stillCurrent),
     't-pve': () => tPve(), 't-networth': () => (typeof tNetworth === 'function' ? tNetworth(stillCurrent) : null), 't-income': () => (typeof tIncome === 'function' ? tIncome(stillCurrent) : null)
   };

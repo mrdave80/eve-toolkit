@@ -27,7 +27,10 @@ A free Windows desktop app for EVE Online pilots, corporations and alliances. Sk
 | ![Blueprint prices from contracts](docs/screenshots/blueprint-prices.jpg) | ![Wormhole rolling planner](docs/screenshots/wormhole-rolling.jpg) |
 | ![Ice and ore sites](docs/screenshots/ice-ore-sites.jpg) | ![Kill details in Intel Watch](docs/screenshots/intel-details.jpg) |
 | ![Corp structure fuel](docs/screenshots/corp-fuel.jpg) | ![Corp ratting leaderboard](docs/screenshots/corp-leaderboard.jpg) |
-| ![Killmail appraisal](docs/screenshots/kill-appraisal.jpg) | |
+| ![Killmail appraisal](docs/screenshots/kill-appraisal.jpg) | ![Needs attention](docs/screenshots/needs-attention.jpg) |
+| ![Alerts inbox](docs/screenshots/alerts-inbox.jpg) | ![Fit library](docs/screenshots/fit-library.jpg) |
+| ![What to train: ship masteries](docs/screenshots/what-to-train.jpg) | ![Where ice spawns](docs/screenshots/ice-spawn.jpg) |
+| ![Live map: all of New Eden](docs/screenshots/universe-map.jpg) | |
 
 Screenshots use demo data with made-up pilots.
 
@@ -180,6 +183,30 @@ Blueprints mostly sell on contracts. Search a blueprint (or what it makes) to se
 ## Ice and ore sites (Tools → Industry → Ice & Ore Sites)
 
 CCP doesn't publish anomalies outside the game, so the app collects sightings: paste the probe scanner (or copy it in game with the clipboard watch on and it's added to your online pilot's system), and ice or ore sites mentioned with a system in your intel channels are added too. Turn on alerts for ice, ore sites or both within so many jumps of your pilots. A later scan crosses out sites that have gone, and the app remembers which systems have had ice. **Moon chunks** lists your corp's extractions with jumps from your nearest pilot, and directors get an alert an hour before each chunk arrives and when it's ready.
+
+## Where ice spawns (Tools → Industry → Ice & Ore Sites)
+
+Ice belts only appear in certain systems. This tab lists them nearest to your pilots (or any system you type), with how many belts each has and your own sightings, and the live map marks them with a blue snowflake. CCP doesn't publish this list, so it's community data; Perrigen Falls isn't covered yet.
+
+## Live map: New Eden
+
+Pick **New Eden** in the live map's region list for every region at once, one box each, with kills, ratting, traffic or sovereignty as heat, plus your pilots and intel. Click a region and press Open, or double-click it, to go into it.
+
+## Needs attention and the alerts inbox
+
+**Needs attention** on All pilots lists what needs you now: expired logins, empty skill queues, finished jobs, stopped PI, unread mail, contracts waiting on you, outbid orders, low or reinforced structures and ready moon chunks. The bell in the top bar keeps the last two days of alerts; **Alert types** turns each kind on or off.
+
+## Fit library (Tools → Fitting → Fit Library)
+
+Keep fits in folders with notes. Paste EFT, import your pilots' in-game fittings or your doctrines, and see which pilots can fly each one and how long the rest need.
+
+## What to train (Tools → Pilots → What to Train)
+
+CCP's ship masteries I–V for every pilot, with the time to each level and one click to turn it into a skill plan, plus the certificates each pilot is closest to raising.
+
+## Pinned tools, all-pilot boards, prices and updates
+
+★ pins a tool to the ★ tab in Tools, beside the ones you used last. Contracts and Notifications in the sidebar cover every pilot at once. Prices come from Fuzzwork's market aggregates, with CCP's market as a fallback (Settings → Prices). Turn on quiet updates (Settings → Notifications and behaviour) and new versions download in the background and install when you close the app.
 
 ## Corporation fuel and leaderboard
 

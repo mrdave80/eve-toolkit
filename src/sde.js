@@ -69,7 +69,7 @@ async function buildFromZip(file, build) {
     build, builtAt: new Date().toISOString(),
     types: {}, groups: {}, categories: {}, dogma: {}, blueprints: {}, products: {}, materials: {},
     systems: {}, regions: {}, constellations: {}, gates: {}, suns: {}, planets: {}, marketGroups: {},
-    agents: [], stations: {}, npcCorps: {}, factions: {}, divisions: {}, agentTypes: {}
+    agents: [], stations: {}, npcCorps: {}, factions: {}, divisions: {}, agentTypes: {}, certs: {}, masteries: {}
   };
   let step = 0;
   const tick = name => setStatus({ state: 'building', progress: Math.round((++step / FILES.length) * 100), message: `Reading ${name}…` });
@@ -161,6 +161,22 @@ async function buildFromZip(file, build) {
     const loc = c.locationID || c.stationID || a.locationID || 0;
     out.agents.push([c._key, en(c.name), c.corporationID || a.corporationID || 0, a.level || 0, a.divisionID || 0, a.agentTypeID || 0, loc, a.isLocator ? 1 : 0]);
   });
+  // Certificates and ship masteries, for "what to train next". Shapes differ a little between builds.
+  const LV = ['basic', 'standard', 'improved', 'advanced', 'elite'];
+  if (entries.certificates) await eachLine(zip, entries.certificates, c => {
+    const req = {};
+    const add = (skill, lv) => { if (!skill || !lv) return; req[skill] = LV.map(k => Number(lv[k]) || 0); };
+    if (Array.isArray(c.skillTypes)) for (const x of c.skillTypes) add(x._key ?? x.skillTypeID ?? x.typeID, x._value || x);
+    else if (c.skillTypes && typeof c.skillTypes === 'object') for (const [k, v] of Object.entries(c.skillTypes)) add(k, v);
+    out.certs[c._key] = [en(c.name), c.groupID || 0, req];
+  });
+  if (entries.masteries) await eachLine(zip, entries.masteries, m => {
+    const levels = [[], [], [], [], []];
+    const list = Array.isArray(m._value) ? m._value : Array.isArray(m.masteries) ? m.masteries : Object.entries(m).filter(([k]) => /^\d+$/.test(k)).map(([k, v]) => ({ _key: Number(k), _value: v }));
+    for (const x of list) { const i = Number(x._key ?? x.masteryLevel ?? x.level); const ids = x._value || x.certificates || []; if (i >= 0 && i < 5 && Array.isArray(ids)) levels[i] = ids.map(Number); }
+    if (levels.some(l => l.length)) out.masteries[m._key] = levels;
+  });
+  out.certsRead = !!entries.certificates;
   zip.close();
   return out;
 }
@@ -182,7 +198,7 @@ async function check() {
   if (status.state === 'downloading' || status.state === 'building') return { state: 'busy' };
   if (!db) return { state: 'missing' };
   const have = db.build;
-  if (!hasFull() || !hasPlanets()) return { state: 'incomplete', build: have };
+  if (!hasFull() || !hasPlanets() || db.certsRead === undefined) return { state: 'incomplete', build: have };
   try {
     const { build, released } = await latestBuild();
     if (build && Number(build) > Number(have)) return { state: 'outdated', build: have, latest: build, released };
@@ -216,7 +232,7 @@ async function update({ force = false } = {}) {
   try {
     setStatus({ state: 'checking', progress: 0, message: 'Checking for the latest game data…' });
     const { build } = await latestBuild();
-    if (!force && db && db.build === build && hasFull() && db.planets && Object.keys(db.planets).length) { setStatus({ state: 'ready', message: 'Game data is up to date.' }); return info(); }
+    if (!force && db && db.build === build && hasFull() && db.planets && Object.keys(db.planets).length && db.certsRead !== undefined) { setStatus({ state: 'ready', message: 'Game data is up to date.' }); return info(); }
     const file = await download(build);
     setStatus({ state: 'building', progress: 0, message: 'Building local database…' });
     const out = await buildFromZip(file, build);
@@ -407,7 +423,19 @@ function wormholeTypes() {
   return out.sort((a, b) => a.code.localeCompare(b.code));
 }
 
-module.exports = {
+/** Ship masteries: for each level I–V, the skills and levels it needs (Map skillId -> level). */
+function masteryFor(shipTypeId) {
+  const d = need(); const m = (d.masteries || {})[shipTypeId]; if (!m) return null;
+  return m.map((certIds, lvl) => { const req = new Map(); for (const cid of certIds) { const c = (d.certs || {})[cid]; if (!c) continue; for (const [sk, lv] of Object.entries(c[2])) { const need = lv[lvl] || 0; if (need) req.set(Number(sk), Math.max(req.get(Number(sk)) || 0, need)); } } return { level: lvl + 1, certs: certIds.map(id => ((d.certs || {})[id] || ['?'])[0]), req }; });
+}
+/** All certificates: [{ id, name, group, levels: [Map skill->level] x5 }] */
+function certificates() {
+  const d = need();
+  return Object.entries(d.certs || {}).map(([id, [name, groupId, req]]) => ({ id: Number(id), name, group: (d.groups[groupId] || [''])[0], levels: [0, 1, 2, 3, 4].map(i => new Map(Object.entries(req).filter(([, v]) => v[i]).map(([k, v]) => [Number(k), v[i]]))) }));
+}
+const hasCerts = () => { try { return !!Object.keys(need().certs || {}).length; } catch { return false; } };
+
+module.exports = { masteryFor, certificates, hasCerts,
   load, update, importZip, info, ready, check, setListener: fn => { onStatus = fn; },
   type, typeIdByName, attrs, fullAttrs, hasFull, usedIn, groupName, planetsIn, hasPlanets, requirements, allRequirements, skillMeta, search, skillsByGroup,
   blueprintFor, blueprint, inventedFrom, wormholeTypes, reprocess, system, systemIdByName, gates, allSystems, typesWhere, agentData,

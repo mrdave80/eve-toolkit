@@ -103,8 +103,9 @@ function drawBp() {
 const mineState = { tab: 'sites', from: '', kind: '', data: null, moons: null };
 async function tMining(stillCurrent) {
   const s = mineState;
-  const r = await api.mine.list({});
+  const r = await api.mine.list(s.from ? { from: s.from, maxJumps: 25 } : { maxJumps: 25 });
   if (stillCurrent && !stillCurrent()) return;
+  if (!r.ok && s.from) { toast(r.error, true); s.from = ''; return tMining(stillCurrent); }
   if (!r.ok) return setContent(errorView(r));
   s.data = r.data; const c = r.data.cfg;
   setContent(html`<div class="grid" style="grid-template-columns:minmax(300px,1fr) 2fr;gap:16px;align-items:start">
@@ -117,7 +118,7 @@ async function tMining(stillCurrent) {
       <div style="display:flex;gap:14px;margin:4px 0 8px"><label class="check" style="margin:0"><input type="checkbox" id="mn-ice" ${raw(c.ice ? 'checked' : '')}> Ice</label><label class="check" style="margin:0"><input type="checkbox" id="mn-ore" ${raw(c.ore ? 'checked' : '')}> Ore sites</label></div>
       <div class="field" style="margin:0"><label>Within jumps of any of your pilots</label><input type="number" id="mn-jumps" min="0" max="30" value="${c.maxJumps}" style="width:90px"></div>
       <div class="dim" style="font-size:12px;margin-top:8px">CCP doesn't share anomalies outside the game, so sites only come from scans and intel messages. A sighting is kept for ${c.keepHours} hours unless a later scan shows it gone.</div></div></div>
-    <div><div class="seg" style="margin-bottom:12px"><button data-mntab="sites" class="${s.tab === 'sites' ? 'active' : ''}">Sightings</button><button data-mntab="known" class="${s.tab === 'known' ? 'active' : ''}">Ice systems you've seen</button><button data-mntab="moons" class="${s.tab === 'moons' ? 'active' : ''}">Moon chunks</button></div>
+    <div><div class="seg" style="margin-bottom:12px"><button data-mntab="sites" class="${s.tab === 'sites' ? 'active' : ''}">Sightings</button><button data-mntab="spawn" class="${s.tab === 'spawn' ? 'active' : ''}">Where ice spawns</button><button data-mntab="known" class="${s.tab === 'known' ? 'active' : ''}">Ice systems you've seen</button><button data-mntab="moons" class="${s.tab === 'moons' ? 'active' : ''}">Moon chunks</button></div>
       <div id="mn-out"></div></div></div>`);
   const save = () => api.mine.cfg({ alert: $('#mn-alert').checked, ice: $('#mn-ice').checked, ore: $('#mn-ore').checked, maxJumps: Number($('#mn-jumps').value) });
   ['#mn-alert', '#mn-ice', '#mn-ore', '#mn-jumps'].forEach(id => $(id).onchange = save);
@@ -140,10 +141,23 @@ async function drawMining() {
   if (s.tab === 'sites') {
     const live = d.sites.filter(x => !x.gone), gone = d.sites.filter(x => x.gone);
     out.innerHTML = String(html`<div class="panel" style="padding:0">${d.sites.length ? html`<table><thead><tr><th>Site</th><th>System</th><th class="right">Jumps</th><th>Seen</th><th>From</th><th></th></tr></thead><tbody>
-      ${[...live, ...gone].map(x => html`<tr class="${x.gone ? 'dim' : ''}"><td><span class="badge ${x.kind === 'ice' ? 'accent' : 'gold'}">${x.kind}</span> ${x.name}${x.gone ? raw(' <span class="badge">gone</span>') : ''}</td><td><a href="#" data-system="${x.system}">${x.system}</a>${x.security !== null ? secBadge(x.security) : ''}<div class="dim" style="font-size:11.5px">${x.region}</div></td>
+      ${[...live, ...gone].map(x => html`<tr class="${x.gone ? 'dim' : ''}"><td><span class="badge ${x.kind === 'ice' ? 'accent' : 'gold'}">${x.kind}</span> ${x.name}${x.gone ? raw(' <span class="badge">gone</span>') : ''}${x.kind === 'ice' && x.iceSystem === false && x.source === 'chat' ? html`<div class="dim" style="font-size:11px" title="This system isn't on the ice spawn list, so the intel message may mean something else">not a known ice system</div>` : ''}</td><td><a href="#" data-system="${x.system}">${x.system}</a>${x.security !== null ? secBadge(x.security) : ''}<div class="dim" style="font-size:11.5px">${x.region}</div></td>
         <td class="right num">${jumpsCell(x)}</td><td class="dim" style="font-size:12px">${ago(x.firstSeen)}${x.lastSeen !== x.firstSeen ? html`<div>checked ${ago(x.lastSeen)}</div>` : ''}</td><td style="font-size:12px">${x.source === 'chat' ? 'intel' : 'scan'}${x.by ? html` <span class="dim">· ${x.by}</span>` : ''}</td>
         <td><button class="btn btn-ghost" style="padding:1px 7px" data-mndel="${x.systemId}|${x.key}" title="Remove">✕</button></td></tr>`)}</tbody></table>` : emptyBox('No sightings yet. Paste a probe scan, or turn on the clipboard watch and copy one in game.')}</div>`);
     document.querySelectorAll('[data-mndel]').forEach(b => b.onclick = async () => { const [sys, key] = b.dataset.mndel.split('|'); await api.mine.remove(Number(sys), key); tMining(); });
+  } else if (s.tab === 'spawn') {
+    const n = d.iceNear || [];
+    out.innerHTML = String(html`<div class="panel" style="margin-bottom:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="dim" style="font-size:12.5px">Closest to</span>
+        <input type="text" id="mn-from" value="${s.from || ''}" placeholder="${d.pilotsKnown && !s.from ? 'your pilots' : 'a system'}" style="${raw(inBox)};width:200px"><button class="btn" id="mn-from-go">Show</button>${s.from ? html`<button class="btn btn-ghost" id="mn-from-clear">Use my pilots</button>` : ''}</div>
+      <div class="panel" style="padding:0">${n.length ? html`<table><thead><tr><th>System</th><th class="right">Belts</th><th class="right">Jumps</th><th>Your sightings</th></tr></thead><tbody>
+        ${n.map(x => html`<tr><td><a href="#" data-system="${x.system}">${x.system}</a>${x.security !== null ? secBadge(x.security) : ''}<div class="dim" style="font-size:11.5px">${x.region}</div></td><td class="right num">${x.belts}</td>
+          <td class="right num">${x.jumps}${x.pilot ? html` <span class="dim" style="font-size:11.5px">from ${x.pilot}</span>` : ''}</td>
+          <td style="font-size:12px">${x.live ? html`<span class="badge green">${x.live} up now</span> ` : ''}${x.seen ? html`<span class="dim">seen ${x.seen}×</span>` : x.live ? '' : html`<span class="dim">—</span>`}</td></tr>`)}</tbody></table>`
+        : emptyBox(d.pilotsKnown || s.from ? 'No ice systems within 25 jumps.' : 'None of your pilots has a known location yet. Type a system above, or start Intel Watch so the app knows where your pilots are.')}</div>
+      <div class="dim" style="font-size:12px;margin-top:8px">Ice belts only appear in certain systems (${d.iceInfo ? d.iceInfo.systems : ''} of them). When a belt is mined out, a new one spawns a few hours later. This list is community data, since CCP doesn't publish it; Perrigen Falls isn't covered yet. Snowflakes on the live map mark the same systems.</div>`);
+    const go = () => { s.from = $('#mn-from').value.trim(); tMining(); };
+    $('#mn-from-go').onclick = go; $('#mn-from').onkeydown = e => { if (e.key === 'Enter') go(); };
+    if ($('#mn-from-clear')) $('#mn-from-clear').onclick = () => { s.from = ''; tMining(); };
   } else if (s.tab === 'known') {
     out.innerHTML = String(html`<div class="panel" style="padding:0">${d.knownIce.length ? html`<table><thead><tr><th>System</th><th class="right">Ice seen</th></tr></thead><tbody>${d.knownIce.map(k => html`<tr><td><a href="#" data-system="${k.system}">${k.system}</a>${k.security !== null ? secBadge(k.security) : ''} <span class="dim">${k.region}</span></td><td class="right num">${k.times}×</td></tr>`)}</tbody></table>` : emptyBox('Systems where you or your intel channels have seen ice show up here, so you know where to look next time.')}</div>
       <div class="dim" style="font-size:12px;margin-top:8px">Ice only spawns in certain systems, and once a belt is mined out a new one appears at random in one of them.</div>`);
@@ -165,3 +179,58 @@ async function drawMining() {
 // A copied probe scan or a sighting from intel: refresh the page if it's open, and say what was found
 api.mine.onScan(d => { if (d && d.sites) toast(`${d.system}: ${d.sites} mining site${d.sites === 1 ? '' : 's'} from your probe scan${d.gone ? `, ${d.gone} gone` : ''}`); if (state.view === 'tools' && state.toolsTab === 't-mining') tMining(); });
 api.mine.onNew(() => { if (state.view === 'tools' && state.toolsTab === 't-mining') tMining(); });
+
+// ================= What to train next =================
+
+const trainState = { ship: '', pilot: '', data: null, sug: null, tab: 'ship' };
+const ROMAN5 = ['', 'I', 'II', 'III', 'IV', 'V'];
+async function tTrain(stillCurrent) {
+  const s = trainState;
+  const pilots = state.characters.filter(c => !c.needsReauth);
+  if (!s.pilot && pilots[0]) s.pilot = String(pilots[0].id);
+  setContent(html`<div class="seg" style="margin-bottom:12px"><button data-trtab="ship" class="${s.tab === 'ship' ? 'active' : ''}">For a ship</button><button data-trtab="next" class="${s.tab === 'next' ? 'active' : ''}">Quick wins for a pilot</button></div>
+    ${s.tab === 'ship' ? html`<div class="panel" style="margin-bottom:14px"><div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+        <div class="field" style="margin:0;flex:1;min-width:240px"><label>Ship</label><input type="text" id="tr-ship" value="${s.ship}" placeholder="e.g. Ishtar, Retriever, Hulk"></div><button class="btn btn-primary" id="tr-go">Show masteries</button></div>
+        <div class="dim" style="font-size:12px;margin-top:8px">CCP's ship masteries I–V: the skills that make a ship work well, from "can fly it" to fully trained. Each pilot shows how far along they are and how long the next level takes.</div></div>`
+      : html`<div class="panel" style="margin-bottom:14px"><div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+        <div class="field" style="margin:0"><label>Pilot</label><select id="tr-pilot" class="crumb-select">${pilots.map(c => html`<option value="${c.id}" ${raw(String(c.id) === s.pilot ? 'selected' : '')}>${c.name}</option>`)}</select></div><button class="btn btn-primary" id="tr-sug">Find quick wins</button></div>
+        <div class="dim" style="font-size:12px;margin-top:8px">Goes through CCP's certificates (Core Fitting, Navigation, Armor Tanking and so on) and lists the ones this pilot is closest to raising a level.</div></div>`}
+    <div id="tr-out"></div>`);
+  document.querySelectorAll('[data-trtab]').forEach(b => b.onclick = () => { s.tab = b.dataset.trtab; tTrain(stillCurrent); });
+  if (s.tab === 'ship') {
+    const go2 = async () => { s.ship = $('#tr-ship').value.trim(); if (!s.ship) return; $('#tr-out').innerHTML = String(loadingView('Checking every pilot…')); const r = await api.train.ship(s.ship); if (!$('#tr-out')) return; if (!r.ok) { $('#tr-out').innerHTML = String(errorView(r)); return; } s.data = r.data; drawTrainShip(); };
+    $('#tr-go').onclick = go2; $('#tr-ship').onkeydown = e => { if (e.key === 'Enter') go2(); };
+    if (s.data) drawTrainShip();
+  } else {
+    $('#tr-pilot').onchange = e => { s.pilot = e.target.value; s.sug = null; };
+    $('#tr-sug').onclick = async () => { $('#tr-out').innerHTML = String(loadingView('Going through the certificates…')); const r = await api.train.suggest(Number(s.pilot)); if (!$('#tr-out')) return; if (!r.ok) { $('#tr-out').innerHTML = String(errorView(r)); return; } s.sug = r.data; drawTrainSug(); };
+    if (s.sug) drawTrainSug();
+  }
+}
+async function makePlan(charId, name, missing) {
+  const r = await api.plan.importText({ charId: Number(charId), name, entries: [] }, missing.map(m => `${m.name} ${m.level}`).join('\n'));
+  toast(r.ok ? `Skill plan "${name}" made. Open it from the pilot's Skills tab.` : r.error, !r.ok);
+}
+function drawTrainShip() {
+  const d = trainState.data;
+  $('#tr-out').innerHTML = String(html`<div style="display:flex;gap:10px;align-items:center;margin-bottom:12px">${icon(d.shipTypeId, 32)}<div><div style="font-size:16px">${d.ship}</div><div class="dim" style="font-size:12px">${d.group}</div></div></div>
+    <div class="panel" style="padding:0"><table><thead><tr><th>Pilot</th><th>Can fly</th>${d.levels.map(l => html`<th class="right" title="${l.certs.join(', ')}">Mastery ${ROMAN5[l.level]}</th>`)}</tr></thead><tbody>
+    ${d.pilots.map(p => p.error ? html`<tr><td>${p.id}</td><td colspan="6" class="neg">${p.error}</td></tr>` : xRow('trs' + p.id, html`<td>${charImg(p.id, 20)}${p.name} ${p.mastery ? html`<span class="badge green">${ROMAN5[p.mastery]}</span>` : ''}</td>
+      <td>${p.canFly ? raw('<span class="pos">✓</span>') : html`<span class="gold">${fmtDuration(p.flyMinutes * 60000, true)}</span>`}</td>
+      ${p.levels.map(l => html`<td class="right ${l.done ? 'pos' : ''}">${l.done ? '✓' : fmtDuration(l.minutes * 60000, true)}</td>`)}`,
+      html`${p.levels.filter(l => !l.done).slice(0, 1).map(l => html`<div style="font-size:12.5px;margin-bottom:6px"><b>For mastery ${ROMAN5[l.level]}</b> <span class="dim">(${fmtDuration(l.minutes * 60000, true)})</span></div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12.5px">${l.missing.map(m => html`<span>${m.name} ${ROMAN5[m.level]} <span class="dim">(has ${m.have ? ROMAN5[m.have] : 'none'})</span></span>`)}</div>
+        <button class="btn btn-ghost" style="padding:2px 9px;font-size:12px;margin-top:8px" data-trplan="${p.id}|${l.level}">Make a skill plan for this</button>`)}
+        ${p.levels.every(l => l.done) ? html`<div class="pos">Mastery V: nothing left to train for this ship.</div>` : ''}`, 7))}</tbody></table></div>
+    <div class="dim" style="font-size:12px;margin-top:8px">Hover a mastery heading for the certificates in it. Times use each pilot's attributes and implants, and assume levels train in order.</div>`);
+  document.querySelectorAll('[data-trplan]').forEach(b => b.onclick = () => { const [pid, lvl] = b.dataset.trplan.split('|'); const p = d.pilots.find(x => String(x.id) === pid); const l = p.levels.find(x => String(x.level) === lvl); makePlan(pid, `${d.ship} mastery ${ROMAN5[l.level]}`, l.missing); });
+}
+function drawTrainSug() {
+  const d = trainState.sug;
+  const groups = new Map(); for (const c of d.certificates) (groups.get(c.group) || groups.set(c.group, []).get(c.group)).push(c);
+  $('#tr-out').innerHTML = String(html`<div class="panel" style="padding:0;margin-bottom:14px"><div style="padding:12px 16px"><h3 style="margin:0">Quick wins</h3><div class="dim" style="font-size:12px">Certificates this pilot can raise a level soonest</div></div><table><tbody>
+      ${d.quick.map(c => xRow('trq' + c.id, html`<td><b>${c.name}</b><div class="dim" style="font-size:11.5px">${c.group}</div></td><td>${c.level ? html`<span class="badge">${ROMAN5[c.level]}</span>` : html`<span class="dim">none</span>`} → <span class="badge accent">${ROMAN5[c.next.level]}</span></td><td class="right num">${fmtDuration(c.next.minutes * 60000, true)}</td>`,
+        html`<div style="display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12.5px">${c.next.missing.map(m => html`<span>${m.name} ${ROMAN5[m.level]} <span class="dim">(has ${m.have ? ROMAN5[m.have] : 'none'})</span></span>`)}</div><button class="btn btn-ghost" style="padding:2px 9px;font-size:12px;margin-top:8px" data-trcert="${c.id}">Make a skill plan for this</button>`, 3))}</tbody></table></div>
+    <div class="grid grid-3" style="align-items:start">${[...groups.entries()].map(([g, list]) => html`<div class="panel"><h3>${g}</h3>${list.map(c => html`<div class="skill-row" style="font-size:12.5px"><span>${c.name}</span><span>${c.level ? html`<span class="badge ${c.level === 5 ? 'green' : ''}">${ROMAN5[c.level]}</span>` : html`<span class="dim">—</span>`}</span></div>`)}</div>`)}</div>`);
+  document.querySelectorAll('[data-trcert]').forEach(b => b.onclick = () => { const c = d.quick.find(x => String(x.id) === b.dataset.trcert); makePlan(d.charId, `${c.name} ${ROMAN5[c.next.level]}`, c.next.missing); });
+}
