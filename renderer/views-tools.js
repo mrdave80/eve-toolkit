@@ -32,6 +32,7 @@ const iskCell = (v, cls = '') => html`<span class="num ${cls}">${v === null || v
 
 async function renderTools(stillCurrent) {
   const tab = state.toolsTab || 't-market';
+  if (typeof noteToolUse === 'function') noteToolUse(tab);
   const needsSde = ['t-mining', 't-split', 't-bpc', 't-station', 't-shame', 't-whres', 't-hunt', 't-courier', 't-market', 't-appraisal', 't-arbitrage', 't-build', 't-invent', 't-reprocess', 't-ores', 't-assets', 't-wtb', 't-agents', 't-sysintel', 't-route', 't-jump', 't-intel', 't-local'];
   if (needsSde.includes(tab)) {
     const info = await api.sde.info();

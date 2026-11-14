@@ -238,10 +238,24 @@ function inQuietHours(q, now = new Date()) {
   const cur = now.getHours() * 60 + now.getMinutes(), a = m(q.from), b = m(q.to);
   return a === b ? false : a < b ? cur >= a && cur < b : cur >= a || cur < b;
 }
+// Alerts inbox: every alert is kept for two days so a missed Windows notification isn't lost.
+function logAlert(title, body, category, silenced) {
+  const d = store.get();
+  d.alertLog = (d.alertLog || []).filter(a => Date.now() - Date.parse(a.at) < 2 * 86400000);
+  const pilot = (d.characters || []).find(c => String(title).startsWith(c.name));
+  const e = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), at: new Date().toISOString(), title: String(title), body: String(body || ''), category, pilotId: pilot ? pilot.id : null, silenced: !!silenced, read: false };
+  d.alertLog.unshift(e); d.alertLog.length = Math.min(d.alertLog.length, 300);
+  store.save('alertLog');
+  sendWin('alert:new', e);
+  return e;
+}
 function notify(title, body, category = 'general') {
   const st = store.get().settings;
+  if (st.alertTypes && st.alertTypes[category] === false) return;
   const q = st.quiet;
-  if (inQuietHours(q) && !(q.allow || []).includes(category)) return;
+  const quiet = inQuietHours(q) && !(q.allow || []).includes(category);
+  logAlert(title, body, category, quiet);
+  if (quiet) return;
   const muted = (st.mutedPilots || []).map(id => (store.get().characters.find(c => c.id === id) || {}).name).filter(Boolean);
   if (muted.some(n => String(title).startsWith(n))) return;
   phone.forward(category, title, body);
@@ -403,12 +417,14 @@ async function checkExtraAlerts(c, data) {
 }
 
 let lastUndercut = 0;
+let lastOrderList = [];
 async function checkUndercuts() {
   const data = store.get();
   if (!data.settings.notifications || (data.settings.alerts || {}).undercut === false) return;
   if (Date.now() - lastUndercut < 30 * 60000) return;
   lastUndercut = Date.now();
   const list = await tradetools.myOrders().catch(() => []);
+  lastOrderList = list;
   const beaten = list.filter(o => o.check && o.check.beaten && !seen(data, `uc:${o.order_id}:${o.check.best}`));
   if (beaten.length === 1) notify(beaten[0].charName, `${beaten[0].is_buy_order ? 'Outbid' : 'Undercut'} on ${beaten[0].typeName} by ${Math.round(beaten[0].check.by).toLocaleString('en-AU')} ISK`, 'market');
   else if (beaten.length > 1) notify('Market', `${beaten.length} of your orders were undercut or outbid.`, 'market');
@@ -439,6 +455,8 @@ async function checkForUpdate() {
       updateRelease = j;
       updateInfo = { version, url: j.url && !j.tag_name ? j.url : (j.html_url || RELEASES_PAGE), notes, canInstall: !!updater.assetsFor(j), kind: updater.kind() };
       if (win && !win.isDestroyed()) win.webContents.send('app:update', updateInfo);
+      // Quiet updates: download now, install when the app is closed
+      if (store.get().settings.autoUpdate && updateInfo.canInstall && !updater.isPrepared()) updater.prepare(j).catch(e => diag.warn('update', 'background download: ' + e.message));
       const d = store.get();
       if (!seen(d, 'update:' + version)) notify('EVE Toolkit update available', `Version ${version} is ready to download.`, 'app');
     }
@@ -522,6 +540,8 @@ handle('settings:set', s => {
     next.speech = sp;
   }
   if (typeof s.minimizeToTray === 'boolean') next.minimizeToTray = s.minimizeToTray;
+  if (typeof s.autoUpdate === 'boolean') next.autoUpdate = s.autoUpdate;
+  if (['fuzzwork', 'esi'].includes(s.priceSource)) next.priceSource = s.priceSource;
   if (typeof s.onboardingDone === 'boolean') next.onboardingDone = s.onboardingDone;
   if (typeof s.usedSearch === 'boolean') next.usedSearch = s.usedSearch;
   if (s.sdeSkipBuild !== undefined) next.sdeSkipBuild = Number(s.sdeSkipBuild) || 0;
@@ -690,6 +710,11 @@ handle('market:hubs', () => market.HUBS);
 handle('market:prices', (ids, hub) => market.prices(ids, hub));
 handle('market:book', async (id, hub) => { const b = await market.book(id, hub); const { raw, ...rest } = b; return rest; });
 handle('market:history', (id, hub) => market.history(id, hub));
+handle('home:attention', refresh => require('./attention').gather({ orders: lastOrderList, directors: directors(), refresh: !!refresh }));
+handle('alerts:list', () => store.get().alertLog || []);
+handle('alerts:read', () => { for (const a of store.get().alertLog || []) a.read = true; store.save('alertLog'); return true; });
+handle('alerts:clear', () => { store.get().alertLog = []; store.save('alertLog'); return true; });
+handle('alerts:types', patch => { const st = store.get().settings; st.alertTypes = { ...(st.alertTypes || {}), ...(patch || {}) }; store.save(); return st.alertTypes; });
 handle('mine:list', o => minesites.list(o || {}));
 handle('mine:paste', (text, o) => minesites.paste(text, o || {}));
 handle('mine:cfg', p => minesites.setCfg(p || {}));
@@ -1479,6 +1504,15 @@ app.whenReady().then(() => {
 });
 
 app.on('will-quit', () => overlay.unregister());
+let quietInstall = false;
+app.on('before-quit', e => {
+  // A quietly downloaded update installs as the app closes (without reopening it)
+  if (!quietInstall && store.get().settings.autoUpdate && updater.isPrepared() && updater.status().phase === 'ready') {
+    quietInstall = true; e.preventDefault();
+    try { store.saveNow(); workspace.saveNow(); } catch {}
+    try { updater.install(() => { quitting = true; app.quit(); }, { restart: false }); } catch (err) { diag.warn('update', err.message); app.quit(); }
+  }
+});
 app.on('before-quit', () => { quitting = true; store.saveNow(); try { if (fleetTracker.snapshot()) fleetTracker.stop(); workspace.saveNow(); } catch {} });
 app.on('window-all-closed', () => {
   if (!tray || !store.get().settings.minimizeToTray) app.quit();

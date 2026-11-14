@@ -149,41 +149,53 @@ async function prepare(release) {
   return state;
 }
 
+const newer = (a, b) => { const pa = String(a).split('.').map(Number), pb = String(b).split('.').map(Number); for (let i = 0; i < 3; i++) if ((pa[i] || 0) !== (pb[i] || 0)) return (pa[i] || 0) > (pb[i] || 0); return false; };
 const psq = s => `'${String(s).replace(/'/g, "''")}'`;
 
 /** Swap in the prepared copy and restart. `quit` closes the app (flushing data first). */
-function install(quit) {
+function install(quit, { restart = true } = {}) {
   if (!prepared) throw new Error('The update isn’t downloaded yet.');
   set({ phase: 'installing' });
   if (prepared.kind === 'portable') {
-    // The portable launcher keeps its own exe open until the app has fully exited, so the file can't
-    // be renamed from inside the app. A small script waits for it to be free, swaps it and restarts.
+    // The portable launcher extracts the app to a temp folder, runs it, and holds its own exe open (and
+    // may close everything it started) until it has finished cleaning up. So the swap script is started
+    // outside the app's process tree, waits for the app to exit, and if the old exe still can't be
+    // replaced within 20 seconds it starts the new version from its own file instead, so the app
+    // always comes back.
     const exe = process.env.PORTABLE_EXECUTABLE_FILE;
     const log = path.join(app.getPath('userData'), 'logs', 'update.log');
     const script = path.join(workDir(prepared.version), 'swap-portable.ps1');
+    const side = path.join(path.dirname(exe), path.basename(prepared.file));   // e.g. EVE-Toolkit-1.13.0-portable.exe
     fs.writeFileSync(script, [
       "$ErrorActionPreference = 'Stop'",
-      `$exe = ${psq(exe)}; $new = ${psq(prepared.file)}; $old = $exe + '.old'; $log = ${psq(log)}`,
-      '$deadline = (Get-Date).AddSeconds(120); $done = $false',
-      'while (-not $done -and (Get-Date) -lt $deadline) {',
-      '  try {',
-      '    if (Test-Path -LiteralPath $old) { Remove-Item -LiteralPath $old -Force }',
-      '    Move-Item -LiteralPath $exe -Destination $old',
-      '    $done = $true',
-      '  } catch { Start-Sleep -Milliseconds 500 }',
+      `$exe = ${psq(exe)}; $new = ${psq(prepared.file)}; $side = ${psq(side)}; $old = $exe + '.old'; $log = ${psq(log)}; $appPid = ${process.pid}; $restart = $${restart ? 'true' : 'false'}`,
+      'function Log($m) { try { New-Item -ItemType Directory -Force -Path (Split-Path $log) | Out-Null; "$(Get-Date -Format s) $m" | Out-File -FilePath $log -Append } catch {} }',
+      `Log 'Update to ${String(prepared.version).replace(/'/g, '')} started'`,
+      '# wait for the app itself to close (up to 30 s)',
+      '$t = (Get-Date).AddSeconds(30); while ((Get-Process -Id $appPid -ErrorAction SilentlyContinue) -and (Get-Date) -lt $t) { Start-Sleep -Milliseconds 300 }',
+      '# then try to swap the exe in place, so shortcuts keep working',
+      '$t = (Get-Date).AddSeconds(20); $done = $false',
+      'while (-not $done -and (Get-Date) -lt $t) {',
+      '  try { if (Test-Path -LiteralPath $old) { Remove-Item -LiteralPath $old -Force }; Move-Item -LiteralPath $exe -Destination $old; $done = $true } catch { Start-Sleep -Milliseconds 400 }',
       '}',
       'try {',
-      '  if (-not $done) { throw "The program file was still in use after two minutes." }',
-      '  try { Copy-Item -LiteralPath $new -Destination $exe -Force } catch { Move-Item -LiteralPath $old -Destination $exe -Force; throw }',
-      '  Start-Process -FilePath $exe',
+      '  if ($done) {',
+      '    try { Copy-Item -LiteralPath $new -Destination $exe -Force } catch { Move-Item -LiteralPath $old -Destination $exe -Force; throw }',
+      "    Log 'Replaced the program file'",
+      '    if ($restart) { Start-Process -FilePath $exe -WorkingDirectory (Split-Path $exe) }',
+      '  } else {',
+      "    Log 'The old program file was still in use; starting the new version from its own file'",
+      '    Copy-Item -LiteralPath $new -Destination $side -Force',
+      '    if ($restart) { Start-Process -FilePath $side -WorkingDirectory (Split-Path $side) }',
+      '    # tidy up the old exe once the launcher lets go of it (best effort, up to 3 minutes)',
+      '    $t = (Get-Date).AddSeconds(180); while ((Get-Date) -lt $t) { try { if ($side -ne $exe) { Remove-Item -LiteralPath $exe -Force }; Log "Removed the old program file"; break } catch { Start-Sleep -Seconds 2 } }',
+      '  }',
       '} catch {',
-      '  try { New-Item -ItemType Directory -Force -Path (Split-Path $log) | Out-Null; "$(Get-Date -Format s) $($_.Exception.Message)" | Out-File -FilePath $log -Append } catch {}',
-      '  if (Test-Path -LiteralPath $exe) { Start-Process -FilePath $exe }',
+      '  Log ("Update failed: " + $_.Exception.Message)',
+      '  if ($restart) { if (Test-Path -LiteralPath $exe) { Start-Process -FilePath $exe } elseif (Test-Path -LiteralPath $side) { Start-Process -FilePath $side } }',
       '}'
     ].join('\r\n'));
-    const ps = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-File', script], { detached: true, stdio: 'ignore', windowsHide: true, cwd: path.dirname(script) });
-    ps.once('spawn', () => { ps.unref(); quit(); });
-    ps.once('error', e => set({ phase: 'error', error: 'Couldn’t start the installer: ' + e.message }));
+    launchDetached(script, quit);
     return;
   }
   const appDir = path.dirname(process.execPath);
@@ -192,7 +204,7 @@ function install(quit) {
   const script = path.join(workDir(prepared.version), 'swap.ps1');
   fs.writeFileSync(script, [
     "$ErrorActionPreference = 'Stop'",
-    `$app = ${psq(appDir)}; $new = ${psq(prepared.dir)}; $old = ${psq(oldDir)}; $exe = Join-Path $app ${psq(exeName())}; $log = ${psq(log)}`,
+    `$app = ${psq(appDir)}; $new = ${psq(prepared.dir)}; $old = ${psq(oldDir)}; $exe = Join-Path $app ${psq(exeName())}; $log = ${psq(log)}; $restart = $${restart ? 'true' : 'false'}`,
     '$deadline = (Get-Date).AddSeconds(90)',
     'while ((Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.Path -and $_.Path.StartsWith($app + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase) }) -and (Get-Date) -lt $deadline) { Start-Sleep -Milliseconds 400 }',
     'function Retry($block) { for ($i = 0; $i -lt 25; $i++) { try { & $block; return } catch { Start-Sleep -Milliseconds 400 } }; & $block }',
@@ -200,24 +212,45 @@ function install(quit) {
     '  if (Test-Path $old) { Remove-Item $old -Recurse -Force }',
     '  Retry { Move-Item -LiteralPath $app -Destination $old }',
     '  try { Retry { Move-Item -LiteralPath $new -Destination $app } } catch { Move-Item -LiteralPath $old -Destination $app; throw }',
-    '  Start-Process -FilePath $exe',
+    '  if ($restart) { Start-Process -FilePath $exe }',
     '  Remove-Item $old -Recurse -Force -ErrorAction SilentlyContinue',
     '} catch {',
     '  try { New-Item -ItemType Directory -Force -Path (Split-Path $log) | Out-Null; "$(Get-Date -Format s) $($_.Exception.Message)" | Out-File -FilePath $log -Append } catch {}',
     '  Start-Process -FilePath $exe',
     '}'
   ].join('\r\n'));
-  const ps = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-File', script], { detached: true, stdio: 'ignore', windowsHide: true, cwd: path.dirname(script) });
+  launchDetached(script, quit);
+}
+
+/** Start the swap script through Windows itself (WMI), so it isn't a child of the app or its launcher
+    and nothing closes it when they exit. Falls back to a plain detached start. */
+function launchDetached(script, quit) {
+  const cmd = `powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -WindowStyle Hidden -File "${script}"`;
+  const viaWmi = `$r = Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{ CommandLine = ${psq(cmd)}; CurrentDirectory = ${psq(path.dirname(script))} }; exit [int]$r.ReturnValue`;
+  const ps = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-Command', viaWmi], { stdio: 'ignore', windowsHide: true });
+  const fallback = why => {
+    const p2 = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-File', script], { detached: true, stdio: 'ignore', windowsHide: true, cwd: path.dirname(script) });
+    p2.once('spawn', () => { p2.unref(); quit(); });
+    p2.once('error', e => set({ phase: 'error', error: 'Couldn’t start the installer: ' + e.message + (why ? ` (${why})` : '') }));
+  };
   // Only close once the installer is actually running; otherwise stay open and say why.
-  ps.once('spawn', () => { ps.unref(); quit(); });
-  ps.once('error', e => set({ phase: 'error', error: 'Couldn’t start the installer: ' + e.message }));
+  ps.once('exit', code => { if (code === 0) quit(); else fallback('WMI ' + code); });
+  ps.once('error', e => fallback(e.message));
 }
 
 /** On start: tidy up after an update (old portable exe, temp files). */
 function cleanup() {
   try { const exe = process.env.PORTABLE_EXECUTABLE_FILE; if (exe) fs.rmSync(exe + '.old', { force: true }); } catch {}
+  // An update that started from its own file: remove older portable copies of the app beside it
+  try {
+    const exe = process.env.PORTABLE_EXECUTABLE_FILE;
+    if (exe) for (const f of fs.readdirSync(path.dirname(exe))) {
+      const m = /^EVE-Toolkit-(\d+\.\d+\.\d+)-portable\.exe$/i.exec(f);
+      if (m && path.join(path.dirname(exe), f) !== exe && newer(app.getVersion(), m[1])) fs.rmSync(path.join(path.dirname(exe), f), { force: true });
+    }
+  } catch {}
   try { fs.rmSync(path.join(app.getPath('temp'), 'eve-toolkit-update'), { recursive: true, force: true }); } catch {}
   try { if (kind() === 'folder') for (const x of ['.old-update', '.new-update']) fs.rmSync(path.dirname(process.execPath) + x, { recursive: true, force: true }); } catch {}
 }
 
-module.exports = { kind, assetsFor, writable, prepare, install, cleanup, status: () => state, setListener: fn => { listener = fn; }, _extract: extract };
+module.exports = { isPrepared: () => !!prepared, kind, assetsFor, writable, prepare, install, cleanup, status: () => state, setListener: fn => { listener = fn; }, _extract: extract };

@@ -144,6 +144,12 @@ function renderSidebar() {
   }).join('') || '<li class="dim" style="padding:8px 10px;font-size:12px">No pilots yet</li>';
 }
 
+// Pinned and recent tools (kept in this PC's browser storage)
+const toolPins = () => { try { return JSON.parse(localStorage.getItem('toolPins') || '[]'); } catch { return []; } };
+const setToolPins = v => { try { localStorage.setItem('toolPins', JSON.stringify(v.slice(0, 12))); } catch {} };
+const toolRecent = () => { try { return JSON.parse(localStorage.getItem('toolRecent') || '[]'); } catch { return []; } };
+function noteToolUse(k) { try { const r = [k, ...toolRecent().filter(x => x !== k)].slice(0, 8); localStorage.setItem('toolRecent', JSON.stringify(r)); } catch {} }
+
 function renderTopbar() {
   const tabs = $('#tabs');
   const sub = $('#subtabs');
@@ -158,9 +164,17 @@ function renderTopbar() {
       `<button class="tab ${state.tab === k ? 'active' : ''}" data-tab="${k}">${label}</button>`).join('') : '';
   } else if (state.view === 'tools') {
     crumb.textContent = 'Tools'; crumb.classList.remove('pilot');
-    const g = toolsGroupOf(state.toolsTab || 't-market');
-    tabs.innerHTML = TOOLS_GROUPS.map(([name, items]) => `<button class="tab ${g[0] === name ? 'active' : ''}" data-ttab="${items[0][0]}" data-tgroup="${name}">${name}</button>`).join('');
-    sub.innerHTML = g[1].length > 1 ? g[1].map(([k, label]) => `<button class="tab ${(state.toolsTab || 't-market') === k ? 'active' : ''}" data-ttab="${k}">${label}</button>`).join('') : '';
+    const cur = state.toolsTab || 't-market';
+    const g = toolsGroupOf(cur);
+    const pins = toolPins(), recent = toolRecent().filter(k => !pins.includes(k)).slice(0, 6);
+    const labelOf = k => { for (const [, items] of TOOLS_GROUPS) for (const [id, l] of items) if (id === k) return l; return k; };
+    const showPinned = state.toolsPinned && (pins.includes(cur) || recent.includes(cur));
+    tabs.innerHTML = (pins.length || recent.length ? `<button class="tab ${showPinned ? 'active' : ''}" data-tpinned="1" title="Pinned and recent tools">★</button>` : '') +
+      TOOLS_GROUPS.map(([name, items]) => `<button class="tab ${!showPinned && g[0] === name ? 'active' : ''}" data-ttab="${items[0][0]}" data-tgroup="${name}">${name}</button>`).join('');
+    const pinBtn = `<span style="flex:1"></span><button class="tab tool-pin ${pins.includes(cur) ? 'on' : ''}" data-tpin="${cur}" title="${pins.includes(cur) ? 'Unpin this tool' : 'Pin this tool to ★'}">${pins.includes(cur) ? '★' : '☆'}</button>`;
+    sub.innerHTML = showPinned
+      ? pins.map(k => `<button class="tab ${cur === k ? 'active' : ''}" data-ttab="${k}" data-tkeep="1">★ ${esc(labelOf(k))}</button>`).join('') + (recent.length ? `<span class="dim" style="align-self:center;font-size:11.5px;margin:0 6px 0 14px">Recent</span>` + recent.map(k => `<button class="tab ${cur === k ? 'active' : ''}" data-ttab="${k}" data-tkeep="1">${esc(labelOf(k))}</button>`).join('') : '') + pinBtn
+      : (g[1].length > 1 ? g[1].map(([k, label]) => `<button class="tab ${cur === k ? 'active' : ''}" data-ttab="${k}">${label}</button>`).join('') : '') + pinBtn;
   } else if (state.view === 'corp') {
     const dirs = (corpState.directors || []);
     crumb.innerHTML = dirs.length > 1
@@ -177,7 +191,7 @@ function renderTopbar() {
     tabs.innerHTML = '';
     sub.innerHTML = [['plan', 'Chain planner'], ['near', 'Nearby planets']].map(([k, l]) => `<button class="tab ${(state.piTab || 'plan') === k ? 'active' : ''}" data-pitab="${k}">${l}</button>`).join('');
   } else {
-    crumb.classList.remove('pilot'); crumb.textContent = { mailAll: 'Mail, all pilots', wormholes: 'Wormhole mapper', liveMap: 'Live map', daily: 'Daily rewards and EVE news', piPlanner: 'Planetary interaction planner', corp: 'Corporation', settings: 'Settings', about: 'About & support', help: 'Help & guides', dashboard: 'All pilots', trainingAll: 'Training board', industryAll: 'Industry board', planetsAll: 'Planets board' }[state.view] || '';
+    crumb.classList.remove('pilot'); crumb.textContent = { mailAll: 'Mail, all pilots', contractsAll: 'Contracts, all pilots', notesAll: 'Notifications, all pilots', wormholes: 'Wormhole mapper', liveMap: 'Live map', daily: 'Daily rewards and EVE news', piPlanner: 'Planetary interaction planner', corp: 'Corporation', settings: 'Settings', about: 'About & support', help: 'Help & guides', dashboard: 'All pilots', trainingAll: 'Training board', industryAll: 'Industry board', planetsAll: 'Planets board' }[state.view] || '';
     tabs.innerHTML = '';
     sub.innerHTML = '';
   }
@@ -212,6 +226,8 @@ async function render(force = false) {
     if (state.view === 'industryAll') return await renderIndustryAll(stillCurrent);
     if (state.view === 'planetsAll') return await renderPlanetsAll(stillCurrent);
     if (state.view === 'mailAll') return await renderMailAll(stillCurrent);
+    if (state.view === 'contractsAll') return await renderContractsAll(stillCurrent, force);
+    if (state.view === 'notesAll') return await renderNotificationsAll(stillCurrent, force);
     if (state.view === 'corp') return await renderCorp(stillCurrent);
     if (state.view === 'piPlanner') return state.piTab === 'near' ? await renderNearbyPlanets(stillCurrent) : await renderPiPlanner(stillCurrent);
     if (state.view === 'wormholes') return await renderWormholes(stillCurrent);
@@ -251,11 +267,34 @@ async function renderDashboard(stillCurrent) {
         <div class="stat" data-private><div class="label">Combined wallets</div><div class="value">${fmtCompact(total.isk)} ISK</div><div class="hint">${fmtIsk(total.isk)}</div></div>
       </div>
       <div id="gs-slot"></div>
+      <div id="attn-slot"></div>
       ${cards()}`);
+    drawAttention(stillCurrent);
     const gs = await gettingStartedHtml();
     const slot = document.getElementById('gs-slot');
     if (slot && gs && stillCurrent()) { slot.innerHTML = String(gs); wireGettingStarted(); }
   }
+}
+
+async function drawAttention(stillCurrent, refresh = false) {
+  const slot = document.getElementById('attn-slot'); if (!slot) return;
+  if (!slot.innerHTML) slot.innerHTML = String(html`<div class="panel attn"><h3>Needs attention</h3><div class="dim" style="font-size:12.5px">Checking every pilot…</div></div>`);
+  const r = await api.home.attention(refresh);
+  if ((stillCurrent && !stillCurrent()) || !document.getElementById('attn-slot')) return;
+  if (!r.ok) { slot.innerHTML = ''; return; }
+  const items = r.data.items;
+  const dot = l => ({ red: 'var(--red)', gold: 'var(--gold)', info: 'var(--accent)' }[l]);
+  slot.innerHTML = String(html`<div class="panel attn"><div style="display:flex;align-items:center;gap:10px"><h3 style="margin:0;flex:1">Needs attention ${items.length ? html`<span class="badge ${items.some(i => i.level === 'red') ? 'red' : 'gold'}">${items.length}</span>` : ''}</h3>
+      <span class="dim" style="font-size:11.5px">checked ${timeAgo(r.data.at)}</span><button class="btn btn-ghost" id="attn-refresh" style="padding:2px 9px;font-size:12px">⟳</button></div>
+    ${items.length ? html`<div class="attn-list">${items.slice(0, 12).map((it, i) => html`<div class="attn-item" data-attn="${i}"><span class="ap-dot" style="background:${raw(dot(it.level))}"></span><span>${it.text}</span><span class="dim">›</span></div>`)}</div>
+      ${items.length > 12 ? html`<div class="dim" style="font-size:12px;margin-top:4px">and ${items.length - 12} more</div>` : ''}` : html`<div class="muted" style="font-size:13px;margin-top:6px">Nothing needs you right now: queues are running, jobs are going and nothing's out of fuel.</div>`}</div>`);
+  slot.querySelectorAll('[data-attn]').forEach(el => el.onclick = () => {
+    const g = items[Number(el.dataset.attn)].go || {};
+    if (g.toolsTab) state.toolsTab = g.toolsTab;
+    if (g.corpTab) state.corpTab = g.corpTab;
+    if (g.view === 'char') go('char', { charId: g.charId, tab: g.tab }); else go(g.view || 'dashboard');
+  });
+  const b = document.getElementById('attn-refresh'); if (b) b.onclick = () => drawAttention(stillCurrent, true);
 }
 
 function charCard(c) {
@@ -379,6 +418,8 @@ async function renderSettings() {
         <div class="pi-chips" style="margin-bottom:12px">${[['wars', 'War declarations'], ['corpApps', 'Corp applications & membership'], ['contracts', 'Contracts'], ['orders', 'Orders filled / expired'], ['undercut', 'Undercuts (every 30 min)'], ['kills', 'Kill reports'], ['cloneJump', 'Jump clone ready'], ['fatigue', 'Jump fatigue cleared'], ['incursions', 'Incursions near my pilots']].map(([k, l]) => html`<label class="check" style="margin:0 14px 6px 0"><input type="checkbox" data-alert="${k}" ${raw((st.alerts || {})[k] !== false ? 'checked' : '')}> ${l}</label>`)}</div>
         <div class="field"><label for="s-incj">Incursion alert range (jumps from any pilot)</label><input id="s-incj" type="number" min="1" max="30" value="${st.incursionJumps || 10}" style="max-width:140px"></div>
         <label class="check"><input type="checkbox" id="s-tray" ${raw(st.minimizeToTray ? 'checked' : '')}> Keep running in the system tray when the window is closed</label>
+        <label class="check"><input type="checkbox" id="s-autoupd" ${raw(st.autoUpdate ? 'checked' : '')}> Download updates in the background and install them when I close the app</label>
+        <div class="field"><label for="s-prices">Prices for lists of items</label><select id="s-prices" style="max-width:420px"><option value="fuzzwork" ${raw((st.priceSource || 'fuzzwork') === 'fuzzwork' ? 'selected' : '')}>Fuzzwork Market: hundreds of items in one request (recommended)</option><option value="esi" ${raw(st.priceSource === 'esi' ? 'selected' : '')}>CCP's ESI only: one request per item, slower</option></select><div class="dim" style="font-size:12px;margin-top:4px">Used by appraisals, build costs, What to Build and similar. Live order books always come from ESI, and ESI fills in anything Fuzzwork doesn't have.</div></div>
         <div class="dim" style="margin:14px 0 6px">Quiet hours (no Windows, phone or spoken alerts):</div>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:8px"><label class="check" style="margin:0"><input type="checkbox" id="s-qon" ${raw(st.quiet && st.quiet.enabled ? 'checked' : '')}> From</label>
           <input type="time" id="s-qfrom" value="${(st.quiet && st.quiet.from) || '23:00'}" style="background:var(--bg-2);border:1px solid var(--line-2);color:var(--text);border-radius:6px;padding:5px 8px;color-scheme:dark"> to
@@ -454,7 +495,7 @@ async function renderSettings() {
       clientId: $('#s-client').value,
       callbackPort: $('#s-port').value,
       notifications: $('#s-notif').checked,
-      minimizeToTray: $('#s-tray').checked,
+      minimizeToTray: $('#s-tray').checked, autoUpdate: $('#s-autoupd').checked, priceSource: $('#s-prices').value,
       notifyIndustry: $('#s-ind').checked,
       notifyPlanets: $('#s-pi').checked,
       incursionJumps: Number($('#s-incj').value),
@@ -976,8 +1017,13 @@ document.addEventListener('click', e => {
   if (card) { go('char', { charId: Number(card.dataset.open), tab: 'summary' }); return; }
   const pitab = t.closest('[data-pitab]');
   if (pitab) { state.piTab = pitab.dataset.pitab; renderTopbar(); render(); return; }
+  const tpinned = t.closest('[data-tpinned]');
+  if (tpinned) { state.toolsPinned = true; const p = toolPins(); if (p.length && !p.includes(state.toolsTab)) state.toolsTab = p[0]; go('tools'); return; }
+  const tpin = t.closest('[data-tpin]');
+  if (tpin) { const k = tpin.dataset.tpin; const p = toolPins(); setToolPins(p.includes(k) ? p.filter(x => x !== k) : [...p, k]); renderTopbar(); toast(p.includes(k) ? 'Unpinned' : 'Pinned to ★ in the Tools tabs'); return; }
   const ttab = t.closest('[data-ttab]');
   if (ttab) {
+    state.toolsPinned = !!ttab.dataset.tkeep;
     let k = ttab.dataset.ttab;
     if (ttab.dataset.tgroup && state.lastToolsTab[ttab.dataset.tgroup]) k = state.lastToolsTab[ttab.dataset.tgroup];
     state.lastToolsTab[toolsGroupOf(k)[0]] = k;
@@ -1029,7 +1075,7 @@ function showUpdateBanner(u) {
   if (!u || document.getElementById('upd-banner')) return;
   const b = document.createElement('div');
   b.id = 'upd-banner';
-  b.innerHTML = String(html`<span>EVE Toolkit <b>${u.version}</b> is available. <a href="#" id="upd-notes">What’s new</a></span>
+  b.innerHTML = String(html`<span>EVE Toolkit <b>${u.version}</b> is available${state.settings && state.settings.autoUpdate && u.canInstall ? ' and downloading: it installs when you close the app' : ''}. <a href="#" id="upd-notes">What’s new</a></span>
     ${u.canInstall ? html`<button class="btn btn-primary" style="padding:4px 12px" id="upd-go">Update now</button>` : html`<a href="#" data-link="${u.url}" class="btn btn-primary" style="padding:4px 12px">Download</a>`}
     <button class="btn btn-ghost" style="padding:4px 10px" id="upd-x" title="Hide until next start">✕</button>`);
   document.getElementById('main').prepend(b);
@@ -1096,6 +1142,7 @@ api.onUpdate(showUpdateBanner);
   if (api.piWatch) api.piWatch.cfg().then(r => { if (r.ok) state.piSnooze = r.data.snooze; });
   { const b = document.getElementById('streamer-btn'); if (b) b.onclick = () => setStreamer(!document.documentElement.hasAttribute('data-streamer')); }
   { const h = document.getElementById('help-btn'); if (h) h.onclick = () => openHelp(); }
+  if (typeof initAlerts === 'function') initAlerts();
   state.characters = c.ok ? c.data : [];
   if (state.settings.themeAuto && state.settings.themeAuto.enabled) refreshTheme();
   renderSidebar();

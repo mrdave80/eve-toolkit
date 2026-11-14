@@ -27,7 +27,7 @@ let saveTimer = null;
 
 // Big, fast-growing data lives in its own files under data/, so saving settings stays quick.
 // The rest of the app still reads and writes it as store.get().<key>.
-const BULK = ['trade', 'contractItems', 'history', 'abyssRuns', 'nameCache', 'daily', 'seenEvents', 'timers', 'mineSites', 'miningLog'];
+const BULK = ['trade', 'contractItems', 'history', 'abyssRuns', 'nameCache', 'daily', 'seenEvents', 'timers', 'mineSites', 'miningLog', 'alertLog'];
 let bulkDir;
 const written = {};      // key -> fingerprint of what's on disk
 const dirty = new Set();

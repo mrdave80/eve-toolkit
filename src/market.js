@@ -52,15 +52,45 @@ async function pool(items, n, fn) {
   return out;
 }
 
+/* Bulk prices: Fuzzwork's free market service gives best buy/sell at a hub for hundreds of items in
+   one request. Live order books (book()) still come from ESI, and ESI fills in anything Fuzzwork misses. */
+const fwCache = new Map();   // `${hub}:${typeId}` -> { at, p }
+const FW_TTL = 10 * 60000;
+async function fuzzwork(ids, hub) {
+  const h = HUBS[hub] || HUBS.Jita;
+  const out = {};
+  const need = ids.filter(id => { const c = fwCache.get(hub + ':' + id); if (c && Date.now() - c.at < FW_TTL) { out[id] = c.p; return false; } return !GLOBAL_TYPES.has(id); });
+  for (let i = 0; i < need.length; i += 200) {
+    const chunk = need.slice(i, i + 200);
+    const r = await fetch(`https://market.fuzzwork.co.uk/aggregates/?station=${h.station}&types=${chunk.join(',')}`, { headers: { 'User-Agent': 'EVE-Toolkit-Desktop (in-game: Mr Frank)', Accept: 'application/json' }, signal: AbortSignal.timeout(15000) });
+    if (!r.ok) throw new Error('Fuzzwork returned ' + r.status);
+    const j = await r.json();
+    for (const id of chunk) {
+      const x = j[id]; if (!x) continue;
+      const n = v => { const f = Number(v); return Number.isFinite(f) && f > 0 ? f : null; };
+      const p = { sell: n(x.sell && x.sell.min), buy: n(x.buy && x.buy.max), sellVolume: Number(x.sell && x.sell.volume) || 0, buyVolume: Number(x.buy && x.buy.volume) || 0, source: 'fuzzwork' };
+      if (p.sell === null && p.buy === null) continue;   // no orders there: let ESI have a look
+      fwCache.set(hub + ':' + id, { at: Date.now(), p }); out[id] = p;
+    }
+  }
+  return out;
+}
+const priceSource = () => { try { return (require('./store').get().settings.priceSource) || 'fuzzwork'; } catch { return 'fuzzwork'; } };
+
 /** Best sell/buy at a hub for many types; falls back to CCP average when the hub has no orders. */
 async function prices(typeIds, hub = 'Jita') {
   const ids = [...new Set(typeIds.filter(Boolean).map(Number))];
   const avg = await marketPrices();
-  const res = await pool(ids, 10, async id => {
+  let fw = {};
+  if (priceSource() === 'fuzzwork' && ids.length > 1) {
+    try { fw = await fuzzwork(ids, hub); } catch (e) { try { require('./diag').warn('prices', 'Fuzzwork: ' + e.message + ' (using ESI)'); } catch {} fw = {}; }
+  }
+  const rest = ids.filter(id => !fw[id]);
+  const res = await pool(rest, 10, async id => {
     const r = await safe(() => book(id, hub));
     return [id, ok(r) ? { sell: r.sell, buy: r.buy, sellVolume: r.sellVolume, buyVolume: r.buyVolume, avg: avg.get(id) || 0 } : { sell: null, buy: null, avg: avg.get(id) || 0, error: r.__error }];
   });
-  return Object.fromEntries(res);
+  return { ...Object.fromEntries(ids.filter(id => fw[id]).map(id => [id, { ...fw[id], avg: avg.get(id) || 0 }])), ...Object.fromEntries(res) };
 }
 
 const histCache = new Map();

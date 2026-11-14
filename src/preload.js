@@ -33,6 +33,8 @@ contextBridge.exposeInMainWorld('api', {
   planets: id => call('esi:planets', id),
   piWatch: { snooze: (id, h) => call('pi:snooze', id, h), cfg: c => call('pi:watchCfg', c) },
   mining: id => call('esi:mining', id),
+  home: { attention: refresh => call('home:attention', refresh) },
+  alerts: { list: () => call('alerts:list'), read: () => call('alerts:read'), clear: () => call('alerts:clear'), types: p => call('alerts:types', p), onNew: cb => ipcRenderer.on('alert:new', (_e, d) => cb(d)) },
   mineTax: { report: (id, o) => call('mine:tax', id, o), payee: (id, n) => call('mine:payee', id, n), paid: (id, a, n) => call('mine:paid', id, a, n), unpay: (id, p) => call('mine:unpay', id, p) },
   research: id => call('esi:research', id),
   loyalty: id => call('esi:loyalty', id),

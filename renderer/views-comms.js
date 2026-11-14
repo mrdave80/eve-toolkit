@@ -113,3 +113,85 @@ function wireCalendarResponses(list, c) {
     viewCalendar(list, c);
   });
 }
+
+// ================= Contracts and notifications, all pilots =================
+
+const allBoards = { contracts: null, notes: null, cf: 'action', cpilot: '', nq: '', npilot: '', ncat: '' };
+async function loadForAll(fn) {
+  const pilots = state.characters.filter(c => !c.needsReauth);
+  const out = []; const errors = [];
+  await Promise.all(pilots.map(async c => { const r = await fn(c.id); if (r.ok) out.push(...(r.data || []).map(x => ({ ...x, pilotId: c.id, pilotName: c.name }))); else errors.push(`${c.name}: ${r.error}`); }));
+  return { list: out, errors };
+}
+
+async function renderContractsAll(stillCurrent, refresh = false) {
+  if (!allBoards.contracts || refresh) {
+    setContent(loadingView('Reading every pilot’s contracts…'));
+    const r = await loadForAll(id => api.contracts(id));
+    if (stillCurrent && !stillCurrent()) return;
+    // a contract between two of your pilots shows once
+    const seen = new Map();
+    for (const x of r.list) { const ex = seen.get(x.contract_id); if (!ex) seen.set(x.contract_id, { ...x, pilots: [x.pilotName] }); else ex.pilots.push(x.pilotName); }
+    allBoards.contracts = { list: [...seen.values()].sort((a, b) => b.date_issued.localeCompare(a.date_issued)), errors: r.errors };
+  }
+  drawContractsAll();
+}
+function contractNeedsAction(x) {
+  const mine = new Set(state.characters.map(c => c.id));
+  if (x.status === 'outstanding' && mine.has(x.assignee_id) && !mine.has(x.issuer_id)) return 'Waiting for you to accept';
+  if (x.status === 'in_progress' && x.type === 'courier' && mine.has(x.acceptor_id)) { const due = Date.parse(x.date_accepted) + (x.days_to_complete || 0) * 86400000; return due < Date.now() ? 'Courier overdue' : 'Courier to deliver by ' + fmtDate(new Date(due).toISOString()); }
+  if (mine.has(x.issuer_id) && ['finished_contractor'].includes(x.status)) return 'Finished, collect it';
+  if (mine.has(x.issuer_id) && x.status === 'outstanding' && Date.parse(x.date_expired) - Date.now() < 86400000) return 'Expires within a day';
+  return null;
+}
+function drawContractsAll() {
+  const d = allBoards.contracts, s = allBoards;
+  const pilots = [...new Set(d.list.flatMap(x => x.pilots))].sort();
+  const rows = d.list.filter(x => (!s.cpilot || x.pilots.includes(s.cpilot)) && (s.cf === 'all' || (s.cf === 'active' ? ['outstanding', 'in_progress'].includes(x.status) : contractNeedsAction(x))));
+  const counts = { action: d.list.filter(contractNeedsAction).length, active: d.list.filter(x => ['outstanding', 'in_progress'].includes(x.status)).length, all: d.list.length };
+  setContent(html`<div class="toolbar"><div class="seg">${[['action', 'Needs action'], ['active', 'Active'], ['all', 'All']].map(([k, l]) => html`<button data-cfa="${k}" class="${s.cf === k ? 'active' : ''}">${l} (${counts[k]})</button>`)}</div>
+      <select id="ca-pilot" class="crumb-select"><option value="">All pilots</option>${pilots.map(p => html`<option ${raw(p === s.cpilot ? 'selected' : '')}>${p}</option>`)}</select><span style="flex:1"></span><button class="btn btn-ghost" id="ca-refresh">⟳ Refresh</button></div>
+    ${d.errors.length ? html`<div class="notice" style="margin-bottom:10px">${d.errors.join(' · ')}</div>` : ''}
+    <div class="panel" style="padding:0"><div class="table-wrap">${rows.length ? html`<table><thead><tr><th>Pilot</th><th>Type</th><th>Title</th><th>Status</th><th>From → to</th><th class="right">Price / reward</th><th>Where</th><th>Expires</th></tr></thead><tbody>
+      ${rows.map(x => { const act = contractNeedsAction(x); return xRow('cta' + x.contract_id, html`<td>${x.pilots.join(', ')}</td><td class="nowrap">${humanize(x.type)}</td><td>${x.title || raw('<span class="dim">—</span>')}${act ? html`<div class="gold" style="font-size:11.5px">${act}</div>` : ''}</td>
+        <td><span class="badge ${CONTRACT_STATUS[x.status] || ''}">${humanize(x.status)}</span></td><td style="font-size:12.5px">${x.issuerName || ''}${x.acceptorName || x.assigneeName ? ' → ' + (x.acceptorName || x.assigneeName) : ''}</td>
+        <td class="right num nowrap">${x.price ? fmtCompact(x.price) : ''}${x.reward ? html`<div class="pos">+${fmtCompact(x.reward)}</div>` : ''}${x.collateral ? html`<div class="dim">Coll. ${fmtCompact(x.collateral)}</div>` : ''}</td>
+        <td class="muted" style="font-size:12.5px">${x.startName || ''}${x.endName && x.endName !== x.startName ? ' → ' + x.endName : ''}</td><td class="nowrap">${fmtDate(x.date_expired)}</td>`, '', 8,
+        { load: async () => { const r = await api.contractItems(x.pilotId, x.contract_id); if (!r.ok) return html`<div class="error">${r.error}</div>`; const its = r.data.items || r.data || []; return its.length ? html`<div style="display:flex;flex-wrap:wrap;gap:4px 16px;font-size:12.5px">${its.map(i => html`<span>${icon(i.typeId || i.type_id, 16)}${fmtNum(i.quantity)} × ${i.name || i.typeName || ''}${i.is_included === false || i.included === false ? html` <span class="dim">(wanted)</span>` : ''}</span>`)}</div>` : html`<div class="dim">No items (ISK only).</div>`; } }); })}</tbody></table>`
+      : emptyBox(s.cf === 'action' ? 'Nothing waiting on you.' : 'No contracts.')}</div></div>`);
+  document.querySelectorAll('[data-cfa]').forEach(b => b.onclick = () => { s.cf = b.dataset.cfa; drawContractsAll(); });
+  $('#ca-pilot').onchange = e => { s.cpilot = e.target.value; drawContractsAll(); };
+  $('#ca-refresh').onclick = () => renderContractsAll(null, true);
+}
+
+const NOTE_CATS = [['', 'All kinds'], ['structure', 'Structures and sov'], ['war', 'War and kills'], ['corp', 'Corp and alliance'], ['industry', 'Moons, industry and PI'], ['other', 'Other']];
+const noteCat = n => { const t = n.type || ''; if (/Structure|Sov|Tower|Citadel|EntosisCapture|Orbital|Skyhook/i.test(t)) return 'structure'; if (/War|Kill|Bounty|FWC|Insurance/i.test(t)) return 'war'; if (/Corp|Alliance|CharApp|CharLeft|CorpApp|Charter/i.test(t)) return 'corp'; if (/Moon|Mining|Industry|Planet|Extraction/i.test(t)) return 'industry'; return 'other'; };
+async function renderNotificationsAll(stillCurrent, refresh = false) {
+  if (!allBoards.notes || refresh) {
+    setContent(loadingView('Reading every pilot’s notifications…'));
+    const r = await loadForAll(id => api.notifications(id));
+    if (stillCurrent && !stillCurrent()) return;
+    // corp-wide notifications reach every pilot in the corp: show each once
+    const seen = new Map();
+    for (const n of r.list) { const k = (n.type || n.typeLabel) + '|' + n.timestamp + '|' + (n.text || '').slice(0, 200); const ex = seen.get(k); if (!ex) seen.set(k, { ...n, pilots: [n.pilotName] }); else { ex.pilots.push(n.pilotName); ex.isRead = ex.isRead && n.isRead; } }
+    allBoards.notes = { list: [...seen.values()].sort((a, b) => String(b.timestamp).localeCompare(String(a.timestamp))), errors: r.errors };
+  }
+  drawNotificationsAll();
+}
+function drawNotificationsAll() {
+  const d = allBoards.notes, s = allBoards;
+  const pilots = [...new Set(d.list.flatMap(x => x.pilots))].sort();
+  const q = s.nq.toLowerCase();
+  const rows = d.list.filter(n => (!s.npilot || n.pilots.includes(s.npilot)) && (!s.ncat || noteCat(n) === s.ncat) && (!q || `${n.typeLabel} ${n.sender} ${n.text || ''}`.toLowerCase().includes(q)));
+  setContent(html`<div class="toolbar"><select id="na-cat" class="crumb-select">${NOTE_CATS.map(([k, l]) => html`<option value="${k}" ${raw(k === s.ncat ? 'selected' : '')}>${l}</option>`)}</select>
+      <select id="na-pilot" class="crumb-select"><option value="">All pilots</option>${pilots.map(p => html`<option ${raw(p === s.npilot ? 'selected' : '')}>${p}</option>`)}</select>
+      <input type="search" id="na-q" placeholder="Search notifications…" value="${s.nq}" style="min-width:220px"><span style="flex:1"></span><button class="btn btn-ghost" id="na-refresh">⟳ Refresh</button></div>
+    ${d.errors.length ? html`<div class="notice" style="margin-bottom:10px">${d.errors.join(' · ')}</div>` : ''}
+    <div class="panel" style="padding:0"><div class="table-wrap">${rows.length ? html`<table><thead><tr><th>Received</th><th>What</th><th>From</th><th>Pilots</th></tr></thead><tbody>
+      ${rows.slice(0, 300).map((n, i) => xRow('nta' + i + n.timestamp, html`<td class="nowrap">${fmtDate(n.timestamp)}</td><td>${n.isRead ? '' : raw('<span class="badge accent">new</span> ')}${n.typeLabel}</td><td>${n.sender}</td><td class="muted" style="font-size:12.5px">${n.pilots.length > 2 ? n.pilots.length + ' pilots' : n.pilots.join(', ')}</td>`,
+        html`<div class="pre" style="white-space:pre-wrap;font-size:12px">${n.text || '(no details)'}</div>`, 4))}</tbody></table>` : emptyBox('No notifications match.')}</div></div>`);
+  $('#na-cat').onchange = e => { s.ncat = e.target.value; drawNotificationsAll(); };
+  $('#na-pilot').onchange = e => { s.npilot = e.target.value; drawNotificationsAll(); };
+  $('#na-q').oninput = e => { s.nq = e.target.value; const pos = e.target.selectionStart; drawNotificationsAll(); const i = $('#na-q'); i.focus(); i.setSelectionRange(pos, pos); };
+  $('#na-refresh').onclick = () => renderNotificationsAll(null, true);
+}

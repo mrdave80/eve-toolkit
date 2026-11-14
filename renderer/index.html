@@ -28,6 +28,8 @@
         <button class="side-link" data-view="industryAll"><span class="ico">⚒</span> Industry board</button>
         <button class="side-link" data-view="planetsAll"><span class="ico">◍</span> Planets board</button>
         <button class="side-link" data-view="mailAll"><span class="ico">✉</span> Mail</button>
+        <button class="side-link" data-view="contractsAll"><span class="ico">⇄</span> Contracts</button>
+        <button class="side-link" data-view="notesAll"><span class="ico">⚑</span> Notifications</button>
         <button class="side-link" data-view="tools"><span class="ico">⚙</span> Tools</button>
         <button class="side-link" data-view="liveMap"><span class="ico">✦</span> Live map</button>
         <button class="side-link" data-view="daily"><span class="ico">☀</span> Daily rewards</button>
@@ -54,6 +56,7 @@
       <header id="topbar">
         <div id="crumb"></div>
         <nav id="tabs"></nav>
+        <button id="alert-btn" class="btn btn-ghost" title="Alerts"><svg viewBox="0 0 24 24" width="15" height="15" style="vertical-align:-2px"><path d="M12 3a6 6 0 0 0-6 6v4l-1.6 2.6A.9.9 0 0 0 5.2 17h13.6a.9.9 0 0 0 .8-1.4L18 13V9a6 6 0 0 0-6-6zm-2.2 15.5a2.3 2.3 0 0 0 4.4 0z" fill="currentColor"/></svg><span id="alert-count" hidden></span></button>
         <button id="help-btn" class="btn btn-ghost" title="Help for this page (F1)">?</button>
         <button id="streamer-btn" class="btn btn-ghost" title="Streamer mode: hide pilot names, wallets and locations (Ctrl+Shift+H)">◐</button>
         <button id="search-btn" class="btn btn-ghost" title="Find a tool, pilot or item (Ctrl+K)">⌕ Search <span class="kbd">Ctrl K</span></button>
@@ -90,6 +93,7 @@
   <script src="views-finder.js"></script>
   <script src="help-data.js"></script>
   <script src="views-help.js"></script>
+  <script src="views-alerts.js"></script>
   <script src="views-comms.js"></script>
   <script src="popups.js"></script>
   <script src="search.js"></script>

@@ -11,7 +11,7 @@ const SEARCH_EXTRA = {
 const VIEW_ENTRIES = [
   ['dashboard', 'All pilots', 'home overview'], ['trainingAll', 'Training board', 'skill queue'], ['industryAll', 'Industry board', 'jobs slots'], ['planetsAll', 'Planets board', 'pi extractors colonies'],
   ['liveMap', 'Live map', 'region map kills heat sov'], ['daily', 'Daily rewards', 'login reward daily goals monthly track news downtime'], ['wormholes', 'Wormhole mapper', 'chain signatures tripwire pathfinder'],
-  ['piPlanner', 'PI planner', 'planetary interaction chain'], ['mailAll', 'Mail (all pilots)', 'inbox evemail compose send reply'], ['corp', 'Corporation', 'corp director members srp moons doctrines'], ['settings', 'Settings', 'theme alerts phone speech notifications game data'],
+  ['piPlanner', 'PI planner', 'planetary interaction chain'], ['mailAll', 'Mail (all pilots)', 'inbox evemail compose send reply'], ['contractsAll', 'Contracts (all pilots)', 'contracts courier item exchange accept deliver'], ['notesAll', 'Notifications (all pilots)', 'notifications structure attack war corp application'], ['corp', 'Corporation', 'corp director members srp moons doctrines'], ['settings', 'Settings', 'theme alerts phone speech notifications game data'],
   ['help', 'Help & guides', 'help guide how to walkthrough tutorial manual docs'],
   ['about', 'About & support', 'diagnostics bug report donate mr frank']
 ];
