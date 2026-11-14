@@ -6,7 +6,9 @@
    - Folder (win-x64 zip): a small PowerShell script waits for the app to close, swaps the folders and starts the new copy.
    User data lives in AppData, so neither touches settings or pilots. */
 const { app } = require('electron');
-const fs = require('fs');
+// Electron's fs treats any app.asar as a folder it can read into, so writing or deleting the update's
+// resources/app.asar fails with "Invalid package". original-fs is plain Node fs; fall back for tests.
+const fs = (() => { try { return require('original-fs'); } catch { return require('fs'); } })();
 const path = require('path');
 const crypto = require('crypto');
 const { spawn } = require('child_process');

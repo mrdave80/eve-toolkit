@@ -1,5 +1,9 @@
 # Changelog
 
+## Next release
+
+- Fixed: one-click update of the folder (win-x64 zip) version failed with "Invalid package …app.asar" while unpacking. Updating from 1.13.0 or earlier still needs a manual download this one time, because the old updater does the unpacking.
+
 ## 1.13.0
 
 - Pilot → Industry → Mining: pick 6, 12, 24 or 48 hours, a week, a month or since your last payment. A moon tax calculator works out what you owe the corp that owns the refinery: set the rate, choose refined value (at your refinery's yield), Jita buy or sell, or CCP's average, and choose which ores are taxed. Payments to the holding corp are found in your wallet, and **Copy for corp mail** gives a ready-to-send line. CCP's ledger only records days, so the app keeps its own timed log every 15 minutes for the hour periods.
