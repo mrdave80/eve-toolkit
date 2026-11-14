@@ -276,26 +276,57 @@ function wirePiSnooze(redraw) {
   });
 }
 
-function viewMining(d) {
-  const recent = d.days.slice(-30);
-  const max = Math.max(1, ...recent.map(x => x.quantity));
-  const last7 = d.days.filter(x => Date.parse(x.date) > Date.now() - 7 * 86400000).reduce((n, x) => n + x.quantity, 0);
-  setContent(html`
-    <div class="grid grid-3" style="margin-bottom:16px">
-      ${stat('Units mined (ledger)', fmtNum(d.total), 'ESI keeps about 30 days')}
-      ${stat('Estimated ore value', fmtCompact(d.totalValue) + ' ISK', 'Unrefined, at average prices')}
-      ${stat('Last 7 days', fmtNum(last7), d.ores.length + ' ore types')}
-    </div>
-    <div class="panel"><h3>Daily units mined</h3>
-      ${recent.length ? html`<div class="bars">${recent.map(x => html`<div style="height:${(x.quantity / max * 100).toFixed(1)}%" title="${fmtDay(x.date)}: ${fmtNum(x.quantity)}"></div>`)}</div>
-        <div class="bars-x"><span>${fmtDay(recent[0].date)}</span><span>${fmtDay(recent[recent.length - 1].date)}</span></div>` : emptyBox('No mining recorded')}
-    </div>
-    <div class="grid grid-2">
-      <div class="panel"><h3>By ore</h3>${d.ores.length ? html`<table><tbody>${d.ores.map(o => html`<tr><td>${icon(o.typeId)}${o.name}</td><td class="right num">${fmtNum(o.quantity)}</td><td class="right num muted">${fmtCompact(o.value || 0)} ISK</td></tr>`)}</tbody></table>` : emptyBox('—')}</div>
-      <div class="panel"><h3>By system</h3>${d.systems.length ? html`<table><tbody>${d.systems.map(o => html`<tr><td>${o.name}</td><td class="right num">${fmtNum(o.quantity)}</td></tr>`)}</tbody></table>` : emptyBox('—')}</div>
-    </div>
-    <div class="panel" style="padding:0"><div class="table-wrap"><table><thead><tr><th>Date</th><th>Ore</th><th>System</th><th class="right">Units</th><th class="right">Est. value</th></tr></thead><tbody>
-      ${d.entries.map(e => html`<tr><td class="nowrap">${fmtDay(e.date)}</td><td>${icon(e.typeId)}${e.ore}</td><td>${e.system}</td><td class="right num">${fmtNum(e.quantity)}</td><td class="right num muted">${fmtCompact(e.value || 0)}</td></tr>`)}</tbody></table></div></div>`);
+const MINE_PERIODS = [['6h', '6 h'], ['12h', '12 h'], ['24h', '24 h'], ['48h', '48 h'], ['week', 'Week'], ['month', 'Month'], ['since', 'Since last payment']];
+const MINE_BASIS = [['refined', 'Refined value (what it reprocesses into)'], ['jitaBuy', 'Ore at Jita buy'], ['jitaSell', 'Ore at Jita sell'], ['average', 'CCP average price']];
+const MINE_SETS = [['moon', 'Moon ore'], ['all', 'Everything'], ['ore', 'Belt ore'], ['ice', 'Ice'], ['gas', 'Gas'], ['pick', 'Pick ores…']];
+
+function viewMining(d, c) {
+  const cf = d.cfg, t = d.totals;
+  const reload = async o => { const box = $('#mt-body'); if (box) box.style.opacity = '.5'; const r = await api.mineTax.report(c.id, o); if (!r.ok) return toast(r.error, true); viewMining(r.data, c); };
+  const max = Math.max(1, ...d.buckets.map(b => b.qty));
+  const label = b => (d.step === 'hour' ? new Date(b.at).toISOString().slice(11, 16) + ' EVE' : fmtDay(b.at));
+  const periodName = (MINE_PERIODS.find(x => x[0] === d.period) || [0, ''])[1];
+  const summary = () => `Moon tax ${c.name}: ${fmtNum(Math.round(t.tax))} ISK (${cf.rate}% of ${fmtNum(Math.round(t.taxedValue))} ISK, ${(MINE_BASIS.find(x => x[0] === cf.basis) || [0, ''])[1].split(' (')[0].toLowerCase()}) for ${d.ores.filter(o => o.taxed).map(o => `${fmtNum(o.qty)} ${o.name}`).join(', ') || 'nothing'}, ${fmtDay(d.from)} to ${fmtDay(d.to)}.`;
+  setContent(html`<div class="toolbar" style="flex-wrap:wrap"><div class="seg">${MINE_PERIODS.map(([k, l]) => html`<button data-mtp="${k}" class="${d.period === k ? 'active' : ''}">${l}</button>`)}</div>
+      <span class="dim" style="font-size:12px">${fmtDate(d.from)} → ${fmtDate(d.to)}</span></div>
+    <div id="mt-body">
+    ${d.approx ? html`<div class="notice" style="margin-bottom:12px">CCP's mining ledger only records which day you mined, not the time. The app has kept its own timed log since ${fmtDate(d.trackedSince)} (checked every 15 minutes while it runs); before that, whole days are counted.</div>` : ''}
+    <div class="grid grid-4" style="margin-bottom:14px">
+      ${stat('Mined', fmtNum(t.qty) + ' units', periodName)}
+      ${stat('Value', fmtCompact(t.value) + ' ISK', (MINE_BASIS.find(x => x[0] === cf.basis) || [0, ''])[1].split(' (')[0])}
+      ${stat(`Tax at ${cf.rate}%`, fmtCompact(t.tax) + ' ISK', `on ${fmtCompact(t.taxedValue)} ISK of ${(MINE_SETS.find(x => x[0] === cf.oreSet) || [0, ''])[1].replace('…', '').toLowerCase()}`, t.tax ? 'gold' : '')}
+      ${stat(d.period === 'since' ? 'Owed now' : 'Paid in this period', d.period === 'since' ? fmtCompact(t.owing) + ' ISK' : fmtCompact(t.paid) + ' ISK', d.payee ? 'to ' + d.payee.name : 'Set who you pay below', d.period === 'since' && t.owing ? 'neg' : '')}</div>
+    <div class="grid" style="grid-template-columns:2fr 1fr;gap:14px;align-items:start">
+      <div><div class="panel" style="margin-bottom:14px"><h3>Mined per ${d.step}</h3>
+        ${d.buckets.some(b => b.qty) ? html`<div class="bars">${d.buckets.map(b => html`<div style="height:${(b.qty / max * 100).toFixed(1)}%" title="${label(b)}: ${fmtNum(b.qty)}"></div>`)}</div>
+          <div class="bars-x"><span>${label(d.buckets[0])}</span><span>${label(d.buckets[d.buckets.length - 1])}</span></div>` : emptyBox('Nothing mined in this period')}</div>
+        <div class="panel" style="padding:0"><table><thead><tr><th style="width:28px" title="Taxed"></th><th>Ore</th><th>Where</th><th class="right">Units</th><th class="right">Each</th><th class="right">Value</th><th class="right">Tax</th></tr></thead><tbody>
+          ${d.ores.length ? d.ores.map(o => html`<tr class="${o.taxed ? '' : 'dim'}"><td><input type="checkbox" data-mtore="${o.typeId}" ${raw(o.taxed ? 'checked' : '')} title="Include in tax"></td><td>${icon(o.typeId)}${o.name}<div class="dim" style="font-size:11px">${o.kind === 'moon' ? 'moon ore' : o.kind}</div></td>
+            <td style="font-size:12px" class="muted">${o.systems.map(x => x.name).join(', ')}</td><td class="right num">${fmtNum(o.qty)}</td><td class="right num dim">${fmtCompact(o.unit)}</td><td class="right num">${fmtCompact(o.value)}</td><td class="right num ${o.tax ? 'gold' : 'dim'}">${o.tax ? fmtCompact(o.tax) : '—'}</td></tr>`) : html`<tr><td colspan="7">${emptyBox('No mining in this period')}</td></tr>`}</tbody></table></div></div>
+      <div><div class="panel"><h3>Tax</h3>
+        ${field('Tax rate', html`<div style="display:flex;gap:6px;align-items:center"><input type="number" id="mt-rate" value="${cf.rate}" min="0" max="100" step="0.5" style="width:90px"> %</div>`)}
+        ${field('Worked out on', html`<select id="mt-basis">${MINE_BASIS.map(([k, l]) => html`<option value="${k}" ${raw(cf.basis === k ? 'selected' : '')}>${l}</option>`)}</select>`)}
+        ${cf.basis === 'refined' ? field('Refining yield', html`<div style="display:flex;gap:6px;align-items:center"><input type="number" id="mt-yield" value="${cf.yieldPct}" min="30" max="100" step="0.1" style="width:90px"> %</div>`, 'Most corps use their refinery’s yield, often 85–90%.') : ''}
+        ${field('Taxed ores', html`<select id="mt-set">${MINE_SETS.map(([k, l]) => html`<option value="${k}" ${raw(cf.oreSet === k ? 'selected' : '')}>${l}</option>`)}</select>`, cf.oreSet === 'pick' ? 'Tick the ores to tax in the table.' : 'Or tick ores in the table to choose them one by one.')}
+        <button class="btn btn-primary" id="mt-copy" style="width:100%">Copy for corp mail</button></div>
+      <div class="panel"><h3>Payments</h3>
+        ${field('Holding corporation', html`<div style="display:flex;gap:6px"><input type="text" id="mt-payee" value="${d.payee ? d.payee.name : ''}" placeholder="Corp that owns the refinery"><button class="btn btn-ghost" id="mt-payee-set">Set</button></div>`, 'ISK you give this corp shows up here by itself.')}
+        <div style="display:flex;gap:6px;margin-bottom:10px"><input type="text" id="mt-amt" placeholder="Amount, e.g. 45m" style="${raw(inBox)};flex:1;width:auto"><button class="btn btn-ghost" id="mt-paid">Mark paid</button></div>
+        ${d.payments.length ? d.payments.map(p => html`<div class="skill-row" style="font-size:12.5px"><span>${fmtDay(p.at)} <span class="dim">${p.auto ? 'from wallet' : 'by hand'}${p.note ? ' · ' + p.note : ''}</span></span><span class="num">${fmtCompact(p.amount)} ${p.auto ? '' : html`<a href="#" class="dim" data-mtunpay="${p.id}">✕</a>`}</span></div>`) : html`<div class="dim" style="font-size:12.5px">No payments yet. "Since last payment" counts from your last one.</div>`}</div></div></div></div>`);
+  document.querySelectorAll('[data-mtp]').forEach(b => b.onclick = () => reload({ period: b.dataset.mtp }));
+  $('#mt-rate').onchange = e => reload({ rate: Number(e.target.value) });
+  $('#mt-basis').onchange = e => reload({ basis: e.target.value });
+  if ($('#mt-yield')) $('#mt-yield').onchange = e => reload({ yieldPct: Number(e.target.value) });
+  $('#mt-set').onchange = e => reload({ oreSet: e.target.value, ores: e.target.value === 'pick' ? d.ores.filter(o => o.taxed).map(o => o.typeId) : cf.ores });
+  document.querySelectorAll('[data-mtore]').forEach(i => i.onchange = () => {
+    const ids = new Set(d.ores.filter(o => o.taxed).map(o => o.typeId)); const id = Number(i.dataset.mtore);
+    if (i.checked) ids.add(id); else ids.delete(id);
+    reload({ oreSet: 'pick', ores: [...ids] });
+  });
+  $('#mt-copy').onclick = () => { navigator.clipboard.writeText(summary()); toast('Copied. Paste it into an EVE mail to the corp.'); };
+  $('#mt-payee-set').onclick = async () => { const r = await api.mineTax.payee(c.id, $('#mt-payee').value.trim()); if (!r.ok) return toast(r.error, true); toast(r.data ? `Payments to ${r.data.name} will be found in your wallet` : 'Cleared'); reload({}); };
+  $('#mt-paid').onclick = async () => { const v = parseIsk($('#mt-amt').value); if (!(v > 0)) return toast('Enter an amount, e.g. 45m', true); const r = await api.mineTax.paid(c.id, v, ''); if (!r.ok) return toast(r.error, true); reload({}); };
+  document.querySelectorAll('[data-mtunpay]').forEach(a => a.onclick = async e => { e.preventDefault(); await api.mineTax.unpay(c.id, a.dataset.mtunpay); reload({}); });
 }
 
 function viewResearch(list) {

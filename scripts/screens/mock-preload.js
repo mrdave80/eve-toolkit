@@ -842,6 +842,16 @@ api.diag = { report: async () => ({ ok: true, data: 'EVE Toolkit 1.9.0\nSystem: 
     moons: async () => ({ ok: true, data: { errors: [], extractions: [{ moon: 'K-6K16 VII - Moon 3', structure: 'K-6K16 - Hard Rock Refinery', system: 'K-6K16', arrival: new Date(now - 2 * 3600e3).toISOString(), decay: new Date(now + 1 * 3600e3).toISOString(), near: { pilot: 'Mike Hunt', jumps: 3 } }, { moon: 'MJXW-P IV - Moon 1', structure: 'MJXW-P - Athanor', system: 'MJXW-P', arrival: new Date(now + 40 * 60e3).toISOString(), decay: new Date(now + 3.6 * 3600e3).toISOString(), near: { pilot: 'Richard Fitzwell', jumps: 6 } }, { moon: 'QY6-RK II - Moon 2', structure: 'QY6-RK - Tatara', system: 'QY6-RK', arrival: new Date(now + 2.3 * D).toISOString(), decay: new Date(now + 2.3 * D + 3 * 3600e3).toISOString(), near: null }] } }),
     onNew: () => {}, onScan: () => {} };
 }
+{
+  const ore = (typeId, name, kind, qty, unit, taxed, sys) => ({ typeId, name, kind, qty, unit, value: qty * unit, taxed, tax: taxed ? qty * unit * 0.1 : 0, systems: [{ name: sys, qty }] });
+  const ores = [ore(45490, 'Zeolites', 'moon', 182000, 1620, true, 'K-6K16'), ore(45491, 'Sylvite', 'moon', 96400, 1810, true, 'K-6K16'), ore(45493, 'Cobaltite', 'moon', 21500, 4120, true, 'K-6K16'), ore(1230, 'Veldspar', 'ore', 48000, 16, false, 'MJXW-P')];
+  const tv = ores.filter(o => o.taxed).reduce((n, o) => n + o.value, 0);
+  const buckets = Array.from({ length: 24 }, (_, i) => ({ at: new Date(now - (23 - i) * 3600e3).toISOString(), qty: [0, 0, 0, 0, 0, 0, 0, 0, 12, 31, 28, 30, 26, 0, 0, 18, 33, 32, 29, 31, 14, 0, 0, 0][i] * 1000 }));
+  api.mineTax = { report: async (id, o = {}) => ({ ok: true, data: { cfg: { rate: 10, basis: 'refined', yieldPct: 87.5, oreSet: 'moon', ores: [], period: o.period || '24h' }, period: o.period || '24h', from: new Date(now - 24 * 3600e3).toISOString(), to: new Date(now).toISOString(), approx: false, trackedSince: new Date(now - 9 * D).toISOString(),
+    ores, availableOres: [], totals: { qty: ores.reduce((n, x) => n + x.qty, 0), value: ores.reduce((n, x) => n + x.value, 0), taxedValue: tv, tax: tv * 0.1, paid: 0, owing: tv * 0.1 },
+    payments: [{ id: 1, at: new Date(now - 6 * D).toISOString(), amount: 61e6, auto: true, note: 'moon tax' }, { id: 2, at: new Date(now - 13 * D).toISOString(), amount: 48.5e6, auto: true, note: '' }], payee: { id: 98000009, name: 'Hard Rock Excavations' }, buckets, step: 'hour' } }),
+    payee: async () => ({ ok: true, data: { name: 'Hard Rock Excavations' } }), paid: async () => ({ ok: true, data: [] }), unpay: async () => ({ ok: true, data: [] }) };
+}
 contextBridge.exposeInMainWorld('api', api);
 contextBridge.exposeInMainWorld('__mock', { sdeCheck: v => { globalThis.__sdeCheck = v; } });
 

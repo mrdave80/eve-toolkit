@@ -562,7 +562,7 @@ async function renderCharTab(stillCurrent) {
     industry: () => api.industryFull(c.id), orders: () => api.ordersFull(c.id),
     assets: () => api.assets(c.id),
     training: () => api.training(c.id), blueprints: () => api.blueprints(c.id), planets: () => api.planets(c.id),
-    mining: () => api.mining(c.id), research: () => api.research(c.id), loyalty: () => api.loyalty(c.id),
+    mining: () => api.mineTax.report(c.id, {}), research: () => api.research(c.id), loyalty: () => api.loyalty(c.id),
     notifications: () => api.notifications(c.id), calendar: () => api.calendar(c.id), corp: () => api.corporation(c.id),
     standings: () => api.standings(c.id), contacts: () => api.contacts(c.id), medals: () => api.medals(c.id),
     kills: () => api.killmails(c.id), fittings: () => api.fittings(c.id),

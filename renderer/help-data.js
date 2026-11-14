@@ -65,6 +65,11 @@ const HELP = [
     shots: [['88-mail-all', 'Mail for all pilots'], ['89-compose', 'Writing a mail'], ['90-calendar', 'Calendar answers']] },
 
   // ---------------- Industry ----------------
+  { id: 'minetax', walk: ['[data-mtp]', '#mt-rate', '#mt-basis', '#mt-set', '#mt-payee', '#mt-copy'], group: 'Industry & PI', title: 'Mining and moon tax', where: 'Pilot → Industry → Mining', open: { view: 'dashboard' }, ctx: ['char:mining'],
+    summary: 'What a pilot mined over the last 6, 12, 24 or 48 hours, a week or a month, and the tax owed to the corp that owns the refinery.',
+    steps: ['Pick a period, or **Since last payment** for what you owe right now.', 'Set the tax rate and what it\u2019s worked out on: refined value at your refinery\u2019s yield (what most corps use), ore at Jita buy or sell, or CCP\u2019s average.', 'Choose which ores are taxed: moon ore, everything, or tick ores one by one in the table.', 'Set the holding corporation: ISK you give it is found in your wallet and counted as paid. Or use **Mark paid**.', '**Copy for corp mail** puts the amount and what it\u2019s for on the clipboard.'],
+    tips: ['CCP\u2019s ledger only records the day you mined, so the app keeps a timed log every 15 minutes while it runs. Hour periods are exact from then on.', 'Settings are remembered for each pilot.'],
+    shots: [['DF-mining-tax', 'Mining and moon tax']] },
   { id: 'industryboards', group: 'Industry & PI', title: 'Industry and planets boards', where: 'Sidebar → Industry board, Planets board', open: { view: 'industryAll' }, ctx: ['view:industryAll', 'char:industry', 'char:blueprints', 'char:mining', 'char:research'],
     summary: 'Jobs and free slots across every pilot, and every PI colony with its extractor timers.',
     steps: ['**Industry board** lists running jobs, finished jobs waiting to be delivered and free slots.', '**Planets board** shows a timeline of extractors and a card for each colony.', 'Turn on industry and PI alerts in Settings → Notifications.'],
