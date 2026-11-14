@@ -1,7 +1,7 @@
 {
   "name": "eve-toolkit",
   "productName": "EVE Toolkit",
-  "version": "1.12.0",
+  "version": "1.13.0",
   "description": "Desktop companion for EVE Online pilots: characters, skill queues, wallet, mail, contracts, clones, industry, market orders and assets.",
   "main": "src/main.js",
   "author": "Mr Frank (EVE Online)",

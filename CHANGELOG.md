@@ -1,6 +1,6 @@
 # Changelog
 
-## Next release
+## 1.13.0
 
 - Pilot → Industry → Mining: pick 6, 12, 24 or 48 hours, a week, a month or since your last payment. A moon tax calculator works out what you owe the corp that owns the refinery: set the rate, choose refined value (at your refinery's yield), Jita buy or sell, or CCP's average, and choose which ores are taxed. Payments to the holding corp are found in your wallet, and **Copy for corp mail** gives a ready-to-send line. CCP's ledger only records days, so the app keeps its own timed log every 15 minutes for the hour periods.
 - Mining: click an ore to see the minerals it refines into, and **Minerals from everything mined** totals them for the period at your refining yield after the refinery's tax (set both on the page).

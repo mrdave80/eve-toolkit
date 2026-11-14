@@ -16,7 +16,7 @@ def jpg(name, width=1100):
     return 'img/' + name + '.jpg'
 
 LOGO = '<svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="13" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".35"/><path d="M16 3a13 13 0 0 1 12.6 9.8" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><circle cx="16" cy="16" r="4.2" fill="currentColor"/></svg>'
-VERSION = '1.12.0'
+VERSION = '1.13.0'
 
 pages = []
 def page(body, cls=''):
@@ -48,11 +48,11 @@ page(f"""
 
 # ---------- At a glance ----------
 groups = [
-  ('Pilots &amp; training', ['Wallet, SP, location and ship for each pilot', 'Skill queue with per-level detail', 'Skill planner, remaps and “Can I fly…?”', 'Fit checker with DPS, tank and capacitor']),
-  ('Industry &amp; PI', ['Jobs and free slots across your pilots', 'Build, invention and reprocessing calculators', 'Asset finder, shopping lists and What to Build', 'Ore, ice and gas ISK per m³, PI watchdog', 'Job splitter, blueprint prices, ice and ore sites', 'PI chain planner and moon scan value']),
+  ('Pilots &amp; training', ['Wallet, SP, location and ship for each pilot', 'Skill queue with per-level detail', 'Skill planner, remaps and “Can I fly…?”', 'Fit checker and fit library, ship masteries']),
+  ('Industry &amp; PI', ['Jobs and free slots across your pilots', 'Build, invention and reprocessing calculators', 'Asset finder, shopping lists and What to Build', 'Ore, ice and gas ISK per m³, PI watchdog', 'Job splitter, blueprint prices, ice and ore sites', 'Mining tax, minerals and build-from-ore planner', 'PI chain planner and moon scan value']),
   ('Market &amp; finance', ['Hub order books, price history, appraisal', 'Trade profit, station trading scanner, price alerts', 'Net worth history and income by source', 'Ratting, Abyss, skill farm and character value']),
-  ('Navigation', ['Routes through gates, wormholes and Thera/Turnur', 'Gate camp and gank check on each route', 'Live region map with kill heat and intel', 'Wormhole mapper with rolling and map import', 'Hunting grounds, gate camps, agent finder']),
-  ('Intel', ['Pilot lookup with a 0–100 threat grade', 'System Intel with battle reports', 'Intel channel watch with graded alerts', 'Local and d-scan with danger warnings', 'Wormhole residents and the Wall of Shame']),
+  ('Navigation', ['Routes through gates, wormholes and Thera/Turnur', 'Gate camp and gank check on each route', 'Live region and New Eden maps with kill heat and intel', 'Wormhole mapper with rolling and map import', 'Hunting grounds, gate camps, agent finder']),
+  ('Intel', ['Pilot lookup with a 0–100 threat grade', 'Alerts inbox and a Needs attention list', 'System Intel with battle reports', 'Intel channel watch with graded alerts', 'Local and d-scan with danger warnings', 'Wormhole residents and the Wall of Shame']),
   ('Corporation', ['Members, structures, moons, fuel and leaderboard', 'Doctrines, op calendar, fleet tracking', 'SRP, timerboard, recruit spy check', 'Daily reset, clone jump, fatigue and incursion alerts']),
 ]
 cards = ''.join(f'<div class="gcard"><h3>{t}</h3><ul>{"".join(f"<li>{x}</li>" for x in xs)}</ul></div>' for t, xs in groups)
@@ -66,6 +66,24 @@ page(f"""
   <div><b>Portable</b><span>One Windows .exe or a Linux AppImage. No installer, account or server. Updates in one click.</span></div>
   <div><b>Free</b><span>All features are free to use. ISK or PLEX donations to Mr Frank are optional.</span></div>
 </div>""")
+
+# ---------- New in 1.13 ----------
+S = 'New in 1.13'
+feature(S, 'Needs attention and the alerts inbox', 'The All pilots page lists what needs you right now, one click from the page that fixes it. The bell keeps the last two days of alerts, and each kind can be switched off.',
+  ['Expired logins, empty queues, finished jobs and stopped PI', 'Unread mail, contracts waiting on you, outbid orders', 'Low fuel, reinforced structures and ready moon chunks', 'Alerts held back in quiet hours still land in the inbox'],
+  [('E3-attention', 'Needs attention'), ('E4-alerts', 'Alerts inbox')], 'two')
+feature(S, 'Mining tax, minerals and building from your ore', 'Pick a period and the moon tax owed to the refinery\u2019s owner is worked out, with payments found in your wallet. Click an ore for its minerals, and plan a build from what you mined.',
+  ['Refined value at your yield, after the refinery\u2019s tax', 'Pick one of your blueprints, original or copy, and how many', 'What your mining covers and the ore to mine for the rest', 'Copy for corp mail, or a list for EVE\u2019s Multibuy'],
+  [('DG-mining-minerals', 'Minerals in each ore'), ('DH-mining-build', 'Planning a build from your ore')], 'two')
+feature(S, 'Where ice spawns and New Eden', 'Ice belts only appear in certain systems: the app lists them nearest to your pilots and marks them on the live map. New Eden shows every region at once with kills, ratting, traffic or sov.',
+  ['Belts per system and your own sightings beside them', 'Ice reported outside the list is flagged', 'Click a region, then Open, to go into it', 'Your pilots and intel shown on every region'],
+  [('E0-ice-spawn', 'Where ice spawns'), ('E2-universe', 'New Eden')], 'two')
+feature(S, 'Fit library and what to train', 'Keep fits in folders with notes and see which pilots can fly each one. What to Train shows CCP\u2019s ship masteries for every pilot and the certificates each is closest to raising.',
+  ['Import pasted EFT, in-game fittings and doctrines', 'Time to train the rest, per pilot', 'Mastery I–V with one click to a skill plan', 'Quick wins: the cheapest certificate levels'],
+  [('E7-fitlib', 'Fit library'), ('E8-train-ship', 'Ship masteries')], 'two')
+feature(S, 'Boards for all pilots, pins and updates', 'Contracts and notifications for every pilot in one list. Pin the tools you use most. Prices come from Fuzzwork\u2019s aggregates, and updates can install quietly when you close the app.',
+  ['Contracts needing action first, shown once even between your pilots', 'Notifications by kind: structures, war, corp, sov, kills', '★ pins a tool, with your recent tools beside it', 'Check for updates any time from About & support'],
+  [('E5-contracts-all', 'Contracts, all pilots'), ('EA-pinned', 'Pinned tools')], 'two')
 
 # ---------- New in 1.12 ----------
 S = 'New in 1.12'
@@ -96,30 +114,6 @@ feature(S, 'Killmail appraisal and offline mode', 'Paste a kill link into Apprai
 feature(S, 'Intel Watch details and a clearer live map', 'Click a kill spike near you for the kills, attackers and camps behind it, or a pilot in Local for what they said, what they fly and why they were graded. The live map no longer overlaps systems.',
   ['Tag a pilot as hostile from the Local list', 'Links to System Intel and zKillboard', 'Constellation names and extra detail when zoomed in', 'The map uses the full width of the panel'],
   [('DD-intel-expand', 'Kill activity details'), ('42-livemap', 'Live map')], 'two')
-
-# ---------- New in 1.11 ----------
-S = 'New in 1.11'
-feature(S, 'Route planner places and Daily Goals', 'Start typing a destination to pick a system, station or one of your structures, with how many of your items are there. Daily Goals open per pilot so you can see each goal and tick it off.',
-  ['Favourites for one-click routes, and a station list for any system', 'Autopilot set to the station itself, not just the system', 'Set today\u2019s goals once; they\u2019re the same for every pilot', 'Two goals ticked marks the pilot done and moves the monthly track'],
-  [('B0-route-places', 'Destination search with your items at each station'), ('52-daily', 'Daily Goals checklist')], 'two')
-feature(S, 'D-scan warnings and order updates', 'Pasted d-scans are sorted by role, with the dangerous things first. My Orders steps through outbid orders: it copies a winning price and opens the market in game.',
-  ['Supercapitals, recons, interdictors, HICs and bombers flagged', 'Cynos, bubbles, probes and mobile tractor units called out', 'Prices respect EVE\u2019s four-digit rule', 'Ctrl+Alt+N updates the next order while you\u2019re in game'],
-  [('98-dscan', 'D-scan with roles and warnings'), ('99-orders', 'Updating outbid orders')], 'two')
-feature(S, 'PI watchdog', 'From each colony\u2019s last saved state, the app works out when storage fills and when factories run out of inputs, not just when extractors stop.',
-  ['Alerts a set number of hours ahead', 'Two reminders if nothing changes; clears once you fix it', 'Snooze any colony for 12 hours', 'Planets board lists colonies that need a visit within a day'],
-  [('A2-pi-watch', 'Planets board with the watchdog')])
-feature(S, 'Shopping list and What to Build', 'The build calculator takes what your pilots already own off the materials list. What to Build ranks your own blueprints by profit per day, capped by what the market really buys.',
-  ['Checks you have the blueprint, and where it is', 'Copies the rest for EVE\u2019s Multibuy window', 'Profit after sales tax and broker fee', 'Build \u25b8 opens any product in the calculator'],
-  [('A3-shopping', 'Shopping list from your hangars'), ('A4-what-to-build', 'What to Build')], 'two')
-feature(S, 'Agent Finder and LP stores', 'Find agents by level, division, faction and distance, with mission hubs. Buy with LP finds every NPC store that sells an item and its nearest station.',
-  ['Highsec only and locator agents filters', 'Set destination to an agent in one click', 'LP, ISK and items each store asks for', 'Opens the full LP store for any corporation'],
-  [('A5-agents', 'Agent Finder'), ('A6-lp-search', 'Buy with LP')], 'two')
-feature(S, 'Gate camps and busy hours', 'A gate camp mode for pilots who want a fight lists active camps near you. System cards show kills by day and hour, so you know when a system is quiet.',
-  ['Who is camping, in which ships, how recently', 'Smartbombs and bubbles flagged', 'Busiest and quietest hours in your time zone', 'Check any camper\u2019s threat grade from the list'],
-  [('A7-camps', 'Gate camps to fight'), ('A0-sys-heat', 'System busy hours')], 'two')
-feature(S, 'Compare skills, streamer mode and incursions', 'Compare up to 10 pilots\u2019 skills side by side with CSV export. Streamer mode blurs names, wallets and locations. Incursion payouts show as their own income with ISK per hour.',
-  ['Only show skills where pilots differ', 'Skills and queues to CSV', 'Ctrl+Shift+H toggles streamer mode', 'Planner removes skills you\u2019ve already trained'],
-  [('A1-compare', 'Compare skills'), ('A9-streamer', 'Streamer mode')], 'two')
 
 # ---------- Quick looks ----------
 S = 'Quick looks'
