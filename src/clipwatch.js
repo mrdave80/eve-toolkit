@@ -15,6 +15,8 @@ function classify(text) {
   if (!lines.length) return null;
   // Probe scanner: rows start with a signature id like ABC-123
   if (lines.filter(l => /^[A-Z]{3}-\d{3}\t/.test(l)).length >= lines.length * 0.8) return 'probe';
+  // Mining Survey Results: name, quantity, volume in m3, value, distance
+  if (lines.some(l => l.includes('\t')) && lines.filter(l => /\t[\d,.\s]+m(3|³)\t/i.test(l)).length >= Math.max(1, lines.filter(l => l.includes('\t')).length * 0.8)) return 'survey';
   // D-scan: tab-separated rows whose last column is a distance
   const tabbed = lines.filter(l => l.includes('\t'));
   if (tabbed.length && tabbed.length >= lines.length * 0.8 && tabbed.some(l => DIST.test(l.split('\t').pop().trim()))) return 'dscan';

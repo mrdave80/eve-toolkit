@@ -180,6 +180,246 @@ async function drawMining() {
 api.mine.onScan(d => { if (d && d.sites) toast(`${d.system}: ${d.sites} mining site${d.sites === 1 ? '' : 's'} from your probe scan${d.gone ? `, ${d.gone} gone` : ''}`); if (state.view === 'tools' && state.toolsTab === 't-mining') tMining(); });
 api.mine.onNew(() => { if (state.view === 'tools' && state.toolsTab === 't-mining') tMining(); });
 
+// ================= Belt tracker =================
+
+const beltState = { range: 15, rate: '', timer: null };
+try { Object.assign(beltState, JSON.parse(localStorage.getItem('beltTracker') || '{}')); } catch {}
+const saveBelt = () => { try { localStorage.setItem('beltTracker', JSON.stringify({ range: beltState.range, rate: beltState.rate })); } catch {} };
+const fmtMins = m => (m === null || m === undefined ? '—' : m < 1 ? 'under a minute' : m < 90 ? `${Math.round(m)} min` : `${Math.floor(m / 60)} h ${Math.round(m % 60)} min`);
+async function tBelt() {
+  const s = beltState;
+  setContent(html`<div class="grid" style="grid-template-columns:minmax(300px,1fr) 2fr;gap:16px;align-items:start">
+    <div><div class="panel"><h3>Add a survey</h3>
+      <textarea id="bt-text" rows="6" style="width:100%" class="mono-area" placeholder="Survey scanner results → Ctrl+A, Ctrl+C → paste here"></textarea>
+      <div style="display:flex;gap:8px;margin-top:8px"><button class="btn btn-primary" id="bt-add">Add survey</button><button class="btn btn-ghost" id="bt-undo">Undo last</button><span style="flex:1"></span><button class="btn btn-ghost" id="bt-clear">New belt</button></div>
+      <div class="dim" style="font-size:12px;margin-top:8px">Scan again every few minutes. The time left comes from how fast the belt shrinks between your first and latest survey, so it counts everyone mining there. With the clipboard watch on, copying the survey results in game adds them by itself.</div></div>
+    <div class="panel"><h3>Settings</h3>
+      <div class="field"><label>Your mining range (km)</label><input type="number" id="bt-range" value="${s.range}" min="1" max="100" style="width:100px"></div>
+      <div class="field" style="margin:0"><label>Your mining rate, m³ a minute (for a time left from one survey)</label><input type="number" id="bt-rate" value="${s.rate}" min="0" step="10" placeholder="optional" style="width:140px"></div></div></div>
+    <div id="bt-out"></div></div>`);
+  const redraw = () => drawBelt();
+  $('#bt-add').onclick = async () => { const t = $('#bt-text').value; if (!t.trim()) return toast('Paste the survey results first', true); const r = await api.survey.add(t); if (!r.ok) return toast(r.error, true); $('#bt-text').value = ''; toast(`Survey ${r.data.scans} added: ${r.data.rows} rocks`); redraw(); };
+  $('#bt-undo').onclick = async () => { await api.survey.undo(); redraw(); };
+  $('#bt-clear').onclick = async () => { await api.survey.clear(); toast('Cleared. Survey the new belt to start.'); redraw(); };
+  $('#bt-range').onchange = e => { s.range = Number(e.target.value) || 15; saveBelt(); redraw(); };
+  $('#bt-rate').onchange = e => { s.rate = e.target.value; saveBelt(); redraw(); };
+  clearInterval(s.timer); s.timer = setInterval(() => { if (state.view === 'tools' && state.toolsTab === 't-belt') redraw(); else clearInterval(s.timer); }, 30000);
+  redraw();
+}
+async function drawBelt() {
+  const s = beltState, out = $('#bt-out'); if (!out) return;
+  const r = await api.survey.get({ rangeKm: s.range, m3PerMin: Number(s.rate) || 0 });
+  if (!$('#bt-out')) return;
+  if (!r.ok) { out.innerHTML = String(errorView(r)); return; }
+  const d = r.data;
+  if (!d) { out.innerHTML = String(html`<div class="panel">${emptyBox('No survey yet. In game, run the survey scanner, click in its results, press Ctrl+A then Ctrl+C, and paste them here.')}</div>`); return; }
+  const t = d.total, rate = d.rate;
+  const ago = Math.round((Date.now() - d.last) / 60000);
+  out.innerHTML = String(html`<div class="grid grid-4" style="margin-bottom:14px">
+      ${stat('Left in the belt', fmtNum(Math.round(t.m3)) + ' m³', `${t.rocks} rocks${t.isk ? ' · ' + fmtCompact(t.isk) + ' ISK' : ''}`)}
+      ${stat(`Within ${s.range} km`, fmtNum(Math.round(t.near.m3)) + ' m³', `${t.near.rocks} rocks${t.near.isk ? ' · ' + fmtCompact(t.near.isk) + ' ISK' : ''}`)}
+      ${stat('Time left', rate ? fmtMins(d.minutesLeft) : '—', rate ? `in range: ${fmtMins(d.nearMinutesLeft)}` : 'Survey again in a few minutes', rate && d.minutesLeft !== null && d.minutesLeft < 20 ? 'neg' : '')}
+      ${stat('Going at', rate ? fmtNum(Math.round(rate.m3)) + ' m³/min' : '—', rate ? (rate.isk ? fmtCompact(rate.isk) + ' ISK a minute' : '') + (rate.source === 'yours' ? ' (your rate)' : ` over ${fmtMins(rate.minutes)}`) : `${d.scans} survey${d.scans === 1 ? '' : 's'}`)}</div>
+    <div class="panel" style="padding:0;margin-bottom:12px"><table><thead><tr><th>Ore</th><th class="right">Rocks</th><th class="right">m³ left</th><th class="right">In range</th><th class="right">Value</th><th class="right">Going at</th><th class="right">Runs out in</th></tr></thead><tbody>
+      ${d.ores.map(o => html`<tr class="${o.gone ? 'dim' : ''}"><td>${o.ore}${o.gone ? raw(' <span class="badge">gone</span>') : ''}</td><td class="right num">${o.rocks}</td><td class="right num">${fmtNum(Math.round(o.m3))}</td><td class="right num">${fmtNum(Math.round(o.nearM3))}</td><td class="right num">${o.isk ? fmtCompact(o.isk) : '—'}</td>
+        <td class="right num dim">${o.m3PerMin ? fmtNum(Math.round(o.m3PerMin)) + ' m³/min' : '—'}</td><td class="right num ${o.minutesLeft !== null && o.minutesLeft < 15 ? 'neg' : ''}">${o.gone ? 'gone' : fmtMins(o.minutesLeft)}</td></tr>`)}</tbody></table></div>
+    <div class="panel"><div style="display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0">The belt over time</h3><span class="dim" style="font-size:12px">${d.scans} survey${d.scans === 1 ? '' : 's'} · last ${ago < 1 ? 'just now' : ago + ' min ago'}${d.minedM3 > 0 ? ` · ${fmtNum(Math.round(d.minedM3))} m³ mined since the first` : ''}</span></div>
+      <div style="margin-top:8px">${sparkline(d.history.map(h => [h.at, h.m3]), 640, 60)}</div></div>`);
+}
+api.survey.onNew(d => { toast(`Mining survey added (${d.rows} rocks)`); if (state.view === 'tools' && state.toolsTab === 't-belt') drawBelt(); });
+
+// ================= Where to mine a mineral =================
+
+const mineralState = { mineral: 'Zydrine', from: '', yieldPct: 87.5, list: null };
+async function tMineral() {
+  const s = mineralState;
+  if (!s.list) { const r = await api.mineMinerals(); s.list = r.ok ? r.data : []; }
+  setContent(html`<div class="panel" style="margin-bottom:14px"><div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+      <div class="field" style="margin:0"><label>Mineral</label><select id="mi-min" class="crumb-select">${s.list.map(m => html`<option ${raw(m.name === s.mineral ? 'selected' : '')}>${m.name}</option>`)}</select></div>
+      <div class="field" style="margin:0"><label>Near</label><input type="text" id="mi-from" value="${s.from}" placeholder="your pilots (or a system)" style="width:190px"></div>
+      <div class="field" style="margin:0"><label>Refining yield %</label><input type="number" id="mi-yield" value="${s.yieldPct}" min="30" max="100" step="0.1" style="width:90px"></div>
+      <button class="btn btn-primary" id="mi-go">Find</button></div>
+    <div class="dim" style="font-size:12px;margin-top:8px">Every ore and ice that refines into the mineral, best per m³ first, with the nearest place it usually spawns and the systems where your pilots have mined it in the last 30 days.</div></div>
+    <div id="mi-out"></div>`);
+  $('#mi-go').onclick = () => runMineral();
+  $('#mi-min').onchange = () => runMineral();
+  runMineral();
+}
+async function runMineral() {
+  const s = mineralState, out = $('#mi-out'); if (!out) return;
+  Object.assign(s, { mineral: $('#mi-min').value, from: $('#mi-from').value.trim(), yieldPct: Number($('#mi-yield').value) || 87.5 });
+  out.innerHTML = String(loadingView('Looking through ores and your pilots’ mining…'));
+  const r = await api.mineFind({ mineral: s.mineral, fromName: s.from || null, yieldPct: s.yieldPct });
+  if (!$('#mi-out')) return;
+  if (!r.ok) { out.innerHTML = String(errorView(r)); return; }
+  const d = r.data, top = d.ores.filter(o => o.family !== 'moon')[0];
+  const where = o => o.nearest ? (o.nearest.pochven ? html`<span class="badge" style="color:var(--red);border-color:var(--red)">Pochven</span> <span class="dim">by filament</span>` : html`<a href="#" data-system="${o.nearest.system}">${o.nearest.system}</a>${secBadge(o.nearest.security)} <span class="dim" style="font-size:11.5px">${o.nearest.jumps} jump${o.nearest.jumps === 1 ? '' : 's'}${o.nearest.pilot ? ' from ' + o.nearest.pilot : ''}</span>`) : html`<span class="dim">—</span>`;
+  out.innerHTML = String(html`${top ? html`<div class="grid grid-3" style="margin-bottom:12px">${stat('Best ore for ' + d.mineral.name, top.best.name, `${top.best.perM3 < 10 ? top.best.perM3.toFixed(2) : fmtNum(Math.round(top.best.perM3))} ${d.mineral.name} per m³ mined`)}${stat('Nearest usual place', top.nearest && !top.nearest.pochven ? top.nearest.system : top.nearest && top.nearest.pochven ? 'Pochven' : '—', top.usual || '')}${stat('You’ve mined it', top.known.length ? top.known[0].system : 'not yet', top.known.length ? `${top.known[0].pilot}, ${fmtDay(top.known[0].date)}` : 'in the last 30 days')}</div>` : ''}
+    <div class="panel" style="padding:0"><table><thead><tr><th>Ore</th><th class="right">${d.mineral.name} per m³</th><th>Also gives</th><th>Usually found</th><th>Nearest</th><th>Where you’ve mined it</th></tr></thead><tbody>
+      ${d.ores.map(o => html`<tr><td>${icon(o.best.typeId)}${o.base}${o.best.name !== o.base ? html`<div class="dim" style="font-size:11px">best: ${o.best.name}</div>` : ''}</td><td class="right num">${o.best.perM3 < 10 ? o.best.perM3.toFixed(2) : fmtNum(Math.round(o.best.perM3))}</td>
+        <td style="font-size:12px" class="muted">${o.best.others.map(x => x.name).join(', ')}</td><td style="font-size:12px">${o.usual || html`<span class="dim">—</span>`}</td><td>${where(o)}</td>
+        <td style="font-size:12px">${o.known.length ? o.known.map(k => html`<div><a href="#" data-system="${k.system}">${k.system}</a> <span class="dim">${fmtDay(k.date)} · ${k.pilot}</span></div>`) : html`<span class="dim">—</span>`}</td></tr>`)}</tbody></table></div>
+    <div class="dim" style="font-size:12px;margin-top:8px">Per m³ at ${d.yieldPct}% yield, for the richest grade. "Usually found" comes from EVE University's ore table: CCP doesn't publish what's in each belt, so treat it as where to look, not a promise. Belt ore also depends on the empire faction's space in highsec and lowsec. Ore anomalies and your scans (Ice & Ore Sites) show what's really there.</div>`);
+}
+
+// ================= Haul planner =================
+
+const HAUL_SHIPS = [['', 'Custom'], ['13000', 'Blockade runner (about 13,000 m³)'], ['45000', 'T1 hauler, fitted (about 45,000 m³)'], ['62500', 'Deep space transport (about 62,500 m³)'], ['155000', 'Bowhead (ship hangar)'], ['340000', 'Jump freighter (about 340,000 m³)'], ['1100000', 'Freighter (about 1,100,000 m³)']];
+const haulState = { source: 'hangar', key: '', text: '', cargo: 45000, ship: '45000', maxValue: '', warnValue: '1b', locs: null };
+async function tHaul(refresh = false) {
+  const s = haulState;
+  if (!s.locs || refresh) { setContent(loadingView('Reading your hangars…')); const r = await api.haul.locations(!!refresh); s.locs = r.ok ? r.data : []; if (!r.ok) toast(r.error, true); }
+  setContent(html`<div class="grid" style="grid-template-columns:minmax(320px,1fr) 2fr;gap:16px;align-items:start">
+    <div class="panel"><div class="seg" style="margin-bottom:10px"><button data-hs="hangar" class="${s.source === 'hangar' ? 'active' : ''}">From a hangar</button><button data-hs="paste" class="${s.source === 'paste' ? 'active' : ''}">Paste items</button></div>
+      ${s.source === 'hangar' ? html`<div class="field"><label>Hangar</label><select id="hl-loc">${s.locs.slice(0, 200).map(l => html`<option value="${l.key}" ${raw(l.key === s.key ? 'selected' : '')}>${l.location} · ${l.pilot} · ${fmtCompact(l.value)} ISK, ${fmtNum(Math.round(l.volume))} m³</option>`)}</select></div><button class="btn btn-ghost" id="hl-refresh" style="padding:2px 9px;font-size:12px;margin-bottom:10px">⟳ Re-read assets</button>`
+        : html`<textarea id="hl-text" rows="7" style="width:100%" class="mono-area" placeholder="Inventory, contract or cargo window: select all, copy, paste here">${s.text}</textarea>`}
+      <div class="field"><label>Ship</label><select id="hl-ship">${HAUL_SHIPS.map(([v, l]) => html`<option value="${v}" ${raw(s.ship === v ? 'selected' : '')}>${l}</option>`)}</select></div>
+      <div class="field"><label>Cargo hold (m³)</label><input type="number" id="hl-cargo" value="${s.cargo}" min="1"></div>
+      <div class="field"><label>Never carry more than (ISK a trip, optional)</label><input type="text" id="hl-max" value="${s.maxValue}" placeholder="e.g. 2b"></div>
+      <div class="field"><label>Warn me above (ISK a trip)</label><input type="text" id="hl-warn" value="${s.warnValue}" placeholder="e.g. 1b"></div>
+      <button class="btn btn-primary" id="hl-go" style="width:100%">Plan trips</button>
+      <div class="dim" style="font-size:12px;margin-top:8px">Most ISK per m³ goes first, so the first trips carry what matters. Gankers scan cargo for value: keep highsec trips under what's worth suiciding a few ships for.</div></div>
+    <div id="hl-out">${emptyBox('Pick a hangar or paste items, set your ship, and press Plan trips.')}</div></div>`);
+  document.querySelectorAll('[data-hs]').forEach(b => b.onclick = () => { s.source = b.dataset.hs; tHaul(); });
+  if ($('#hl-refresh')) $('#hl-refresh').onclick = () => tHaul(true);
+  $('#hl-ship').onchange = e => { s.ship = e.target.value; if (e.target.value) $('#hl-cargo').value = e.target.value; };
+  $('#hl-go').onclick = () => runHaul();
+}
+async function runHaul() {
+  const s = haulState, out = $('#hl-out'); if (!out) return;
+  Object.assign(s, { key: $('#hl-loc') ? $('#hl-loc').value : s.key, text: $('#hl-text') ? $('#hl-text').value : s.text, cargo: Number($('#hl-cargo').value) || 0, maxValue: $('#hl-max').value.trim(), warnValue: $('#hl-warn').value.trim() });
+  out.innerHTML = String(loadingView('Packing…'));
+  const r = await api.haul.plan({ locationKey: s.source === 'hangar' ? s.key : null, text: s.source === 'paste' ? s.text : null, cargo: s.cargo, maxValue: parseIsk(s.maxValue) || 0, warnValue: parseIsk(s.warnValue) || 0 });
+  if (!$('#hl-out')) return;
+  if (!r.ok) { out.innerHTML = String(errorView(r)); return; }
+  const d = r.data, warned = d.trips.filter(t => t.warn).length;
+  const half = d.cumulative.findIndex(v => v >= d.total.value * 0.9);
+  out.innerHTML = String(html`<div class="grid grid-4" style="margin-bottom:12px">${stat('Trips', d.trips.length, `${fmtNum(Math.round(d.total.volume))} m³ in all`)}${stat('Value', fmtCompact(d.total.value) + ' ISK', half >= 0 && d.trips.length > 1 ? `90% of it in the first ${half + 1} trip${half ? 's' : ''}` : '')}${stat('Over your warning', warned, warned ? 'split these or use a blockade runner' : 'none', warned ? 'neg' : '')}${stat('Too big for the hold', d.tooBig.length, d.tooBig.length ? d.tooBig.slice(0, 2).map(i => i.name).join(', ') : '')}</div>
+    ${d.trips.map((t, i) => html`<div class="panel" style="padding:0;margin-bottom:10px"><div style="padding:10px 14px;display:flex;gap:10px;align-items:center"><b style="flex:1">Trip ${i + 1}</b>${t.warn ? raw('<span class="badge red">over your warning</span>') : ''}<span class="dim">${fmtNum(Math.round(t.volume))} m³ (${Math.round(t.full * 100)}% full) · <b style="color:var(--text)">${fmtCompact(t.value)} ISK</b></span></div>
+      ${xRow('ht' + i, html`<td colspan="3" class="muted" style="font-size:12.5px">${t.items.slice(0, 6).map(x => `${fmtNum(x.qty)} × ${x.name}`).join(', ')}${t.items.length > 6 ? ` and ${t.items.length - 6} more` : ''}</td>`,
+        html`<table><tbody>${t.items.map(x => html`<tr><td>${icon(x.typeId, 18)}${x.name}</td><td class="right num">${fmtNum(x.qty)}</td><td class="right num dim">${fmtNum(Math.round(x.volume))} m³</td><td class="right num">${fmtCompact(x.value)}</td></tr>`)}</tbody></table>
+        <button class="btn btn-ghost" style="padding:2px 9px;font-size:12px;margin-top:6px" data-htcopy="${i}">Copy list</button>`, 3)}</div>`)}
+    ${d.tooPricey.length ? html`<div class="notice">Over your per-trip cap on their own: ${d.tooPricey.map(i => i.name).join(', ')}. Move these one at a time or raise the cap.</div>` : ''}`);
+  document.querySelectorAll('[data-htcopy]').forEach(b => b.onclick = () => { const t = d.trips[Number(b.dataset.htcopy)]; navigator.clipboard.writeText(t.items.map(x => `${x.name}\t${x.qty}`).join('\n')); toast('Copied'); });
+}
+
+// ================= Skills to buy =================
+
+async function tSkillBuy() {
+  setContent(loadingView('Checking your pilots’ skill plans…'));
+  const r = await api.skillsToBuy();
+  if (!r.ok) return setContent(errorView(r));
+  const d = r.data;
+  setContent(html`<div class="grid grid-3" style="margin-bottom:14px">${stat('Skill books to buy', d.rows.reduce((n, x) => n + x.toBuy, 0), `${d.rows.length} different skill${d.rows.length === 1 ? '' : 's'}`)}${stat('Cost at Jita', fmtCompact(d.total) + ' ISK', 'sell orders')}${stat('Already in your hangars', d.rows.filter(x => x.owned.length).length, 'books you can inject now')}</div>
+    <div class="panel" style="padding:0">${d.rows.length ? html`<table><thead><tr><th>Skill</th><th>Needed by</th><th class="right">Price</th><th>You have the book</th></tr></thead><tbody>
+      ${d.rows.map(x => html`<tr><td>${icon(x.skillId, 18)}<a href="#" data-tid="${x.skillId}">${x.name}</a><div class="dim" style="font-size:11px">${x.group}</div></td>
+        <td style="font-size:12.5px">${x.pilots.map(p => html`<div>${p.name} <span class="dim">· ${p.plans.join(', ')}</span></div>`)}</td>
+        <td class="right num">${x.price !== null ? fmtCompact(x.price) : '—'}${x.toBuy > 1 ? html`<div class="dim" style="font-size:11px">× ${x.toBuy}</div>` : ''}</td>
+        <td style="font-size:12px">${x.owned.length ? x.owned.map(o => html`<div class="pos">${o.qty} in ${o.location} <span class="dim">(${o.pilot})</span></div>`) : html`<span class="dim">—</span>`}</td></tr>`)}</tbody></table>`
+      : emptyBox('No books to buy: every skill in your pilots’ skill plans is already injected. Make a plan in a pilot’s Skills tab, or from What to Train, and anything missing shows up here.')}</div>
+    ${d.rows.length ? html`<div style="margin-top:10px"><button class="btn btn-ghost" id="sb-copy">Copy shopping list for Multibuy</button></div>` : ''}
+    ${d.errors.length ? html`<div class="dim" style="font-size:12px;margin-top:8px">Couldn’t read: ${d.errors.map(e => e.pilot).join(', ')}</div>` : ''}`);
+  const cp = $('#sb-copy'); if (cp) cp.onclick = () => { navigator.clipboard.writeText(d.rows.filter(x => x.toBuy).map(x => `${x.name}\t${x.toBuy}`).join('\n')); toast('Copied. Paste into EVE’s Multibuy window.'); };
+}
+
+// ================= Mutaplasmids =================
+
+const mutaState = { module: '', values: {}, mutaId: null };
+function tMuta() {
+  const s = mutaState;
+  setContent(html`<div class="panel" style="margin-bottom:14px"><div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+      <div class="field" style="margin:0;flex:1;min-width:260px"><label>Module or drone</label><input type="search" id="mu-mod" value="${s.module}"></div><button class="btn btn-primary" id="mu-go">Show ranges</button></div>
+    <div class="dim" style="font-size:12px;margin-top:8px">Every mutaplasmid that fits it, with the best and worst each stat can roll. Type in the stats of a module you rolled (or one on a contract) to see how good it is.</div></div>
+    <div id="mu-out"></div>`);
+  attachSearch($('#mu-mod'), { placeholder: 'e.g. 10MN Afterburner II, Large Shield Extender II, Warp Disruptor II', onPick: it => { s.module = it.name; $('#mu-mod').value = it.name; s.values = {}; runMuta(); } });
+  $('#mu-go').onclick = () => { s.module = $('#mu-mod').value.trim(); s.values = {}; runMuta(); };
+  if (s.module) runMuta();
+}
+async function runMuta() {
+  const s = mutaState, out = $('#mu-out'); if (!out || !s.module) return;
+  const r = await api.muta({ module: s.module, values: s.values, mutaId: s.mutaId });
+  if (!$('#mu-out')) return;
+  if (!r.ok) { out.innerHTML = String(errorView(r)); return; }
+  const d = r.data;
+  const fmtV = (v, u) => `${Math.abs(v) >= 100 ? fmtNum(Math.round(v * 10) / 10) : Math.round(v * 1000) / 1000}${u ? ' ' + u : ''}`;
+  const bar = q => q === null ? '' : html`<div class="bar" style="height:6px;margin-top:4px"><i style="width:${(q * 100).toFixed(0)}%;background:${raw(q >= 0.66 ? 'var(--green)' : q >= 0.33 ? 'var(--gold)' : 'var(--red)')}"></i></div>`;
+  out.innerHTML = String(html`<div class="muted" style="margin-bottom:10px">${d.module.name}${d.module.price ? html` · ${fmtCompact(d.module.price)} ISK at Jita` : ''}</div>
+    ${d.mutas.map(m => html`<div class="panel" style="padding:0;margin-bottom:12px"><div style="padding:12px 16px;display:flex;align-items:center;gap:10px"><h3 style="margin:0;flex:1">${m.name}</h3>${m.price ? html`<span class="dim">${fmtCompact(m.price)} ISK</span>` : ''}${m.quality !== null ? html`<span class="badge ${m.quality >= 0.66 ? 'green' : m.quality >= 0.33 ? 'gold' : 'red'}">your roll: ${Math.round(m.quality * 100)}%</span>` : ''}</div>
+      <table><thead><tr><th>Stat</th><th class="right">Base</th><th class="right">Worst</th><th class="right">Best</th><th class="right" style="width:180px">Your roll</th></tr></thead><tbody>
+        ${m.rows.map(x => html`<tr><td>${x.name}<div class="dim" style="font-size:11px">${x.highIsGood ? 'higher is better' : 'lower is better'} · ×${x.lo}–×${x.hi}</div></td><td class="right num dim">${fmtV(x.base, x.unit)}</td>
+          <td class="right num neg">${fmtV(x.highIsGood ? x.min : x.max, x.unit)}</td><td class="right num pos">${fmtV(x.highIsGood ? x.max : x.min, x.unit)}</td>
+          <td class="right"><input type="number" step="any" data-mu="${m.id}|${x.id}" value="${x.rolled !== null ? x.rolled : ''}" placeholder="—" style="${raw(inBox)};width:110px;text-align:right">${bar(x.quality)}</td></tr>`)}</tbody></table>
+      <div style="padding:8px 16px"><button class="btn btn-ghost" style="padding:2px 10px;font-size:12px" data-murate="${m.id}">Rate this roll</button></div></div>`)}`);
+  document.querySelectorAll('[data-murate]').forEach(b => b.onclick = () => {
+    const id = b.dataset.murate; s.values = {}; s.mutaId = Number(id);
+    document.querySelectorAll(`[data-mu^="${id}|"]`).forEach(i => { if (i.value !== '') s.values[i.dataset.mu.split('|')[1]] = Number(i.value); });
+    runMuta();
+  });
+}
+
+// ================= Wars =================
+
+async function tWars(refresh = false) {
+  setContent(loadingView(refresh ? 'Checking CCP’s war list…' : 'Reading wars…'));
+  const r = await api.wars({ refresh });
+  if (!r.ok) return setContent(errorView(r));
+  const d = r.data, active = d.wars.filter(w => w.active), old = d.wars.filter(w => !w.active);
+  const SIDE = { aggressor: ['red', 'you declared'], defender: ['gold', 'declared on you'], ally: ['accent', 'you’re an ally'] };
+  const row = w => xRow('war' + w.id, html`<td><b>${w.aggressor}</b> <span class="dim">vs</span> <b>${w.defender}</b>${w.allies.length ? html`<div class="dim" style="font-size:11.5px">allies: ${w.allies.join(', ')}</div>` : ''}</td>
+      <td><span class="badge ${SIDE[w.side][0]}">${SIDE[w.side][1]}</span><div class="dim" style="font-size:11.5px">${w.entity}</div></td>
+      <td>${w.active ? (w.hot ? raw('<span class="badge red">war is on</span>') : html`<span class="badge gold">starts in ${fmtDuration(w.startsIn, true)}</span>`) : html`<span class="dim">ended ${fmtDay(w.finished)}</span>`}${w.mutual ? raw(' <span class="badge">mutual</span>') : ''}</td>
+      <td class="right num">${w.kills.aggressor} / ${w.kills.defender}</td><td style="font-size:12px">${w.pilots.join(', ')}</td>`,
+    html`<div class="kv"><span class="k">Declared</span><span>${fmtDate(w.declared)}</span><span class="k">Fighting from</span><span>${w.started ? fmtDate(w.started) : '—'}</span>${w.finished ? html`<span class="k">Ends</span><span>${fmtDate(w.finished)}</span>` : ''}
+      <span class="k">Ships killed</span><span>${w.aggressor}: ${w.kills.aggressor} (${fmtCompact(w.kills.aggressorIsk)} ISK) · ${w.defender}: ${w.kills.defender} (${fmtCompact(w.kills.defenderIsk)} ISK)</span><span class="k">Open for allies</span><span>${w.openForAllies ? 'yes' : 'no'}</span></div>
+      <div style="margin-top:8px"><a href="#" data-link="https://zkillboard.com/war/${w.id}/">This war on zKillboard ↗</a></div>`, 5);
+  setContent(html`<div class="toolbar"><span class="muted" style="flex:1">Wars involving your pilots’ corporations and alliances${d.checkedAt ? html` · checked ${timeAgo(d.checkedAt)}` : ''}</span><button class="btn btn-ghost" id="wr-refresh">⟳ Check now</button></div>
+    <div class="grid grid-3" style="margin-bottom:14px">${stat('Wars on now', active.filter(w => w.hot).length, active.length > active.filter(w => w.hot).length ? `${active.length - active.filter(w => w.hot).length} starting soon` : '', active.some(w => w.hot) ? 'neg' : '')}${stat('Ended', old.length)}${stat('Watching', d.entities.length + ' corps and alliances', d.entities.map(e => e.name).filter(Boolean).slice(0, 3).join(', '))}</div>
+    <div class="panel" style="padding:0">${d.wars.length ? html`<table><thead><tr><th>War</th><th>You</th><th>Status</th><th class="right">Kills</th><th>Your pilots</th></tr></thead><tbody>${active.map(row)}${old.slice(0, 30).map(row)}</tbody></table>`
+      : emptyBox('No wars involving your corporations or alliances. War declarations also pop up as alerts (Settings → Notifications → War declarations).')}</div>
+    <div class="dim" style="font-size:12px;margin-top:8px">CCP lists the 2,000 newest wars; the app reads each once and keeps the ones that concern you. The first check takes a minute or two.</div>`);
+  $('#wr-refresh').onclick = () => tWars(true);
+}
+
+// ================= Where to build =================
+
+const whereState = { from: '', jumps: 10, activity: 'manufacturing', security: 'any', product: '', runs: 1, structure: 'npc' };
+const WHERE_ACTS = [['manufacturing', 'Manufacturing'], ['reaction', 'Reactions'], ['invention', 'Invention'], ['copying', 'Copying'], ['me', 'ME research'], ['te', 'TE research']];
+const WHERE_SEC = [['any', 'Anywhere'], ['empire', 'Highsec and lowsec'], ['hs', 'Highsec only'], ['ls', 'Lowsec only'], ['ns', 'Nullsec only']];
+const WHERE_ST = [['npc', 'NPC station'], ['raitaru', 'Raitaru'], ['azbel', 'Azbel'], ['sotiyo', 'Sotiyo'], ['athanor', 'Athanor'], ['tatara', 'Tatara']];
+function tWhere() {
+  const s = whereState;
+  const sel = (id, list, v) => html`<select id="${id}" class="crumb-select">${list.map(([k, l]) => html`<option value="${k}" ${raw(String(v) === k ? 'selected' : '')}>${l}</option>`)}</select>`;
+  setContent(html`<div class="panel" style="margin-bottom:14px"><div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+      <div class="field" style="margin:0"><label>Near</label><input type="text" id="wb-from" value="${s.from}" placeholder="your pilots (or a system)" style="width:190px"></div>
+      <div class="field" style="margin:0"><label>Within jumps</label><input type="number" id="wb-jumps" value="${s.jumps}" min="0" max="30" style="width:80px"></div>
+      <div class="field" style="margin:0"><label>Activity</label>${sel('wb-act', WHERE_ACTS, s.activity)}</div>
+      <div class="field" style="margin:0"><label>Security</label>${sel('wb-sec', WHERE_SEC, s.security)}</div>
+      <div class="field" style="margin:0"><label>Item (optional, for job cost)</label><input type="search" id="wb-item" value="${s.product}" style="width:210px"></div>
+      <div class="field" style="margin:0"><label>Runs</label><input type="number" id="wb-runs" value="${s.runs}" min="1" style="width:70px"></div>
+      <div class="field" style="margin:0"><label>Built in</label>${sel('wb-st', WHERE_ST, s.structure)}</div>
+      <button class="btn btn-primary" id="wb-go">Find</button></div>
+    <div class="dim" style="font-size:12px;margin-top:8px">CCP's cost index goes up the more industry a system does. A low index means cheaper jobs: the job fee is the item's estimated value × (index + facility tax + 4% SCC surcharge).</div></div>
+    <div id="wb-out"></div>`);
+  attachSearch($('#wb-item'), { placeholder: 'e.g. Hulk, Large Shield Extender II', onPick: it => { s.product = it.name; $('#wb-item').value = it.name; } });
+  $('#wb-go').onclick = () => runWhere();
+  runWhere();
+}
+async function runWhere() {
+  const s = whereState, out = $('#wb-out'); if (!out) return;
+  Object.assign(s, { from: $('#wb-from').value.trim(), jumps: Number($('#wb-jumps').value) || 0, activity: $('#wb-act').value, security: $('#wb-sec').value, product: $('#wb-item').value.trim(), runs: Number($('#wb-runs').value) || 1, structure: $('#wb-st').value });
+  out.innerHTML = String(loadingView('Reading cost indices…'));
+  const r = await api.industryWhere({ fromName: s.from || null, maxJumps: s.jumps, activity: s.activity, security: s.security, product: s.product || null, runs: s.runs, structure: s.structure });
+  if (!$('#wb-out')) return;
+  if (!r.ok) { out.innerHTML = String(errorView(r)); return; }
+  const d = r.data, best = d.rows[0], here = d.here.sort((a, b) => a.index - b.index)[0];
+  const pct = v => (v * 100).toFixed(2) + '%';
+  out.innerHTML = String(html`${d.product && best ? html`<div class="grid grid-3" style="margin-bottom:12px">${stat('Cheapest nearby', best.system, `${best.jumps} jump${best.jumps === 1 ? '' : 's'} · index ${pct(best.index)}`)}${stat(`Job fee there (${d.product.runs} run${d.product.runs === 1 ? '' : 's'})`, fmtCompact(best.jobCost) + ' ISK', d.product.name)}${here ? stat('Where you are now', fmtCompact(here.jobCost) + ' ISK', `${here.system} · saves ${fmtCompact(Math.max(0, here.jobCost - best.jobCost))} ISK by moving`, here.jobCost > best.jobCost * 1.2 ? 'gold' : '') : ''}</div>` : ''}
+    <div class="panel" style="padding:0">${d.rows.length ? html`<table><thead><tr><th>System</th><th class="right">Jumps</th><th class="right">Cost index</th><th class="right">NPC stations</th>${d.product ? html`<th class="right">Job fee</th>` : ''}</tr></thead><tbody>
+      ${d.rows.map(x => html`<tr class="${x.jumps === 0 ? 'hl' : ''}"><td><a href="#" data-system="${x.system}">${x.system}</a>${secBadge(x.security)} <span class="dim" style="font-size:11.5px">${x.region}</span>${x.jumps === 0 ? raw(' <span class="badge accent">you</span>') : ''}</td><td class="right num">${x.jumps}</td><td class="right num">${pct(x.index)}</td><td class="right num ${x.stations ? '' : 'dim'}">${x.stations || '—'}</td>${d.product ? html`<td class="right num">${fmtCompact(x.jobCost)}</td>` : ''}</tr>`)}</tbody></table>`
+      : emptyBox('No systems with industry found in range. Try more jumps or another security level.')}</div>
+    <div class="dim" style="font-size:12px;margin-top:8px">${d.checked} systems checked. Player structures can be anywhere; a system with no NPC station still works if your corp or a public structure has one there.</div>`);
+}
+
 // ================= What to train next =================
 
 const trainState = { ship: '', pilot: '', data: null, sug: null, tab: 'ship' };

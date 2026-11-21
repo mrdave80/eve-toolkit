@@ -400,8 +400,8 @@ async function skills(charId) {
 async function wallet(charId) {
   const [balance, journal, transactions] = await Promise.all([
     get(`/characters/${charId}/wallet/`, charId),
-    getAllPages(`/characters/${charId}/wallet/journal/`, charId, 5),
-    safe(() => get(`/characters/${charId}/wallet/transactions/`, charId))
+    require('./walletarchive').journal(charId, 5),
+    safe(() => require('./walletarchive').transactions(charId))
   ]);
   const tx = ok(transactions) ? transactions : [];
   const names = await resolveNames([
@@ -409,7 +409,7 @@ async function wallet(charId) {
   ], charId);
   return {
     balance,
-    journal: journal.sort((a, b) => b.date.localeCompare(a.date)).slice(0, 500),
+    journal: journal.slice(0, 2000), archive: require('./walletarchive').info(charId),
     transactions: tx.sort((a, b) => b.date.localeCompare(a.date)).map(t => ({
       ...t, typeName: names[t.type_id], locationName: names[t.location_id], clientName: names[t.client_id]
     }))
@@ -444,7 +444,7 @@ async function contracts(charId) {
   const ids = [];
   for (const c of list) ids.push(c.issuer_id, c.assignee_id, c.acceptor_id, c.start_location_id, c.end_location_id);
   const names = await resolveNames(ids.filter(x => x && x !== 0), charId);
-  return list.sort((a, b) => b.date_issued.localeCompare(a.date_issued)).map(c => ({
+  const out = list.sort((a, b) => b.date_issued.localeCompare(a.date_issued)).map(c => ({
     ...c,
     issuerName: names[c.issuer_id],
     assigneeName: c.assignee_id ? names[c.assignee_id] : null,
@@ -452,6 +452,8 @@ async function contracts(charId) {
     startName: c.start_location_id ? names[c.start_location_id] : null,
     endName: c.end_location_id ? names[c.end_location_id] : null
   }));
+  try { require('./contractarchive').merge(charId, out); } catch { /* archive is best-effort */ }
+  return out;
 }
 
 async function clones(charId) {

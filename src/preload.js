@@ -35,6 +35,15 @@ contextBridge.exposeInMainWorld('api', {
   mining: id => call('esi:mining', id),
   home: { attention: refresh => call('home:attention', refresh) },
   alerts: { list: () => call('alerts:list'), read: () => call('alerts:read'), clear: () => call('alerts:clear'), types: p => call('alerts:types', p), pilots: () => call('alerts:pilots'), pilotMode: (id, m) => call('alerts:pilotMode', id, m), onNew: cb => ipcRenderer.on('alert:new', (_e, d) => cb(d)) },
+  industryWhere: o => call('ind:where', o),
+  wars: o => call('wars:list', o),
+  contractSearch: o => call('contracts:search', o),
+  muta: o => call('muta:calc', o),
+  skillsToBuy: () => call('skills:toBuy'),
+  walletCsv: (id, kind) => call('wallet:csv', id, kind),
+  haul: { locations: r => call('haul:locations', r), plan: o => call('haul:plan', o) },
+  mineFind: o => call('mine:find', o), mineMinerals: () => call('mine:minerals'),
+  survey: { add: t => call('survey:add', t), get: o => call('survey:get', o), clear: () => call('survey:clear'), undo: () => call('survey:undo'), onNew: cb => ipcRenderer.on('survey:new', (_e, d) => cb(d)) },
   mineTax: { build: o => call('mine:build', o), report: (id, o) => call('mine:tax', id, o), payee: (id, n) => call('mine:payee', id, n), paid: (id, a, n) => call('mine:paid', id, a, n), unpay: (id, p) => call('mine:unpay', id, p) },
   research: id => call('esi:research', id),
   loyalty: id => call('esi:loyalty', id),
@@ -92,7 +101,7 @@ contextBridge.exposeInMainWorld('api', {
     link: (charId, userId) => call('discord:link', charId, userId),
     sync: () => call('discord:sync')
   },
-  market: {
+  market: { losses: id => call('market:losses', id),
     hubs: () => call('market:hubs'),
     prices: (ids, hub) => call('market:prices', ids, hub),
     book: (id, hub) => call('market:book', id, hub),
@@ -114,7 +123,7 @@ contextBridge.exposeInMainWorld('api', {
     exportText: p => call('plan:export', p),
     skills: () => call('plan:skills')
   },
-  ind: {
+  ind: { buildVsSell: (o, x) => call('ind:buildVsSell', o, x),
     calc: o => call('ind:calc', o), shopping: (o, so) => call('ind:shopping', o, so), whatToBuild: o => call('ind:whatToBuild', o), split: o => call('ind:split', o), bpOffers: o => call('ind:bpOffers', o), bpStatus: () => call('ind:bpStatus'), invent: o => call('ind:invent', o), reprocess: (t, o) => call('ind:reprocess', t, o), ores: o => call('ind:ores', o),
     structures: () => call('ind:structures'), pilotSkills: id => call('ind:pilotSkills', id)
   },
@@ -191,7 +200,7 @@ contextBridge.exposeInMainWorld('api', {
     wormholeTypes: () => call('sde:wormholeTypes'),
     onStatus: cb => ipcRenderer.on('sde:status', (_e, s) => cb(s))
   },
-  wh: {
+  wh: { overlayChain: id => call('wh:overlayChain', id), chainKills: () => call('wh:chainKills'), chainKillsSet: on => call('wh:chainKillsSet', on), onChainKill: cb => ipcRenderer.on('wh:chainKill', (_e, d) => cb(d)), onCollapse: cb => ipcRenderer.on('wh:collapse', (_e, d) => cb(d)),
     info: q => call('wh:info', q),
     exportMap: (mapId, target) => call('wh:export', mapId, target),
     importMap: (source, opts) => call('wh:import', source, opts),

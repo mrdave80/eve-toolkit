@@ -69,7 +69,7 @@ async function buildFromZip(file, build) {
     build, builtAt: new Date().toISOString(),
     types: {}, groups: {}, categories: {}, dogma: {}, blueprints: {}, products: {}, materials: {},
     systems: {}, regions: {}, constellations: {}, gates: {}, suns: {}, planets: {}, marketGroups: {},
-    agents: [], stations: {}, npcCorps: {}, factions: {}, divisions: {}, agentTypes: {}, certs: {}, masteries: {}
+    agents: [], stations: {}, npcCorps: {}, factions: {}, divisions: {}, agentTypes: {}, certs: {}, masteries: {}, mutas: {}
   };
   let step = 0;
   const tick = name => setStatus({ state: 'building', progress: Math.round((++step / FILES.length) * 100), message: `Reading ${name}…` });
@@ -177,6 +177,14 @@ async function buildFromZip(file, build) {
     if (levels.some(l => l.length)) out.masteries[m._key] = levels;
   });
   out.certsRead = !!entries.certificates;
+  // Mutaplasmids: which attributes each one changes (as multipliers) and which modules it applies to
+  if (entries.dynamicItemAttributes) await eachLine(zip, entries.dynamicItemAttributes, m => {
+    let attrs = m.attributeIDs || m.attributes || [];
+    if (!Array.isArray(attrs)) attrs = Object.entries(attrs).map(([k, v]) => ({ _key: Number(k), ...v }));
+    const io = (m.inputOutputMapping || []).map(x => [x.applicableTypes || x.applicableTypeIDs || [], x.resultingType || x.resultingTypeID || 0]);
+    out.mutas[m._key] = [attrs.map(x => [Number(x._key ?? x.attributeID), Number(x.min), Number(x.max)]).filter(x => x[0] && isFinite(x[1]) && isFinite(x[2])), io];
+  });
+  out.mutasRead = !!entries.dynamicItemAttributes;
   zip.close();
   return out;
 }
@@ -433,9 +441,17 @@ function certificates() {
   const d = need();
   return Object.entries(d.certs || {}).map(([id, [name, groupId, req]]) => ({ id: Number(id), name, group: (d.groups[groupId] || [''])[0], levels: [0, 1, 2, 3, 4].map(i => new Map(Object.entries(req).filter(([, v]) => v[i]).map(([k, v]) => [Number(k), v[i]]))) }));
 }
+/** Mutaplasmids that apply to a module: [{ id, name, resultingType, attrs: [[attributeId, minMult, maxMult]] }] */
+function mutasFor(typeId) {
+  const d = need(); const out = [];
+  for (const [id, [attrs, io]] of Object.entries(d.mutas || {})) for (const [list, res] of io) if (list.includes(Number(typeId))) out.push({ id: Number(id), name: (d.types[id] || [''])[0], resultingType: res, attrs });
+  return out.sort((a, b) => a.name.localeCompare(b.name));
+}
+const hasMutas = () => { try { const d = need(); return d.mutasRead !== undefined && Object.keys(d.mutas || {}).length > 0; } catch { return false; } };
+const mutaInputs = () => { const d = need(); const s = new Set(); for (const [, io] of Object.values(d.mutas || {})) for (const [list] of io) for (const t of list) s.add(t); return s; };
 const hasCerts = () => { try { return !!Object.keys(need().certs || {}).length; } catch { return false; } };
 
-module.exports = { masteryFor, certificates, hasCerts,
+module.exports = { masteryFor, certificates, hasCerts, mutasFor, hasMutas, mutaInputs,
   load, update, importZip, info, ready, check, setListener: fn => { onStatus = fn; },
   type, typeIdByName, attrs, fullAttrs, hasFull, usedIn, groupName, planetsIn, hasPlanets, requirements, allRequirements, skillMeta, search, skillsByGroup,
   blueprintFor, blueprint, inventedFrom, wormholeTypes, reprocess, system, systemIdByName, gates, allSystems, typesWhere, agentData,

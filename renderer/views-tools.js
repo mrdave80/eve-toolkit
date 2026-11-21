@@ -3,11 +3,11 @@
 
 const TOOLS_GROUPS = [
   ['Market', [['t-market', 'Browser'], ['t-appraisal', 'Appraisal'], ['t-orders', 'My Orders'], ['t-arbitrage', 'Hub Arbitrage'], ['t-lp', 'LP Store'], ['t-trade', 'Trade Profit'], ['t-station', 'Station Trading'], ['t-prices', 'Price Alerts'], ['t-bargain', 'Contract Bargains'], ['t-items', 'Item Database']]],
-  ['Industry', [['t-build', 'Build Calculator'], ['t-wtb', 'What to Build'], ['t-split', 'Job Splitter'], ['t-bpc', 'Blueprint Prices'], ['t-invent', 'Invention'], ['t-reprocess', 'Reprocessing'], ['t-ores', 'Ore Values'], ['t-mining', 'Ice & Ore Sites'], ['t-moon', 'Moon Scan'], ['t-assets', 'Asset Finder']]],
-  ['Navigation', [['t-route', 'Route Planner'], ['t-courier', 'Courier Contracts'], ['t-hunt', 'Hunting & Ratting'], ['t-agents', 'Agent Finder'], ['t-jump', 'Jump Planner'], ['t-universe', 'Universe']]],
-  ['Intel', [['t-pilot', 'Pilot Intel'], ['t-sysintel', 'System Intel'], ['t-whres', 'Wormhole Residents'], ['t-shame', 'Wall of Shame'], ['t-intel', 'Intel Watch'], ['t-local', 'Local & D-scan'], ['t-combat', 'Combat Log']]],
-  ['Fitting', [['t-fit', 'Fit Checker'], ['t-fitlib', 'Fit Library']]],
-  ['Pilots', [['t-train', 'What to Train'], ['t-compare', 'Compare Skills']]],
+  ['Industry', [['t-build', 'Build Calculator'], ['t-wtb', 'What to Build'], ['t-split', 'Job Splitter'], ['t-bpc', 'Blueprint Prices'], ['t-invent', 'Invention'], ['t-reprocess', 'Reprocessing'], ['t-ores', 'Ore Values'], ['t-mining', 'Ice & Ore Sites'], ['t-belt', 'Belt Tracker'], ['t-mineral', 'Where to Mine'], ['t-where', 'Where to Build'], ['t-moon', 'Moon Scan'], ['t-assets', 'Asset Finder']]],
+  ['Navigation', [['t-route', 'Route Planner'], ['t-courier', 'Courier Contracts'], ['t-haul', 'Haul Planner'], ['t-hunt', 'Hunting & Ratting'], ['t-agents', 'Agent Finder'], ['t-jump', 'Jump Planner'], ['t-universe', 'Universe']]],
+  ['Intel', [['t-pilot', 'Pilot Intel'], ['t-sysintel', 'System Intel'], ['t-whres', 'Wormhole Residents'], ['t-shame', 'Wall of Shame'], ['t-intel', 'Intel Watch'], ['t-local', 'Local & D-scan'], ['t-combat', 'Combat Log'], ['t-wars', 'Wars']]],
+  ['Fitting', [['t-fit', 'Fit Checker'], ['t-fitlib', 'Fit Library', ['t-muta', 'Mutaplasmids']]],
+  ['Pilots', [['t-train', 'What to Train'], ['t-skillbuy', 'Skills to Buy'], ['t-compare', 'Compare Skills']]],
   ['Client', [['t-eveset', 'Copy EVE Settings']]],
   ['Finance', [['t-networth', 'Net Worth'], ['t-income', 'Income'], ['t-pve', 'Ratting & Abyss'], ['t-farm', 'Skill Farm'], ['t-charval', 'Character Value'], ['t-insure', 'Insurance']]]
 ];
@@ -33,7 +33,7 @@ const iskCell = (v, cls = '') => html`<span class="num ${cls}">${v === null || v
 async function renderTools(stillCurrent) {
   const tab = state.toolsTab || 't-market';
   if (typeof noteToolUse === 'function') noteToolUse(tab);
-  const needsSde = ['t-train', 't-fitlib', 't-mining', 't-split', 't-bpc', 't-station', 't-shame', 't-whres', 't-hunt', 't-courier', 't-market', 't-appraisal', 't-arbitrage', 't-build', 't-invent', 't-reprocess', 't-ores', 't-assets', 't-wtb', 't-agents', 't-sysintel', 't-route', 't-jump', 't-intel', 't-local'];
+  const needsSde = ['t-muta', 't-skillbuy', 't-haul', 't-mineral', 't-where', 't-train', 't-fitlib', 't-mining', 't-split', 't-bpc', 't-station', 't-shame', 't-whres', 't-hunt', 't-courier', 't-market', 't-appraisal', 't-arbitrage', 't-build', 't-invent', 't-reprocess', 't-ores', 't-assets', 't-wtb', 't-agents', 't-sysintel', 't-route', 't-jump', 't-intel', 't-local'];
   if (needsSde.includes(tab)) {
     const info = await api.sde.info();
     if (!info.ok || !info.data.ready) return setContent(needSdeView('This tool'));
@@ -45,7 +45,7 @@ async function renderTools(stillCurrent) {
     't-pilot': tPilot, 't-whres': () => tWhRes(), 't-shame': () => tShame(), 't-intel': () => (typeof tIntel === 'function' ? tIntel() : null), 't-local': () => (typeof tLocal === 'function' ? tLocal() : null), 't-combat': () => (typeof tCombat === 'function' ? tCombat() : null),
     't-fit': () => tFit(), 't-fitlib': () => tFitLib(stillCurrent),
     't-items': () => tItems(), 't-bargain': () => tBargains(), 't-charval': () => tCharValue(stillCurrent),
-    't-trade': () => tTrade(stillCurrent), 't-station': () => tStation(stillCurrent), 't-assets': () => tAssetFinder(), 't-wtb': () => tWhatToBuild(), 't-split': () => tJobSplit(stillCurrent), 't-bpc': () => tBpPrices(stillCurrent), 't-agents': () => tAgents(), 't-sysintel': () => tSysIntel(), 't-ores': () => tOres(), 't-mining': () => tMining(stillCurrent), 't-eveset': () => tEveSettings(), 't-compare': () => tCompareSkills(), 't-train': () => tTrain(stillCurrent), 't-prices': () => tPriceWatch(), 't-moon': () => tMoon(),
+    't-trade': () => tTrade(stillCurrent), 't-station': () => tStation(stillCurrent), 't-assets': () => tAssetFinder(), 't-wtb': () => tWhatToBuild(), 't-split': () => tJobSplit(stillCurrent), 't-bpc': () => tBpPrices(stillCurrent), 't-agents': () => tAgents(), 't-sysintel': () => tSysIntel(), 't-ores': () => tOres(), 't-mining': () => tMining(stillCurrent), 't-belt': () => tBelt(), 't-muta': () => tMuta(), 't-skillbuy': () => tSkillBuy(), 't-haul': () => tHaul(), 't-mineral': () => tMineral(), 't-wars': () => tWars(), 't-where': () => tWhere(), 't-eveset': () => tEveSettings(), 't-compare': () => tCompareSkills(), 't-train': () => tTrain(stillCurrent), 't-prices': () => tPriceWatch(), 't-moon': () => tMoon(),
     't-farm': () => tFarm(stillCurrent), 't-insure': () => tInsure(stillCurrent),
     't-pve': () => tPve(), 't-networth': () => (typeof tNetworth === 'function' ? tNetworth(stillCurrent) : null), 't-income': () => (typeof tIncome === 'function' ? tIncome(stillCurrent) : null)
   };
@@ -103,14 +103,28 @@ async function tMarket() {
       { points: h.map(x => ({ x: Date.parse(x.date), y: x.highest })), color: 'rgba(104,211,145,.5)' },
       { points: h.map(x => ({ x: Date.parse(x.date), y: x.lowest })), color: 'rgba(245,101,101,.5)' }], { bars: h.map(x => ({ x: Date.parse(x.date), y: x.volume })) })}
       <div class="dim" style="font-size:12px">Average (teal), daily high and low, and volume (bars).</div></div>
+    ${ty.categoryId === 6 ? html`<div class="panel" id="mk-losses"><h3>Destroyed in space</h3><div class="dim">Reading zKillboard…</div></div>` : ''}
     <div class="grid grid-3">
       <div class="panel" style="padding:0"><div style="padding:14px 18px 0"><h3>Sell orders at hub</h3></div><table><tbody>${b.sells.map(o => html`<tr><td class="num">${nf2.format(o.price)}</td><td class="right num muted">${fmtNum(o.volume)}</td></tr>`)}</tbody></table></div>
       <div class="panel" style="padding:0"><div style="padding:14px 18px 0"><h3>Buy orders reaching hub</h3></div><table><tbody>${b.buys.map(o => html`<tr><td class="num">${nf2.format(o.price)}</td><td class="right num muted">${fmtNum(o.volume)}</td><td class="dim">${o.range}</td></tr>`)}</tbody></table></div>
       <div class="panel" style="padding:0"><div style="padding:14px 18px 0"><h3>All hubs</h3></div><table><thead><tr><th>Hub</th><th class="right">Sell</th><th class="right">Buy</th></tr></thead><tbody>${hubs.map(([hn, p]) => html`<tr><td>${hn}</td><td class="right num">${p && p.sell ? fmtCompact(p.sell) : '—'}</td><td class="right num">${p && p.buy ? fmtCompact(p.buy) : '—'}</td></tr>`)}</tbody></table></div>
     </div>`);
+  if (ty.categoryId === 6) drawMarketLosses(t.typeId, h);
 }
 
 // ================= Appraisal =================
+
+async function drawMarketLosses(typeId, hist) {
+  const r = await api.market.losses(typeId);
+  const box = document.getElementById('mk-losses'); if (!box) return;
+  if (!r.ok) { box.innerHTML = String(html`<h3>Destroyed in space</h3><div class="dim">zKillboard didn't answer: ${r.error}</div>`); return; }
+  const d = r.data, max = Math.max(1, ...d.months.map(m => m.lost));
+  const sold = hist && hist.length ? hist.slice(-30).reduce((n, x) => n + x.volume, 0) / Math.min(30, hist.length) : null;
+  box.innerHTML = String(html`<h3>Destroyed in space</h3>
+    <div class="grid grid-3" style="margin-bottom:10px">${stat('Last 7 days', d.week + (d.weekCapped ? '+' : ''), `about ${d.perDay < 10 ? d.perDay.toFixed(1) : Math.round(d.perDay)} a day`)}${stat('Last month', d.months.length ? fmtNum(d.months[d.months.length - 1].lost) : '—', d.months.length ? d.months[d.months.length - 1].month : '')}${stat('Sold a day (region)', sold !== null ? fmtNum(Math.round(sold)) : '—', sold && d.perDay ? `${Math.round(d.perDay / sold * 100)}% of sales are replacing losses in this region alone` : '')}</div>
+    ${d.months.length ? html`<div class="bars" style="height:70px">${d.months.map(m => html`<div style="height:${(m.lost / max * 100).toFixed(1)}%" title="${m.month}: ${fmtNum(m.lost)} lost, ${fmtCompact(m.isk)} ISK"></div>`)}</div><div class="bars-x"><span>${d.months[0].month}</span><span>${d.months[d.months.length - 1].month}</span></div>` : ''}
+    <div class="dim" style="font-size:12px;margin-top:6px">Ships lost each month across New Eden, from zKillboard. Every loss is a ship someone may buy again, so rising losses mean rising demand.</div>`);
+}
 
 const parseIsk = str => {
   const m = /^\s*([\d.,]+)\s*([kmbt])?\s*(isk)?\s*$/i.exec(String(str));
@@ -364,7 +378,14 @@ async function runBuild() {
     <div class="panel" style="margin-top:16px" id="bd-shop"><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><h3 style="margin:0;flex:1">Shopping list</h3>
       <label class="dim" style="font-size:12.5px">Count stock <select id="bd-shop-where" class="crumb-select" style="width:auto"><option value="">in every hangar</option>${b.systemName ? html`<option value="sys" ${raw(b.shopWhere === 'sys' ? 'selected' : '')}>in ${b.systemName} only</option>` : ''}</select></label>
       <button class="btn btn-ghost" id="bd-shop-go">${b.shop ? '⟳ Check hangars' : 'Check my hangars'}</button></div>
-      <div id="bd-shop-out">${html`<div class="dim" style="font-size:12px;margin-top:6px">Takes what your pilots already own off the materials list, checks for the blueprint, and gives you a multibuy list for the rest.</div>`}</div></div>`);
+      <div id="bd-shop-out">${html`<div class="dim" style="font-size:12px;margin-top:6px">Takes what your pilots already own off the materials list, checks for the blueprint, and gives you a multibuy list for the rest.</div>`}</div></div>
+    <div class="panel" style="margin-top:16px"><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><h3 style="margin:0;flex:1">Build or sell, and blueprint payback</h3>
+      <label class="dim" style="font-size:12.5px">Blueprint cost <input type="text" id="bd-bpprice" value="${b.bpPrice || ''}" placeholder="market price" style="${raw(inBox)};width:120px"></label>
+      <label class="dim" style="font-size:12.5px">Sales tax <input type="number" id="bd-stax" value="${b.salesTax || 4.5}" step="0.1" min="0" max="15" style="${raw(inBox)};width:70px"> %</label>
+      <button class="btn btn-ghost" id="bd-bvs-go">Compare</button></div>
+      <div id="bd-bvs-out"><div class="dim" style="font-size:12px;margin-top:6px">Is building worth more than selling the materials? Which components are worth more sold than used? How many runs until the blueprint pays for itself?</div></div></div>`);
+  $('#bd-bvs-go').onclick = () => runBuildVsSell();
+  if (b.bvs) runBuildVsSell();
   $('#bd-shop-go').onclick = () => runShopping();
   if (b.shop) runShopping();
   document.querySelectorAll('[data-bd-build]').forEach(c => c.onchange = () => {
@@ -372,6 +393,27 @@ async function runBuild() {
     b.build = c.checked ? [...b.build, id] : b.build.filter(x => x !== id);
     runBuild();
   });
+}
+
+async function runBuildVsSell() {
+  const b = toolState.build, out = $('#bd-bvs-out'); if (!out) return;
+  b.bvs = true; b.bpPrice = $('#bd-bpprice').value.trim(); b.salesTax = Number($('#bd-stax').value) || 4.5;
+  out.innerHTML = String(loadingView('Pricing components…'));
+  const sys = b.systemName ? await api.nav.systemId(b.systemName) : null;
+  const skills = await pilotSkillOpts(b.pilotId);
+  const r = await api.ind.buildVsSell({ ...b, systemId: sys && sys.ok ? sys.data : null, hub: toolState.hub, skills }, { blueprintPrice: parseIsk(b.bpPrice) || 0, salesTax: b.salesTax });
+  if (!$('#bd-bvs-out')) return;
+  if (!r.ok) { out.innerHTML = String(errorView(r)); return; }
+  const d = r.data, p = d.payback;
+  out.innerHTML = String(html`<div class="grid grid-3" style="margin:12px 0">
+      ${stat('Build it and sell it', fmtCompact(d.buildIt.net) + ' ISK', 'after sales tax and the job fee')}
+      ${stat('Sell the materials instead', fmtCompact(d.sellMaterials.net) + ' ISK', `to ${d.hub} buy orders, after tax`)}
+      ${stat(d.verdict === 'build' ? 'Building earns' : 'Selling the materials earns', fmtCompact(Math.abs(d.buildIt.gain)) + ' ISK more', d.verdict === 'build' ? 'Build it' : 'Don\u2019t build: sell the materials', d.verdict === 'build' ? 'pos' : 'neg')}</div>
+    ${d.components.length ? html`<table><thead><tr><th>Component</th><th class="right">Needed</th><th class="right">Costs to build</th><th class="right">Sells for</th><th>Better to</th></tr></thead><tbody>
+      ${d.components.map(c => html`<tr><td>${icon(c.typeId, 18)}${c.name}</td><td class="right num">${fmtNum(c.qty)}</td><td class="right num">${fmtCompact(c.unitBuild)}</td><td class="right num">${c.unitSell ? fmtCompact(c.unitSell) : '—'}</td><td>${c.unitSell && c.marginSell > 0 ? html`<span class="gold">sell it: ${fmtCompact(c.marginSell * c.qty)} more than its cost</span>` : html`<span class="dim">use it</span>`}</td></tr>`)}</tbody></table>` : ''}
+    <div class="kv" style="margin-top:12px"><span class="k">Blueprint cost</span><span class="num">${p.blueprintPrice ? fmtIsk(p.blueprintPrice) + (p.priceFrom === 'market' ? ' (market)' : '') : 'not on the market: enter what you paid'}</span>
+      <span class="k">Profit a run</span><span class="num ${p.profitPerRun >= 0 ? '' : 'neg'}">${fmtIsk(p.profitPerRun)}</span>
+      <span class="k">Pays for itself after</span><span class="num">${p.runs ? html`${fmtNum(p.runs)} runs · about ${p.days < 1 ? Math.round(p.days * 24) + ' hours' : Math.round(p.days * 10) / 10 + ' days'} of one slot` : p.profitPerRun <= 0 ? 'never at these prices' : '—'}</span></div>`);
 }
 
 async function runShopping() {

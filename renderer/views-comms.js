@@ -146,10 +146,11 @@ function contractNeedsAction(x) {
 }
 function drawContractsAll() {
   const d = allBoards.contracts, s = allBoards;
+  if (s.cf === 'history') return drawContractHistory();
   const pilots = [...new Set(d.list.flatMap(x => x.pilots))].sort();
   const rows = d.list.filter(x => (!s.cpilot || x.pilots.includes(s.cpilot)) && (s.cf === 'all' || (s.cf === 'active' ? ['outstanding', 'in_progress'].includes(x.status) : contractNeedsAction(x))));
   const counts = { action: d.list.filter(contractNeedsAction).length, active: d.list.filter(x => ['outstanding', 'in_progress'].includes(x.status)).length, all: d.list.length };
-  setContent(html`<div class="toolbar"><div class="seg">${[['action', 'Needs action'], ['active', 'Active'], ['all', 'All']].map(([k, l]) => html`<button data-cfa="${k}" class="${s.cf === k ? 'active' : ''}">${l} (${counts[k]})</button>`)}</div>
+  setContent(html`<div class="toolbar"><div class="seg">${[['action', 'Needs action'], ['active', 'Active'], ['all', 'All']].map(([k, l]) => html`<button data-cfa="${k}" class="${s.cf === k ? 'active' : ''}">${l} (${counts[k]})</button>`)}<button data-cfa="history">Search all history</button></div>
       <select id="ca-pilot" class="crumb-select"><option value="">All pilots</option>${pilots.map(p => html`<option ${raw(p === s.cpilot ? 'selected' : '')}>${p}</option>`)}</select><span style="flex:1"></span><button class="btn btn-ghost" id="ca-refresh">⟳ Refresh</button></div>
     ${d.errors.length ? html`<div class="notice" style="margin-bottom:10px">${d.errors.join(' · ')}</div>` : ''}
     <div class="panel" style="padding:0"><div class="table-wrap">${rows.length ? html`<table><thead><tr><th>Pilot</th><th>Type</th><th>Title</th><th>Status</th><th>From → to</th><th class="right">Price / reward</th><th>Where</th><th>Expires</th></tr></thead><tbody>
@@ -162,6 +163,35 @@ function drawContractsAll() {
   document.querySelectorAll('[data-cfa]').forEach(b => b.onclick = () => { s.cf = b.dataset.cfa; drawContractsAll(); });
   $('#ca-pilot').onchange = e => { s.cpilot = e.target.value; drawContractsAll(); };
   $('#ca-refresh').onclick = () => renderContractsAll(null, true);
+}
+
+const histState = { q: '', pilot: '', type: '', status: 'all', refreshed: false };
+async function drawContractHistory(refresh = false) {
+  const h = histState;
+  setContent(html`<div class="toolbar"><div class="seg">${[['action', 'Needs action'], ['active', 'Active'], ['all', 'All']].map(([k, l]) => html`<button data-cfa="${k}">${l}</button>`)}<button data-cfa="history" class="active">Search all history</button></div></div>
+    <div class="panel" style="margin-bottom:12px"><div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+      <div class="field" style="margin:0;flex:1;min-width:240px"><label>Search titles, people, places and items</label><input type="search" id="ch-q" value="${h.q}" placeholder="e.g. Hulk, Jita, Mike Hunt"></div>
+      <div class="field" style="margin:0"><label>Pilot</label><select id="ch-pilot" class="crumb-select"><option value="">All pilots</option>${state.characters.map(c => html`<option value="${c.id}" ${raw(String(c.id) === h.pilot ? 'selected' : '')}>${c.name}</option>`)}</select></div>
+      <div class="field" style="margin:0"><label>Type</label><select id="ch-type" class="crumb-select">${[['', 'Any'], ['item_exchange', 'Item exchange'], ['courier', 'Courier'], ['auction', 'Auction']].map(([k, l]) => html`<option value="${k}" ${raw(h.type === k ? 'selected' : '')}>${l}</option>`)}</select></div>
+      <div class="field" style="margin:0"><label>Status</label><select id="ch-status" class="crumb-select">${[['all', 'Any'], ['open', 'Open'], ['done', 'Finished']].map(([k, l]) => html`<option value="${k}" ${raw(h.status === k ? 'selected' : '')}>${l}</option>`)}</select></div>
+      <button class="btn btn-primary" id="ch-go">Search</button><button class="btn btn-ghost" id="ch-refresh">⟳ Read every pilot</button></div></div>
+    <div id="ch-out">${loadingView(refresh ? 'Reading every pilot’s contracts and their items…' : 'Searching…')}</div>`);
+  document.querySelectorAll('[data-cfa]').forEach(b => b.onclick = () => { allBoards.cf = b.dataset.cfa; if (b.dataset.cfa === 'history') return; renderContractsAll(); });
+  const run = () => { Object.assign(h, { q: $('#ch-q').value.trim(), pilot: $('#ch-pilot').value, type: $('#ch-type').value, status: $('#ch-status').value }); drawContractHistory(); };
+  $('#ch-go').onclick = run; $('#ch-q').onkeydown = e => { if (e.key === 'Enter') run(); };
+  $('#ch-refresh').onclick = () => drawContractHistory(true);
+  const doRefresh = refresh || !h.refreshed; h.refreshed = true;
+  const r = await api.contractSearch({ q: h.q, pilot: h.pilot || null, type: h.type || null, status: h.status, refresh: doRefresh });
+  const out = $('#ch-out'); if (!out) return;
+  if (!r.ok) { out.innerHTML = String(errorView(r)); return; }
+  const d = r.data;
+  out.innerHTML = String(html`<div class="dim" style="font-size:12px;margin-bottom:8px">${d.matched} of ${d.total} contracts kept${d.oldest ? ` since ${fmtDay(d.oldest)}` : ''}. CCP only lists the last 30 days; the app keeps every contract it has seen from then on.${d.pendingItems ? ` Still reading items for ${d.pendingItems} contract${d.pendingItems === 1 ? '' : 's'}.` : ''}</div>
+    <div class="panel" style="padding:0"><div class="table-wrap">${d.rows.length ? html`<table><thead><tr><th>Issued</th><th>Type</th><th>Title / items</th><th>Status</th><th>From → to</th><th class="right">Price / reward</th><th>Where</th><th>Pilot</th></tr></thead><tbody>
+      ${d.rows.map(x => xRow('chh' + x.id, html`<td class="nowrap">${fmtDay(x.issued)}</td><td class="nowrap">${humanize(x.type)}</td><td>${x.title || ''}${x.itemHits.length ? html`<div class="gold" style="font-size:12px">${x.itemHits.slice(0, 3).map(i => `${fmtNum(i.qty)} × ${i.name}`).join(', ')}</div>` : x.items.length ? html`<div class="dim" style="font-size:12px">${x.items.slice(0, 2).map(i => `${fmtNum(i.qty)} × ${i.name}`).join(', ')}${x.items.length > 2 ? ` +${x.items.length - 2}` : ''}</div>` : ''}</td>
+        <td><span class="badge ${CONTRACT_STATUS[x.status] || ''}">${humanize(x.status)}</span></td><td style="font-size:12.5px">${x.issuer || ''}${x.acceptor || x.assignee ? ' → ' + (x.acceptor || x.assignee) : ''}</td>
+        <td class="right num nowrap">${x.price ? fmtCompact(x.price) : ''}${x.reward ? html`<div class="pos">+${fmtCompact(x.reward)}</div>` : ''}</td><td class="muted" style="font-size:12.5px">${x.start || ''}${x.end && x.end !== x.start ? ' → ' + x.end : ''}</td><td style="font-size:12px">${x.pilots.join(', ')}</td>`,
+        x.items.length ? html`<div style="display:flex;flex-wrap:wrap;gap:4px 16px;font-size:12.5px">${x.items.map(i => html`<span>${icon(i.typeId, 16)}${fmtNum(i.qty)} × ${i.name}${i.included ? '' : raw(' <span class="dim">(wanted)</span>')}</span>`)}</div>` : html`<div class="dim">${x.itemsKnown ? 'No items.' : 'Items not read yet.'}</div>`, 8))}</tbody></table>`
+      : emptyBox(d.total ? 'Nothing matches.' : 'No contracts kept yet. Press Read every pilot.')}</div></div>`);
 }
 
 const NOTE_CATS = [['', 'All kinds'], ['structure', 'Structures and sov'], ['war', 'War and kills'], ['corp', 'Corp and alliance'], ['industry', 'Moons, industry and PI'], ['other', 'Other']];

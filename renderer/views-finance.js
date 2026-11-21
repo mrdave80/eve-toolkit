@@ -30,7 +30,7 @@ async function tNetworth(stillCurrent) {
 async function tIncome(stillCurrent) {
   const pilots = state.characters.filter(c => !c.needsReauth);
   setContent(html`<div class="toolbar"><select id="in-pilot" class="crumb-select"><option value="">All pilots</option>${pilots.map(c => html`<option value="${c.id}" ${raw(String(c.id) === String(finState.pilot) ? 'selected' : '')}>${c.name}</option>`)}</select>
-    <select id="in-days" class="crumb-select">${[7, 14, 30].map(d => html`<option value="${d}" ${raw(d === finState.days ? 'selected' : '')}>Last ${d} days</option>`)}</select></div><div id="in-out">${loadingView('Reading wallet journals…')}</div>`);
+    <select id="in-days" class="crumb-select">${[7, 14, 30, 90, 180, 365].map(d => html`<option value="${d}" ${raw(d === finState.days ? 'selected' : '')}>Last ${d} days</option>`)}</select></div><div id="in-out">${loadingView('Reading wallet journals…')}</div>`);
   $('#in-pilot').onchange = e => { finState.pilot = e.target.value; tIncome(); };
   $('#in-days').onchange = e => { finState.days = Number(e.target.value); tIncome(); };
   const r = await api.fin.income(finState.pilot ? [Number(finState.pilot)] : [], finState.days);
@@ -73,7 +73,7 @@ async function tPve() {
   const pilots = state.characters.filter(c => !c.needsReauth);
   setContent(html`<div class="grid" style="grid-template-columns:1fr 1fr;gap:16px;align-items:start">
     <div><div class="toolbar"><h3 style="margin:0 10px 0 0">Ratting</h3><select id="pv-pilot" class="crumb-select"><option value="">All pilots</option>${pilots.map(c => html`<option value="${c.id}" ${raw(String(c.id) === String(pveState.pilot) ? 'selected' : '')}>${c.name}</option>`)}</select>
-      <select id="pv-days" class="crumb-select">${[3, 7, 14, 30].map(d => html`<option value="${d}" ${raw(d === pveState.days ? 'selected' : '')}>Last ${d} days</option>`)}</select></div><div id="pv-rat">${loadingView('Reading bounty ticks…')}</div></div>
+      <select id="pv-days" class="crumb-select">${[3, 7, 14, 30, 90, 180].map(d => html`<option value="${d}" ${raw(d === pveState.days ? 'selected' : '')}>Last ${d} days</option>`)}</select></div><div id="pv-rat">${loadingView('Reading bounty ticks…')}</div></div>
     <div><div class="toolbar"><h3 style="margin:0">Abyssal runs</h3></div><div id="pv-aby">${loadingView('Loading runs…')}</div></div></div>`);
   $('#pv-pilot').onchange = e => { pveState.pilot = e.target.value; loadRat(); };
   $('#pv-days').onchange = e => { pveState.days = Number(e.target.value); loadRat(); };

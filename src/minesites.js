@@ -21,8 +21,8 @@ function parseScan(text) {
   for (const line of String(text || '').split(/\r?\n/)) {
     const c = line.split('\t').map(x => x.trim());
     if (!/^[A-Z]{3}-\d{3}$/.test(c[0] || '')) continue;
-    const type = c[2] || '', name = c[3] || '';
-    const k = /ice/i.test(type) || ICE.test(name) ? 'ice' : /ore|mining/i.test(type) || /deposit|asteroid|belt|cluster/i.test(name) ? 'ore' : null;
+    const type = require('./siglang').type(c[2] || ''), name = c[3] || '';
+    const k = /ice/i.test(type) || ICE.test(name) || /eis|glace|лед|лёд/i.test(name) ? 'ice' : /ore|mining/i.test(type) || /deposit|asteroid|belt|cluster|gürtel|ceinture|пояс/i.test(name) ? 'ore' : null;
     if (k && name) out.push({ sig: c[0], name, kind: k });
   }
   return out;

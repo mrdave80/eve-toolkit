@@ -139,8 +139,8 @@ function parseSigs(text) {
     if (!/^[A-Z]{3}-\d{3}$/.test(id)) continue;
     const group = (cols[1] || '').trim();
     out.push({
-      id, group: /anomal/i.test(group) ? 'Anomaly' : 'Signature',
-      type: (cols[2] || '').trim().replace(/ Site$/i, '') || '',
+      id, group: require('./siglang').group(group) || 'Signature',
+      type: require('./siglang').type(cols[2]),
       name: (cols[3] || '').trim(),
       strength: parseFloat((cols[4] || '').replace('%', '').replace(',', '.')) || 0
     });
@@ -233,6 +233,20 @@ async function op(mapId, o) {
     }
     case 'removeGoneSigs': { const s = findSys(m, o.systemId); if (s) s.sigs = s.sigs.filter(x => !x.gone); break; }
     case 'removeSig': { const s = findSys(m, o.systemId); if (s) s.sigs = s.sigs.filter(x => x.id !== o.sigId); break; }
+    case 'collapse': {
+      // Remove the connection, then any system no longer reachable from home (or from where the pilot is) that isn't locked
+      m.connections = m.connections.filter(c => c.id !== o.id);
+      const start = [m.homeId, o.keepFrom].filter(Boolean);
+      if (start.length) {
+        const seen = new Set(start); const q = [...start];
+        while (q.length) { const x = q.shift(); for (const c of m.connections) { const y = c.from === x ? c.to : c.to === x ? c.from : null; if (y && !seen.has(y)) { seen.add(y); q.push(y); } } }
+        const gone = new Set(m.systems.filter(sy => !seen.has(sy.id) && !sy.locked && !sy.pinned).map(sy => sy.id));
+        m.systems = m.systems.filter(sy => !gone.has(sy.id));
+        m.connections = m.connections.filter(c => !gone.has(c.from) && !gone.has(c.to));
+      }
+      break;
+    }
+    case 'restore': if (Array.isArray(o.systems) && Array.isArray(o.connections)) { m.systems = o.systems; m.connections = o.connections; } break;
     default: throw new Error('Unknown map operation ' + o.kind);
   }
   return saveMap(m);

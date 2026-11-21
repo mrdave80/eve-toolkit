@@ -303,8 +303,10 @@ function parseCombatLine(line) {
   return null;
 }
 
+let gameLogWanted = () => false;
 function tickCombat() {
-  if (!cfg().combat) return;
+  const wantCombat = cfg().combat;
+  if (!wantCombat && !gameLogWanted()) return;
   const dir = path.join(logsRoot(), 'Gamelogs');
   let files = [];
   try { files = fs.readdirSync(dir).filter(f => f.endsWith('.txt')); } catch { return; }
@@ -328,6 +330,8 @@ function tickCombat() {
     const c = combat.get(who) || { events: [], totals: { out: 0, in: 0, repOut: 0, repIn: 0 }, targets: {}, weapons: {}, started: Date.now() };
     let hit = null;
     for (const line of buf.toString('utf8').split(/\r?\n/)) {
+      if (/wormhole (has collapsed|collapses|is collapsing)/i.test(line)) listener('wh:collapse', { who, line: line.replace(/^\[[^\]]*\]\s*/, '').replace(/<[^>]+>/g, '').trim() });
+      if (!wantCombat) continue;
       const e = parseCombatLine(line);
       if (!e) continue;
       if (e.kind === 'in' && e.amount > 0) { const player = /\[[^\]]+\]\s*\(/.test(e.other) || /\[[^\]]+\]$/.test(e.other); if (!hit || (player && !hit.player)) hit = { ...e, player }; }
@@ -492,5 +496,5 @@ function analyseDscan(text) {
 module.exports = {
   setListener: fn => { listener = fn; }, start, stop, restartIfEnabled, cfg, reports: () => reports, positions, channelsSeen, logsRoot,
   analyseLocal, analyseDscan, zkillStats, resetCombat, checkSpikes, spikes: () => spikes, localEvents: () => localEvents,
-  _parseChatLine: parseChatLine, _findSystems: findSystems, _parseCombatLine: parseCombatLine, _isClear: isClear, _shipRole: shipRole, _jumpsBetween: jumpsBetween, _decode: decode
+  setGameLogWanted: fn => { gameLogWanted = fn; }, running: () => !!timer, tickGameLogs: () => { try { tickCombat(); } catch {} }, _parseChatLine: parseChatLine, _findSystems: findSystems, _parseCombatLine: parseCombatLine, _isClear: isClear, _shipRole: shipRole, _jumpsBetween: jumpsBetween, _decode: decode
 };

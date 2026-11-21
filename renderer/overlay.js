@@ -18,6 +18,8 @@ async function loadPilots() {
   render();
 }
 async function loadStats() {
+  const cp = S.pilots[S.idx];
+  if (cp && cp.systemId && api.wh && api.wh.overlayChain) { const c = await api.wh.overlayChain(cp.systemId); S.chain = c && c.ok ? c.data : null; } else S.chain = null;
   const ids = new Set();
   const p = S.pilots[S.idx]; if (p) ids.add(p.systemId);
   if (S.route) for (const x of S.route.path) ids.add(x.id);
@@ -47,6 +49,14 @@ function render() {
       const k = (S.stats[x.id] || {}); const kills = (k.ship || 0) + (k.pod || 0);
       return `<div class="ov-row ${p && x.id === p.systemId ? 'here' : ''}"><span class="n">${p && x.id === p.systemId ? '▶ ' : ''}${esc(x.name)} ${sec(x.security)}${x.via && x.via !== 'gate' ? ` <span class="badge gold">${esc(x.via)}</span>` : ''}</span>
         <span>${x.hazard ? `<span class="badge ${x.hazard.severity === 'danger' ? 'red' : 'gold'}">${esc(x.hazard.title)}</span> ` : ''}${kills ? `<span class="badge ${kills >= 5 ? 'red' : 'gold'}">${kills}</span>` : ''}</span></div>`; }).join('')}</div>`;
+  }
+  const ch = S.chain;
+  if (ch) {
+    const MC = { stable: '', reduced: 'gold', critical: 'red' };
+    h += `<div class="ov-sec"><h4>Chain · ${esc(ch.map)}${ch.isHome ? ' · home' : ''}</h4>
+      <div class="dim" style="font-size:11px;margin-bottom:3px">${esc([ch.cls, ch.effect, (ch.statics || []).join(' ')].filter(Boolean).join(' · '))}${ch.sigs ? ` · ${ch.sigs} sig${ch.sigs === 1 ? '' : 's'}${ch.unscanned ? `, ${ch.unscanned} to scan` : ''}` : ''}</div>
+      ${ch.connections.map(c => `<div class="ov-row"><span class="n">→ ${esc(c.to)}${c.home ? ' ⌂' : ''}</span><span>${c.type ? `<span class="dim">${esc(c.type)}</span> ` : ''}${c.eol ? '<span class="badge red">EOL</span> ' : ''}${MC[c.mass] ? `<span class="badge ${MC[c.mass]}">${esc(c.mass)}</span>` : ''}</span></div>`).join('') || '<div class="dim" style="font-size:11px">No connections mapped from here.</div>'}
+      ${(ch.kills || []).map(k => `<div class="ov-row"><span class="n"><span class="badge red">kill</span> ${esc(k.system)}</span><span class="dim">${esc(k.ship || '')} ${ago(k.at)}</span></div>`).join('')}</div>`;
   }
   const near = S.spikes.slice(0, 3);
   if (near.length) h += `<div class="ov-sec"><h4>Kill spikes near you</h4>${near.map(s => `<div class="ov-row"><span class="n">${esc(s.system)} ${sec(s.security)} <span class="dim">${s.near.jumps}j</span></span><span class="badge ${s.zone === 'hs' ? 'red' : 'gold'}">${s.shipKills} ships</span></div>`).join('')}</div>`;

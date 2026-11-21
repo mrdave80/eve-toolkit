@@ -725,6 +725,84 @@ handle('alerts:clear', () => { store.get().alertLog = []; store.save('alertLog')
 handle('alerts:pilots', () => pilotalerts.all());
 handle('alerts:pilotMode', (id, m) => pilotalerts.set(Number(id), String(m)));
 handle('alerts:types', patch => { const st = store.get().settings; st.alertTypes = { ...(st.alertTypes || {}), ...(patch || {}) }; store.save(); return st.alertTypes; });
+// Belt tracker: Mining Survey snapshots, kept while the app runs
+const beltTracker = (() => {
+  const survey = require('./survey');
+  let snaps = [];
+  return {
+    add(text) { const rows = survey.parse(text); if (!rows.length) return null; snaps.push({ at: Date.now(), rows }); if (snaps.length > 200) snaps = snaps.slice(-200); return { rows: rows.length, scans: snaps.length }; },
+    get: o => survey.analyse(snaps, o || {}),
+    clear() { snaps = []; return true; },
+    undo() { snaps.pop(); return snaps.length; }
+  };
+})();
+handle('survey:add', text => { const r = beltTracker.add(text); if (!r) throw new Error('That doesn\u2019t look like the Mining Survey Results window. In game, click in the survey results, press Ctrl+A, then Ctrl+C.'); return r; });
+handle('survey:get', o => beltTracker.get(o));
+handle('survey:clear', () => beltTracker.clear());
+handle('survey:undo', () => beltTracker.undo());
+handle('ind:where', async o => { o = o || {}; if (!o.fromName) { const locs = []; for (const c of store.get().characters.filter(x => !x.needsReauth)) { const r = await esi.get(`/characters/${c.id}/location/`, c.id).catch(() => null); if (r) locs.push(r.solar_system_id); } o.from = [...new Set(locs)]; } return require('./wherebuild').find(o); });
+const chainwatch = require('./chainwatch');
+chainwatch.setNotifier((t, b, c, p) => { if (store.get().settings.notifications !== false) notify(t, b, c, p); }, list => sendWin('wh:chainKill', list));
+setTimeout(() => chainwatch.check().catch(() => {}), 60000);
+setInterval(() => { if (app.isReady()) chainwatch.check().catch(() => {}); }, 5 * 60000);
+handle('wh:overlayChain', systemId => {
+  const id = Number(systemId); if (!id) return null;
+  const st = wormhole.status();
+  const maps = require('./workspace').get().maps || [];
+  const m = maps.find(x => x.id === st.mapId && (x.systems || []).some(y => y.id === id)) || maps.find(x => (x.systems || []).some(y => y.id === id));
+  if (!m) return null;
+  const sys = m.systems.find(y => y.id === id);
+  const name = sid => ((m.systems.find(y => y.id === sid) || {}).name) || String(sid);
+  const conns = (m.connections || []).filter(c => c.from === id || c.to === id).map(c => { const other = c.from === id ? c.to : c.from; return { to: name(other), type: c.type || (c.gate ? 'Gate' : ''), mass: c.mass || 'stable', eol: !!c.eol, home: other === m.homeId }; });
+  const sigs = (sys.sigs || []).filter(x => !x.gone);
+  return { map: m.name || 'Map', system: sys.name, label: sys.label || '', cls: sys.cls || sys.class || '', effect: sys.effect || '', statics: sys.statics || [], connections: conns,
+    sigs: sigs.length, unscanned: sigs.filter(x => !x.type && !x.name).length, kills: chainwatch.recent().filter(k => k.mapId === m.id).slice(0, 4), tracking: st.active && st.mapId === m.id, isHome: id === m.homeId };
+});
+handle('wh:chainKills', () => ({ enabled: store.get().settings.whChainKills !== false, kills: chainwatch.recent(), systems: chainwatch.activeSystems().length }));
+handle('wh:chainKillsSet', on => { store.get().settings.whChainKills = !!on; store.save(); return !!on; });
+handle('wars:list', o => require('./wars').list(o || {}));
+// How many of a ship type die: zKillboard's monthly stats, plus the last 7 days (capped at 200 by zKillboard)
+handle('market:losses', async typeId => {
+  const id = Number(typeId); const { zk } = require('./zkill');
+  const [st, week] = await Promise.all([zk(`/stats/shipTypeID/${id}/`, 6 * 3600000).catch(() => null), zk(`/losses/shipTypeID/${id}/pastSeconds/604800/`, 30 * 60000).catch(() => null)]);
+  const months = st && st.months ? Object.values(st.months).filter(m => m && m.year).map(m => ({ month: `${m.year}-${String(m.month).padStart(2, '0')}`, lost: m.shipsLost || 0, isk: m.iskLost || 0 })).sort((a, b) => a.month.localeCompare(b.month)).slice(-12) : [];
+  const w = Array.isArray(week) ? week : [];
+  const byDay = {}; for (const k of w) { const d = k.killmail_time ? k.killmail_time.slice(0, 10) : null; if (d) byDay[d] = (byDay[d] || 0) + 1; }
+  return { typeId: id, months, week: w.length, weekCapped: w.length >= 200, perDay: w.length / 7, totalLost: (st && st.shipsLost) || 0 };
+});
+handle('mine:find', o => require('./minefind').find(o || {}));
+handle('mine:minerals', () => require('./minefind').minerals());
+handle('haul:locations', async refresh => { const r = await require('./assetfinder').search({ refresh: !!refresh }); return r.groups.map(g => ({ key: g.key, pilot: g.pilot, location: g.location, system: g.system, security: g.security, value: g.value, volume: g.volume, items: g.itemCount })); });
+handle('haul:plan', async o => {
+  o = o || {}; let items = [];
+  if (o.text) {
+    const ap = require('./appraise');
+    const parsed = ap.parseItems(String(o.text));
+    const a = await ap.appraiseItems(parsed, o.hub || 'Jita');
+    items = a.rows.map(r => ({ typeId: r.typeId, name: r.name, qty: r.qty || r.quantity, value: r.sell || 0, volume: r.volume || 0 }));
+  } else if (o.locationKey) {
+    const r = await require('./assetfinder').search({});
+    const g = r.groups.find(x => x.key === o.locationKey);
+    if (!g) throw new Error('That hangar is no longer in your assets. Refresh the list.');
+    items = g.items.map(i => ({ typeId: i.typeId, name: i.name, qty: i.qty, value: i.value, volume: i.volume }));
+  } else throw new Error('Paste items or pick a hangar.');
+  return require('./haulplan').plan(items, o);
+});
+handle('wallet:csv', async (charId, kind) => {
+  const wa = require('./walletarchive'); const id = Number(charId);
+  const list = kind === 'transactions' ? await wa.transactions(id) : await wa.journal(id);
+  const ids = [...new Set(list.flatMap(e => [e.type_id, e.client_id, e.location_id, e.first_party_id, e.second_party_id]).filter(x => x && x < 2147483647))];
+  const names = ids.length ? await esi.resolveNames(ids.slice(0, 1000), id).catch(() => ({})) : {};
+  return wa.rows(id, kind, names);
+});
+handle('skills:toBuy', () => require('./skillbuy').list());
+handle('muta:calc', o => require('./mutacalc').calc(o || {}));
+handle('contracts:search', async o => {
+  o = o || {};
+  if (o.refresh) for (const c of store.get().characters.filter(x => !x.needsReauth)) await esi.contracts(c.id).catch(() => null);
+  await require('./contractarchive').fillItems((p, id) => esi.get(p, id), o.refresh ? 60 : 15).catch(() => 0);
+  return require('./contractarchive').search(o);
+});
 handle('mine:list', o => minesites.list(o || {}));
 handle('mine:paste', (text, o) => minesites.paste(text, o || {}));
 handle('mine:cfg', p => minesites.setCfg(p || {}));
@@ -809,6 +887,7 @@ handle('canfly', typeId => skillplan.canFly(typeId, store.get().characters.filte
 // ================= Industry & trading tools =================
 
 handle('ind:calc', o => industry.calculate(o));
+handle('ind:buildVsSell', async (o, x) => buildplan.buildVsSell(await industry.calculate(o), { ...o, ...(x || {}) }));
 const buildplan = require('./buildplan');
 handle('ind:shopping', async (o, stockOpts) => buildplan.shoppingList(await industry.calculate(o), stockOpts || {}));
 handle('ind:whatToBuild', o => buildplan.whatToBuild(o || {}));
@@ -901,7 +980,22 @@ handle('nav:pilotLocations', async () => {
 
 minesites.setPositions(() => intel.positions(), (a, b, max) => intel._jumpsBetween(a, b, max));
 minesites.setNotifier((title, body, x) => { sendWin('mine:new', x); if (store.get().settings.notifications !== false) notify(title, body, 'intel', x && x.nearPilot ? x.nearPilot : 0); });
+// Wormhole collapses from the game log, while the wormhole mapper is tracking pilots
+intel.setGameLogWanted(() => wormhole.status().active);
+setInterval(() => { if (wormhole.status().active && !intel.running()) intel.tickGameLogs(); }, 2000);
+function onCollapse(data) {
+  const st = wormhole.status();
+  const c = store.get().characters.find(x => x.name === data.who);
+  const systemId = c ? st.positions[c.id] : null;
+  let m = null; try { m = (require('./workspace').get().maps || []).find(x => x.id === st.mapId); } catch {}
+  const sys = m && systemId ? (m.systems || []).find(x => x.id === systemId) : null;
+  const conns = m && systemId ? (m.connections || []).filter(x => !x.gate && (x.from === systemId || x.to === systemId)).map(x => { const other = x.from === systemId ? x.to : x.from; const o = (m.systems || []).find(y => y.id === other); return { id: x.id, to: other, toName: o ? o.name : String(other), type: x.type || '', sig: x.sigFrom || '' }; }) : [];
+  const e = { who: data.who, line: data.line, mapId: st.mapId, systemId, system: sys ? sys.name : null, connections: conns };
+  sendWin('wh:collapse', e);
+  notify('Wormhole collapsed', `${data.who}${sys ? ' in ' + sys.name : ''}: ${data.line}`.slice(0, 200), 'wormhole', data.who);
+}
 intel.setListener((ch, data) => {
+  if (ch === 'wh:collapse') return onCollapse(data);
   if (win && !win.isDestroyed()) win.webContents.send(ch, data);
   overlay.send(ch, data);
   const canNotify = intel.cfg().notify && Notification.isSupported();
@@ -959,6 +1053,7 @@ handle('pilot:vet', (q, directorId) => pilotintel.vet(q, { directorId }));
 const sendWin = (ch, d) => { if (win && !win.isDestroyed()) win.webContents.send(ch, d); };
 const away = () => !win || win.isDestroyed() || !win.isFocused();
 async function onClip(kind, text) {
+  if (kind === 'survey') { const r = beltTracker.add(text); if (r) sendWin('survey:new', r); return; }
   if (kind === 'probe') {
     if (!sde.ready() || !minesites.parseScan(text).length) return;
     const r = await minesites.paste(text).catch(() => null);

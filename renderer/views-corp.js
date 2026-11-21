@@ -657,6 +657,23 @@ async function cFleet() {
   drawFleet();
 }
 
+/** Who in the fleet is flying a doctrine hull. ESI shows the hull, not the fit, so this checks ships only. */
+function fleetDoctrineCheck(live) {
+  const list = (corpState.ws && corpState.ws.doctrines) || [];
+  const doc = list.find(d => d.name && live.doctrine && d.name.toLowerCase() === String(live.doctrine).toLowerCase()) || list.find(d => d.id === live.doctrine);
+  if (!doc) return html`<div class="panel"><h3>Doctrine check</h3><div class="dim" style="font-size:12.5px">${live.doctrine ? `No doctrine called "${live.doctrine}" in Corporation → Doctrines.` : 'Start the fleet with a doctrine from Corporation → Doctrines to check who is flying it.'}</div></div>`;
+  const hulls = new Map(); for (const f of doc.fits || []) hulls.set(f.shipTypeId || f.ship, f);
+  const isIn = p => (p.shipTypeId && hulls.has(p.shipTypeId)) || [...hulls.values()].some(f => f.ship && p.ship && f.ship.toLowerCase() === p.ship.toLowerCase());
+  const now = live.participants.filter(p => p.lastSeen === live.lastPoll && p.ship);
+  const on = now.filter(isIn), off = now.filter(p => !isIn(p) && !/capsule/i.test(p.ship || ''));
+  const count = {}; for (const p of on) { const f = hulls.get(p.shipTypeId) || [...hulls.values()].find(x => x.ship && x.ship.toLowerCase() === (p.ship || '').toLowerCase()); const k = f ? f.name || f.ship : p.ship; count[k] = (count[k] || 0) + 1; }
+  return html`<div class="panel"><h3>Doctrine check · ${doc.name}</h3>
+    <div class="grid grid-2" style="gap:8px;margin-bottom:8px">${stat('In doctrine', on.length, now.length ? Math.round(on.length / now.length * 100) + '% of the fleet' : '', on.length === now.length ? 'pos' : '')}${stat('Off doctrine', off.length, '', off.length ? 'gold' : '')}</div>
+    ${Object.entries(count).map(([k, n]) => html`<div class="skill-row" style="font-size:12.5px"><span class="pos">✓ ${k}</span><span class="num">${n}</span></div>`)}
+    ${off.map(p => html`<div class="skill-row" style="font-size:12.5px"><span>${p.name}</span><span class="gold">${p.ship}</span></div>`)}
+    <div class="dim" style="font-size:11.5px;margin-top:6px">CCP only shows the hull each pilot is in, not their fit.</div></div>`;
+}
+
 function drawFleet(prefillOp) {
   const live = corpState.fleetLive;
   const fcs = state.characters.filter(c => c.isDirector && !c.needsReauth);
@@ -712,7 +729,8 @@ function drawFleet(prefillOp) {
     <div class="grid grid-2">
       <div class="panel" style="padding:0"><table><thead><tr><th>Pilot</th><th>Ships</th><th>Systems</th><th class="right">Seen</th></tr></thead><tbody>
         ${live.participants.map(p => html`<tr><td>${charImg(p.id, 20)}${p.name}</td><td class="muted">${p.ships.join(', ')}</td><td class="muted">${p.systems.join(', ')}</td><td class="right num">${p.seenPolls}×</td></tr>`)}</tbody></table></div>
-      <div class="panel"><h3>Ship types</h3>${Object.entries(ships).sort((a, b) => b[1] - a[1]).map(([s, n]) => html`<div class="skill-row"><span>${s}</span><span class="num">${n}</span></div>`)}</div>
+      <div><div class="panel"><h3>Ship types</h3>${Object.entries(ships).sort((a, b) => b[1] - a[1]).map(([s, n]) => html`<div class="skill-row"><span>${s}</span><span class="num">${n}</span></div>`)}</div>
+      ${fleetDoctrineCheck(live)}</div>
     </div>`);
   $('#fleet-stop').onclick = async () => {
     const r = await api.fleet.stop();

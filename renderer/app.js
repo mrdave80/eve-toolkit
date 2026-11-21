@@ -826,8 +826,11 @@ function viewWallet(d) {
         <div class="stat"><div class="label">Spending · 30 days</div><div class="value neg">${fmtCompact(out)}</div></div>
       </div>
       <div class="toolbar"><div class="seg"><button data-wmode="journal" class="${mode === 'journal' ? 'active' : ''}">Journal (${d.journal.length})</button>
-        <button data-wmode="tx" class="${mode === 'tx' ? 'active' : ''}">Market transactions (${d.transactions.length})</button></div></div>
+        <button data-wmode="tx" class="${mode === 'tx' ? 'active' : ''}">Market transactions (${d.transactions.length})</button></div>
+        <span class="dim" style="font-size:12px;flex:1">${d.archive && d.archive.oldest ? `Kept since ${fmtDay(d.archive.oldest)}: CCP only shows 30 days, so the app keeps its own copy from when you first opened it.` : ''}</span>
+        <button class="btn btn-ghost" id="w-csv" style="padding:3px 10px;font-size:12px">Export CSV</button></div>
       <div class="panel" style="padding:0"><div class="table-wrap">${body}</div></div>`);
+    $('#w-csv').onclick = async () => { const r = await api.walletCsv(state.charId, mode === 'tx' ? 'transactions' : 'journal'); if (!r.ok) return toast(r.error, true); const f = await api.saveCsv(`wallet ${mode === 'tx' ? 'transactions' : 'journal'} ${(state.characters.find(c => c.id === state.charId) || {}).name || state.charId}`, r.data); if (f && f.ok && f.data) toast(`Saved ${f.data.rows - 1} rows`); };
     document.querySelectorAll('[data-wmode]').forEach(b => b.onclick = () => { mode = b.dataset.wmode; draw(); });
   };
   draw();

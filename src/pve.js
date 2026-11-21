@@ -15,7 +15,7 @@ async function ratting(charIds, days = 14) {
   const chars = store.get().characters;
   const sessions = [], incSessions = [];
   for (const id of charIds) {
-    const j = await safe(() => getAllPages(`/characters/${id}/wallet/journal/`, id, 10));
+    const j = await safe(() => require('./walletarchive').journal(id));
     if (!ok(j)) continue;
     const ticks = j.filter(e => e.ref_type === 'bounty_prizes' && Date.parse(e.date) >= since).sort((a, b) => a.date.localeCompare(b.date));
     const ess = j.filter(e => e.ref_type === 'ess_escrow_transfer' && Date.parse(e.date) >= since);

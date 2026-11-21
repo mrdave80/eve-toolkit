@@ -60,7 +60,7 @@ async function income(charIds, days = 30) {
   const since = Date.now() - days * 86400000;
   const rows = [];
   for (const id of charIds) {
-    const j = await safe(() => getAllPages(`/characters/${id}/wallet/journal/`, id, 10));
+    const j = await safe(() => require('./walletarchive').journal(id));
     if (ok(j)) for (const e of j) if (Date.parse(e.date) >= since && typeof e.amount === 'number') rows.push({ ...e, charId: id });
   }
   const byCat = new Map(), byDay = new Map();

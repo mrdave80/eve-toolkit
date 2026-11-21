@@ -15,7 +15,10 @@ const BASE_NAME = t => t.name.replace(/^(Concentrated|Dense|Massive|Condensed|Ir
 function ores() {
   if (oreList) return oreList;
   const all = sde.typesWhere(t => t.published && t.volume > 0 && ['ore', 'moon', 'ice'].includes(industry.oreFamily(t)) && !/^(Batch )?Compressed /i.test(t.name));
-  oreList = all.map(t => ({ id: t.id, name: t.name, family: industry.oreFamily(t), volume: t.volume, portion: t.portionSize || 1, mats: sde.reprocess(t.id) || [], highsec: industry.oreFamily(t) === 'ore' && HIGHSEC_ORE.test(BASE_NAME(t)) })).filter(o => o.mats.length);
+  const comp = new Map(sde.typesWhere(t => t.published && /^Compressed /i.test(t.name)).map(t => [t.name.toLowerCase(), t]));
+  oreList = all.map(t => ({ id: t.id, name: t.name, family: industry.oreFamily(t), volume: t.volume, portion: t.portionSize || 1, mats: sde.reprocess(t.id) || [],
+    highsec: industry.oreFamily(t) === 'ore' && HIGHSEC_ORE.test(BASE_NAME(t)), grade: /\b(II|III|IV)-Grade$/i.test(t.name) || BASE_NAME(t) !== t.name ? 1 : 0,
+    compressed: comp.get('compressed ' + t.name.toLowerCase()) || null })).filter(o => o.mats.length);
   refinable = new Set(); for (const o of oreList) for (const [m] of o.mats) refinable.add(m);
   return oreList;
 }
@@ -51,35 +54,33 @@ function rawNeeds(productId, qty, o) {
   return { need, runs, built };
 }
 
-/** Pick ore to cover the shortfall: each step takes the ore that covers the most ISK of what's missing per m³,
-    enough of it to finish one mineral. A good mix, not always the smallest possible. */
+/** Ore to cover the shortfall with the fewest m³ to mine (or, buying compressed ore, the least ISK).
+    Solved exactly as a small linear program, then rounded up to whole refining batches. */
 function orePlan(short, o) {
   const keep = (Number(o.yieldPct) || 87.5) / 100 * (1 - (Number(o.refineTax) || 0) / 100);
-  const allowed = ores().filter(x => o.oreSet === 'moon' ? x.family === 'moon' : o.oreSet === 'ice' ? x.family === 'ice' : o.oreSet === 'any' ? x.family === 'ore' : o.oreSet === 'all' ? true : x.highsec);
-  const rem = new Map([...short].filter(([, q]) => q > 0));
-  const price = o.price || (() => 1);
+  const buy = o.goal === 'isk';
+  let allowed = ores().filter(x => o.oreSet === 'moon' ? x.family === 'moon' : o.oreSet === 'ice' ? x.family === 'ice' : o.oreSet === 'any' ? x.family === 'ore' : o.oreSet === 'all' ? true : x.highsec);
+  if (o.grades === 'base') allowed = allowed.filter(x => x.grade === 0);
+  if (buy) allowed = allowed.filter(x => x.compressed && (o.price(x.compressed.id, 'sell') || 0) > 0);
+  const need = [...short].filter(([, q]) => q > 0);
+  const mats = need.map(([m]) => m);
+  const uncovered = need.filter(([m]) => !allowed.some(x => x.mats.some(([mm, q]) => mm === m && q > 0)));
+  const want = need.filter(([m]) => !uncovered.some(([u]) => u === m));
+  const cols = want.map(([m]) => m);
+  const rows = allowed.map(x => cols.map(m => { const e = x.mats.find(([mm]) => mm === m); return e ? e[1] * keep / x.portion : 0; }));
+  const unitCost = x => (buy ? o.price(x.compressed.id, 'sell') : x.volume);
+  const sol = want.length ? require('./lp').cover(rows, allowed.map(unitCost), want.map(([, q]) => q)) : { x: [] };
   const picked = new Map();
-  for (let step = 0; step < 40 && rem.size; step++) {
-    let best = null;
-    for (const x of allowed) {
-      const per = x.mats.map(([m, q]) => [m, q * keep / x.portion]);
-      const score = per.reduce((n, [m, q]) => n + (rem.has(m) ? Math.min(q, rem.get(m)) * (price(m) || 1) : 0), 0) / x.volume;
-      if (score > 0 && (!best || score > best.score)) best = { x, per, score };
-    }
-    if (!best) break;
-    // units needed to finish the mineral this ore supplies best relative to what's left
-    let units = Infinity;
-    for (const [m, q] of best.per) if (rem.has(m) && q > 0) units = Math.min(units, rem.get(m) / q);
-    units = Math.ceil(units / best.x.portion) * best.x.portion;
-    picked.set(best.x.id, (picked.get(best.x.id) || 0) + units);
-    for (const [m, q] of best.per) if (rem.has(m)) { const left = rem.get(m) - q * units; if (left <= 0.5) rem.delete(m); else rem.set(m, left); }
-  }
+  if (sol) sol.x.forEach((u, i) => { if (u > 1e-6) picked.set(allowed[i].id, Math.ceil(u / allowed[i].portion - 1e-9) * allowed[i].portion); });
+  void mats;
   const out = [...picked.entries()].map(([id, units]) => {
     const x = oreList.find(y => y.id === id);
     const batches = Math.floor(units / x.portion);
-    return { typeId: id, name: x.name, family: x.family, units, m3: units * x.volume, gives: x.mats.map(([m, q]) => ({ typeId: m, name: (sde.type(m) || {}).name, qty: Math.floor(batches * q * keep) })) };
+    return { typeId: id, name: x.name, family: x.family, units, m3: units * x.volume,
+      compressed: x.compressed ? { typeId: x.compressed.id, name: x.compressed.name, m3: units * x.compressed.volume, cost: buy ? units * o.price(x.compressed.id, 'sell') : null } : null,
+      gives: x.mats.map(([m, q]) => ({ typeId: m, name: (sde.type(m) || {}).name, qty: Math.floor(batches * q * keep) })) };
   }).sort((a, b) => b.m3 - a.m3);
-  return { ores: out, uncovered: [...rem.entries()].map(([m, q]) => ({ typeId: m, name: (sde.type(m) || {}).name, qty: Math.ceil(q) })) };
+  return { ores: out, uncovered: uncovered.map(([m, q]) => ({ typeId: m, name: (sde.type(m) || {}).name, qty: Math.ceil(q) })), optimal: !!sol };
 }
 
 /**
@@ -100,8 +101,9 @@ async function plan(o = {}) {
     o.yieldPct = r.minerals.yieldPct; o.refineTax = r.minerals.taxPct;
   }
   const ids = [...need.keys()];
-  const pr = await market.prices([...new Set([...ids, productId])], 'Jita').catch(() => ({}));
-  const price = id => { const x = pr[id] || {}; return x.buy ?? x.avg ?? 0; };
+  const compIds = o.goal === 'isk' ? ores().filter(x => x.compressed).map(x => x.compressed.id) : [];
+  const pr = await market.prices([...new Set([...ids, productId, ...compIds])], 'Jita').catch(() => ({}));
+  const price = (id, side) => { const x = pr[id] || {}; return (side === 'sell' ? x.sell : x.buy) ?? x.avg ?? 0; };
   const minerals = [], other = [];
   const short = new Map();
   for (const [id, q] of need) {
@@ -120,8 +122,8 @@ async function plan(o = {}) {
     built: [...built.entries()].map(([id, n]) => ({ typeId: id, name: (sde.type(id) || {}).name, qty: n })),
     minerals, other, mined: minedInfo, orePlan: op.ores, uncovered: op.uncovered,
     copyRuns: Number(o.bpRuns) > 0 ? Number(o.bpRuns) : null, notEnoughRuns: Number(o.bpRuns) > 0 && runs > Number(o.bpRuns),
-    oreM3: op.ores.reduce((n, x) => n + x.m3, 0), shortValue: minerals.reduce((n, m) => n + m.short * price(m.typeId), 0)
+    oreM3: op.ores.reduce((n, x) => n + x.m3, 0), goal: o.goal === 'isk' ? 'isk' : 'm3', optimal: op.optimal, oreCost: op.ores.reduce((n, x) => n + ((x.compressed && x.compressed.cost) || 0), 0), compressedM3: op.ores.reduce((n, x) => n + ((x.compressed && x.compressed.m3) || 0), 0), shortValue: minerals.reduce((n, m) => n + m.short * price(m.typeId), 0)
   };
 }
 
-module.exports = { plan, _orePlan: orePlan, _reset: () => { oreList = null; refinable = null; } };
+module.exports = { plan, ores: () => ores(), baseName: t => BASE_NAME(t), _orePlan: orePlan, _reset: () => { oreList = null; refinable = null; } };

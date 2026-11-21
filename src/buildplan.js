@@ -87,4 +87,38 @@ async function whatToBuild(o = {}) {
   return { hub, share: share * 100, tax: tax * 100, rows, checked: list.length, total: best.size };
 }
 
-module.exports = { stock, shoppingList, whatToBuild };
+/** Build or sell, and blueprint payback, for one build calculator result.
+    - Sell the materials instead: what the materials fetch at hub buy orders, against the build's profit.
+    - Components: for each buildable material, the cost to build one against its sell price.
+    - Payback: runs (and days of one slot) for the profit to cover the blueprint's price. */
+async function buildVsSell(calc, o = {}) {
+  const hub = o.hub || 'Jita';
+  const ids = [...new Set([...calc.materials.map(m => m.typeId), calc.blueprintId])];
+  const pr = await market.prices(ids, hub);
+  const buy = id => { const x = pr[id] || {}; return x.buy ?? 0; }, sell = id => { const x = pr[id] || {}; return x.sell ?? x.avg ?? 0; };
+  const matsSellValue = calc.materials.reduce((n, m) => n + m.qty * buy(m.typeId), 0);
+  const taxRate = (Number(o.salesTax) || 4.5) / 100;
+  const productNet = calc.revenueSell * (1 - taxRate) - calc.jobCost;   // sell orders, after sales tax and the job fee
+  const materialsNet = matsSellValue * (1 - taxRate);
+  const components = [];
+  for (const m of calc.materials.filter(x => x.canBuild)) {
+    const sub = m.built || await industry.calculate({ ...o, productTypeId: m.typeId, runs: Math.max(1, Math.ceil(m.qty / Math.max(1, (sde.blueprint(sde.blueprintFor(m.typeId).blueprintId).a[sde.blueprintFor(m.typeId).activity].p.find(p => p[0] === m.typeId) || [0, 1])[1]))), me: o.componentMe ?? 10, te: o.componentTe ?? 20, build: [] }).catch(() => null);
+    if (!sub) continue;
+    const unitBuild = sub.totalCost / sub.outQty;
+    components.push({ typeId: m.typeId, name: m.name, qty: m.qty, unitBuild, unitSell: sell(m.typeId), unitBuy: buy(m.typeId), marginSell: sell(m.typeId) - unitBuild });
+  }
+  const bpPrice = Number(o.blueprintPrice) > 0 ? Number(o.blueprintPrice) : sell(calc.blueprintId);
+  const perRun = calc.runs ? (calc.profitSell - calc.revenueSell * taxRate) / calc.runs : 0;
+  const secsPerRun = calc.runs ? calc.seconds / calc.runs : 0;
+  const runsToPay = perRun > 0 && bpPrice > 0 ? Math.ceil(bpPrice / perRun) : null;
+  return {
+    hub, salesTax: taxRate * 100,
+    sellMaterials: { value: matsSellValue, net: materialsNet },
+    buildIt: { net: productNet, gain: productNet - materialsNet },
+    verdict: productNet - materialsNet > 0 ? 'build' : 'sell',
+    components: components.sort((a, b) => b.marginSell * b.qty - a.marginSell * a.qty),
+    payback: { blueprintPrice: bpPrice, priceFrom: Number(o.blueprintPrice) > 0 ? 'you' : bpPrice ? 'market' : null, profitPerRun: perRun, runs: runsToPay, days: runsToPay ? runsToPay * secsPerRun / 86400 : null, maxRuns: calc.maxRuns }
+  };
+}
+
+module.exports = { stock, shoppingList, whatToBuild, buildVsSell };

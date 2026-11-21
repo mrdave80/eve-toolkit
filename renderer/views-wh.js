@@ -81,10 +81,46 @@ function drawWh() {
     <div class="grid grid-2" style="margin-top:16px">
       <div class="panel" id="wh-chain"></div>
       <div class="panel" id="wh-log"></div>
-    </div>`);
-  drawCanvas(); drawSide(); drawChainList(); drawLog();
+    </div>
+    <div class="panel" id="wh-kills" style="margin-top:16px"></div>`);
+  drawCanvas(); drawSide(); drawChainList(); drawLog(); drawChainKills();
   bindWhToolbar();
 }
+
+// ---------- Kills in your chain ----------
+
+async function drawChainKills() {
+  const box = document.getElementById('wh-kills'); if (!box) return;
+  const r = await api.wh.chainKills(); if (!r.ok || !document.getElementById('wh-kills')) return;
+  const d = r.data;
+  box.innerHTML = String(html`<div style="display:flex;align-items:center;gap:10px"><h3 style="margin:0;flex:1">Kills in your chain <span class="dim" style="text-transform:none;letter-spacing:0">· last 2 hours</span></h3>
+      <label class="check" style="margin:0"><input type="checkbox" id="wh-killalert" ${raw(d.enabled ? 'checked' : '')}> Alert me</label></div>
+    ${d.kills.length ? html`<table style="margin-top:8px"><tbody>${d.kills.map(k => html`<tr><td class="dim" style="width:60px">${Math.max(0, Math.round((Date.now() - Date.parse(k.at)) / 60000))}m</td><td><a href="#" data-system="${k.system}">${k.system}</a> <span class="dim" style="font-size:11.5px">${k.map}</span></td><td>${k.shipTypeId ? icon(k.shipTypeId, 18) : ''}${k.ship || 'Unknown ship'}${k.npc ? raw(' <span class="badge">NPC</span>') : ''}</td><td class="right num">${fmtCompact(k.value)}</td><td class="dim">${k.attackers ? k.attackers + ' attacker' + (k.attackers === 1 ? '' : 's') : ''}</td><td><a href="#" data-link="https://zkillboard.com/kill/${k.killId}/">zKill ↗</a></td></tr>`)}</tbody></table>`
+      : html`<div class="muted" style="font-size:12.5px;margin-top:6px">${d.enabled ? `No kills in the ${d.systems} system${d.systems === 1 ? '' : 's'} of your recent maps. zKillboard is checked every 5 minutes.` : 'Turn on to be told when a ship dies anywhere on maps you\u2019ve used in the last two days.'}</div>`}`);
+  $('#wh-killalert').onchange = async e => { await api.wh.chainKillsSet(e.target.checked); drawChainKills(); };
+}
+api.wh.onChainKill(() => { if (state.view === 'wormholes') drawChainKills(); });
+
+// A wormhole collapsed (from the game log): ask which connection, remove it and what's cut off, with undo
+api.wh.onCollapse(async e => {
+  if (!e || !e.mapId) return;
+  if (!whState.maps.length) { const r = await api.wh.maps(); if (r.ok) whState.maps = r.data; }
+  const m = whState.maps.find(x => x.id === e.mapId); if (!m) return;
+  if (!e.connections.length) { toast(`${e.who}: ${e.line}`); return; }
+  const removeIt = async connId => {
+    const before = { systems: JSON.parse(JSON.stringify(m.systems)), connections: JSON.parse(JSON.stringify(m.connections)) };
+    const d = await whOp({ kind: 'collapse', id: connId, keepFrom: e.systemId }, m.id); if (!d) return;
+    const after = whState.maps.find(x => x.id === m.id) || m;
+    const lost = before.systems.length - after.systems.length;
+    if (state.view === 'wormholes') render();
+    openModal('Connection removed', html`<div>Removed the connection${lost ? html` and ${lost} system${lost === 1 ? '' : 's'} only reachable through it` : ''}.</div>`,
+      { submit: 'Undo', onSubmit: async () => { await whOp({ kind: 'restore', systems: before.systems, connections: before.connections }, m.id); if (state.view === 'wormholes') render(); toast('Put back'); } });
+  };
+  openModal('A wormhole collapsed', html`<div class="muted" style="font-size:12.5px;margin-bottom:10px">${e.who}${e.system ? ' in ' + e.system : ''}: “${e.line}”. Which connection was it? It's removed from <b>${m.name || 'the map'}</b> together with anything only reachable through it (locked and pinned systems stay).</div>
+    ${e.connections.map(c => html`<div class="skill-row" style="align-items:center"><span>→ ${c.toName} ${c.type ? html`<span class="dim">${c.type}</span>` : ''} ${c.sig ? html`<span class="dim">${c.sig}</span>` : ''}</span><button type="button" class="btn btn-ghost" style="padding:2px 10px" data-collapse="${c.id}">This one</button></div>`)}`,
+    { submit: 'Not now', onSubmit: () => {} });
+  document.querySelectorAll('[data-collapse]').forEach(b => b.onclick = () => { closeModal(); removeIt(b.dataset.collapse); });
+});
 
 // ---------- Canvas ----------
 

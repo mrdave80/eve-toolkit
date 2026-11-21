@@ -31,6 +31,7 @@ async function poll() {
         const p = live.participants.get(m.id) || { id: m.id, name: m.name, firstSeen: live.lastPoll, lastSeen: live.lastPoll, seenPolls: 0, ships: new Set(), systems: new Set() };
         p.lastSeen = live.lastPoll; p.seenPolls++;
         if (m.ship) p.ships.add(m.ship);
+        p.ship = m.ship || p.ship || null; p.shipTypeId = m.shipTypeId || p.shipTypeId || null;
         if (m.system) p.systems.add(m.system);
         live.participants.set(m.id, p);
       }
