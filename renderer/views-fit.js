@@ -81,7 +81,7 @@ function drawFit(box = $('#ft-out'), d = fitState.data) {
   box.innerHTML = String(html`<div class="panel"><div style="display:flex;gap:14px;align-items:center">
       <img src="https://images.evetech.net/types/${d.shipTypeId}/render?size=128" width="72" height="72" style="border-radius:8px;border:1px solid var(--line-2)" alt="">
       <div style="flex:1"><div style="font-size:20px;font-weight:600">${d.name}</div><div class="muted">${d.ship} · ${fmtCompact(d.cost.total)} ISK <span class="dim">(hull ${fmtCompact(d.cost.hull)}, fittings ${fmtCompact(d.cost.fittings)})</span></div></div>
-      <div style="display:flex;flex-direction:column;gap:6px"><button class="btn btn-primary" id="ft-pyfa">Open in Pyfa</button><button class="btn btn-ghost" id="ft-appraise">Appraise</button><button class="btn btn-ghost" id="ft-save">Save to game</button><button class="btn btn-ghost" id="ft-lib">Add to library</button></div></div>
+      <div style="display:flex;flex-direction:column;gap:6px"><button class="btn btn-primary" id="ft-pyfa">Open in Pyfa</button><button class="btn btn-ghost" id="ft-appraise">Appraise</button><button class="btn btn-ghost" id="ft-save">Save to game</button><button class="btn btn-ghost" id="ft-lib">Add to library</button><button class="btn btn-ghost" id="ft-site">Check for a site</button></div></div>
       ${d.unknown.length ? html`<div class="notice" style="margin-top:10px">Not recognised: ${d.unknown.join(', ')}</div>` : ''}
       ${sc.problems.length ? html`<div class="notice" style="margin-top:10px">Too many modules: ${sc.problems.map(p => `${p.over} over in ${p.slot === 'turrets' ? 'turret hardpoints' : p.slot === 'launchers' ? 'launcher hardpoints' : SLOT_LABEL[p.slot].toLowerCase()}`).join(', ')}.</div>` : ''}</div>
     <div id="ft-stats">${fitStatsPanel(d, box)}</div>
@@ -117,8 +117,71 @@ function drawFit(box = $('#ft-out'), d = fitState.data) {
   box.querySelector('#ft-pyfa').onclick = async () => { await api.copy(d.eft); toast('Fit copied. In Pyfa, import it from the clipboard.'); };
   box.querySelector('#ft-appraise').onclick = () => appraiseFitModal(d);
   box.querySelector('#ft-save').onclick = () => openSaveFitModal(d);
+  box.querySelector('#ft-site').onclick = () => { siteState.src = 'paste'; siteState.eft = d.eft; siteState.data = null; closeModal(); state.toolsTab = 't-sitecheck'; go('tools'); };
   box.querySelector('#ft-lib').onclick = async () => { const r = await api.fitlib.add(d.eft, { source: 'checker' }); if (!r.ok) return toast(r.error, true); toast(r.data.added ? 'Added to your fit library' : 'That fit is already in your library'); };
 }
+
+// ================= Site Check =================
+
+const siteState = { site: '', src: 'paste', eft: '', libId: '', charId: '', pilot: '', ships: null, lib: null, names: null, data: null };
+async function tSiteCheck(stillCurrent) {
+  const s = siteState;
+  if (!s.names) { const r = await api.site.names(); s.names = r.ok ? r.data : []; }
+  if (!s.lib) { const r = await api.fitlib.list(); s.lib = r.ok ? r.data.fits : []; }
+  if (stillCurrent && !stillCurrent()) return;
+  drawSiteCheck();
+}
+function drawSiteCheck() {
+  const s = siteState;
+  const pilots = state.characters.filter(c => !c.needsReauth);
+  const ship = s.ships && s.ships.find(x => String(x.id) === String(s.pilot));
+  const libFits = ship ? s.lib.filter(f => f.shipTypeId === ship.shipTypeId || (f.ship && f.ship.toLowerCase() === ship.ship.toLowerCase())) : s.lib;
+  setContent(html`<div class="grid" style="grid-template-columns:minmax(330px,1fr) 2fr;gap:16px;align-items:start">
+    <div class="panel">
+      <div class="field"><label>Site</label><input type="text" id="sc-site" list="sc-names" value="${s.site}" placeholder="e.g. Blood Den, Guristas Forsaken Hub, Serpentis 4/10" spellcheck="false"><datalist id="sc-names">${(s.names || []).map(n => html`<option value="${n}">`)}</datalist></div>
+      <div class="seg" style="margin:4px 0 10px"><button data-scsrc="paste" class="${s.src === 'paste' ? 'active' : ''}">Paste a fit</button><button data-scsrc="lib" class="${s.src === 'lib' ? 'active' : ''}">Fit library</button><button data-scsrc="pilot" class="${s.src === 'pilot' ? 'active' : ''}">What I'm flying</button></div>
+      ${s.src === 'paste' ? html`<textarea id="sc-eft" rows="9" style="width:100%" class="mono-area" placeholder="[Stratios, My fit]&#10;…  (EFT, from the fitting window: Copy to clipboard)" spellcheck="false">${s.eft}</textarea>` : ''}
+      ${s.src === 'pilot' ? html`${s.ships === null ? html`<div class="dim" style="font-size:12.5px">Checking what your pilots are in…</div>` : s.ships.length ? html`<div class="field"><label>Pilot</label><select id="sc-pilot">${s.ships.map(x => html`<option value="${x.id}" ${raw(String(x.id) === String(s.pilot) ? 'selected' : '')}>${x.name}: ${x.ship}${x.shipName ? ` (${x.shipName})` : ''}</option>`)}</select></div>` : html`<div class="dim" style="font-size:12.5px">Couldn't read any pilot's ship.</div>`}` : ''}
+      ${s.src === 'lib' || (s.src === 'pilot' && ship) ? html`${libFits.length ? html`<div class="field"><label>${ship ? `Your ${ship.ship} fits` : 'Fit'}</label><select id="sc-lib">${libFits.map(f => html`<option value="${f.id}" ${raw(f.id === s.libId ? 'selected' : '')}>${f.ship}: ${f.name}${f.folder ? ` (${f.folder})` : ''}</option>`)}</select></div>`
+        : html`<div class="notice" style="margin:6px 0">${ship ? `No ${ship.ship} fit in your Fit Library. CCP doesn't share the fit you have on, so paste it (Fitting window → Copy to clipboard) or import your in-game fittings into the library.` : 'Your Fit Library is empty. Paste a fit instead, or add fits in Tools → Fitting → Fit Library.'}</div>`}` : ''}
+      <div class="field"><label>Skills</label><select id="sc-char"><option value="">All skills at V</option>${pilots.map(c => html`<option value="${c.id}" ${raw(String(c.id) === String(s.charId || (ship ? ship.id : '')) ? 'selected' : '')}>${c.name}</option>`)}</select></div>
+      <button class="btn btn-primary" id="sc-go" style="width:100%">Check</button>
+      <div class="dim" style="font-size:12px;margin-top:8px">Works with pirate anomalies (Hideaway to Sanctum, and the Hidden, Forsaken and Forlorn ones), rogue drone sites and DED ratings like 4/10. Faction damage and EWAR are from EVE University; the DPS and repair figures are a rough guide.</div></div>
+    <div id="sc-out">${s.data ? siteResult(s.data) : emptyBox('Type a site, pick a fit and press Check.')}</div></div>`);
+  const keep = () => { s.site = $('#sc-site').value.trim(); if ($('#sc-eft')) s.eft = $('#sc-eft').value; if ($('#sc-lib')) s.libId = $('#sc-lib').value; if ($('#sc-char')) s.charId = $('#sc-char').value; if ($('#sc-pilot')) s.pilot = $('#sc-pilot').value; };
+  document.querySelectorAll('[data-scsrc]').forEach(b => b.onclick = async () => {
+    keep(); s.src = b.dataset.scsrc; drawSiteCheck();
+    if (s.src === 'pilot' && s.ships === null) { const r = await api.site.ships(); s.ships = r.ok ? r.data : []; if (!s.pilot && s.ships[0]) s.pilot = String(s.ships[0].id); s.charId = s.pilot; if (siteState.src === 'pilot') drawSiteCheck(); }
+  });
+  const ps = $('#sc-pilot'); if (ps) ps.onchange = () => { keep(); s.charId = s.pilot; s.libId = ''; drawSiteCheck(); };
+  $('#sc-go').onclick = async () => {
+    keep();
+    const eft = s.src === 'paste' ? s.eft : ((s.lib.find(f => f.id === (s.libId || ($('#sc-lib') && $('#sc-lib').value))) || {}).eft || '');
+    if (!s.site) return toast('Type the site name first.', true);
+    if (!eft.trim()) return toast(s.src === 'paste' ? 'Paste a fit first.' : 'Pick a fit first.', true);
+    const out = $('#sc-out'); out.innerHTML = String(loadingView('Working out the fit against the site…'));
+    const r = await api.site.check({ site: s.site, eft, charId: s.charId || null });
+    if (!r.ok) { out.innerHTML = String(errorView(r)); return; }
+    s.data = r.data; if ($('#sc-out')) $('#sc-out').innerHTML = String(siteResult(r.data));
+  };
+}
+function siteResult(d) {
+  const st = d.site, f = st.faction, t = d.tank;
+  const dmg = { em: 'EM', th: 'Thermal', ki: 'Kinetic', ex: 'Explosive' };
+  const ico = { good: ['pos', '✓'], warn: ['gold', '!'], bad: ['neg', '✕'], info: ['dim', 'i'] };
+  const who = d.statsFor ? (state.characters.find(c => c.id === d.statsFor) || {}).name : 'all skills at V';
+  return html`<div class="panel"><div style="display:flex;align-items:center;gap:12px">${icon(d.fit.shipTypeId, 40)}<div style="flex:1"><div style="font-size:18px;font-weight:600">${d.fit.ship} in a ${st.name}</div><div class="dim" style="font-size:12.5px">${d.fit.name} · stats with ${who}</div></div>
+      <span class="badge ${d.tone}" style="font-size:14px;padding:4px 12px">${d.verdict}</span></div>
+    <div class="kv" style="margin-top:12px">
+      <span class="k">Faction</span><span>${f ? html`<b>${f.label}</b>, dealing ${Object.entries(f.deals).filter(([, v]) => v >= 0.1).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${Math.round(v * 100)}% ${dmg[k]}`).join(', ')}` : 'Not recognised: put the faction in the name (Blood, Guristas, Sansha, Serpentis, Angel, Drone)'}</span>
+      <span class="k">Shoot them with</span><span>${f ? f.weak.map(k => dmg[k]).join(' or ') : '—'}</span>
+      <span class="k">Site</span><span>${st.ded ? `DED ${st.ded}/10, ${st.gate ? `gate takes up to a ${st.gate}` : 'no ship size limit'}` : st.family ? `${st.variant ? st.variant + ' ' : ''}${st.family.label} (tier ${st.tier} of 10)${st.space ? `, found in ${st.space}` : ''}` : '—'}</span>
+      <span class="k">Expect</span><span>${st.enemies || (st.ded ? 'a gated complex with a boss room' : '—')}</span></div></div>
+    <div class="panel"><h3>Verdict</h3>${d.points.map(p => html`<div class="sc-point"><span class="${ico[p.level][0]} sc-ico">${ico[p.level][1]}</span><span>${p.text}</span></div>`)}</div>
+    ${t ? html`<div class="grid grid-4">${stat('Repairs vs their damage', Math.round(t.repEff) + ' HP/s', `${Math.round(t.repRaw)} raw on ${t.layer}`)}${stat('EHP vs their damage', fmtCompact(t.ehp))}${stat('DPS', Math.round(t.dps), `${Math.round(t.weaponDps)} weapons · ${Math.round(t.droneDps)} drones`)}${stat('Capacitor', t.cap ? (t.cap.stable ? `Stable ${Math.round(t.cap.stableAt)}%` : t.cap.lastsSeconds !== null ? `Lasts ${fmtDuration(t.cap.lastsSeconds * 1000, true)}` : '—') : '—', 'everything on')}</div>` : ''}
+    <div class="dim" style="font-size:11.5px;margin-top:6px">Rough guide for this site: ${st.want ? `${st.want.dps} DPS and ${st.want.rep} HP/s repaired against their damage` : 'not known'}. Sites vary, and spawns stack if you clear slowly. <a href="#" data-sc-fit>Open the fit in the Fit Checker</a></div>`;
+}
+document.addEventListener('click', e => { const a = e.target.closest && e.target.closest('[data-sc-fit]'); if (a && siteState.data) { e.preventDefault(); fitState.text = siteState.data.fit.eft; fitState.data = null; fitState.pending = true; state.toolsTab = 't-fit'; go('tools'); } });
 
 // ---------- Hit chance: transversal and missile application ----------
 

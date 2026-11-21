@@ -688,3 +688,6 @@ html[data-streamer] .mail-row .from, html[data-streamer] .mail-view { filter: bl
 .fc-row { border-top: 1px solid var(--line); padding: 5px 0; }
 input.pg-input, input[type=time] { background: var(--bg-2); border: 1px solid var(--line-2); color: var(--text); border-radius: 6px; font: inherit; color-scheme: dark; }
 input[type=time] { padding: 4px 8px; }
+.sc-point { display: flex; gap: 10px; padding: 5px 0; border-top: 1px solid var(--line); font-size: 13px; }
+.sc-point:first-of-type { border-top: 0; }
+.sc-ico { width: 16px; flex: none; text-align: center; font-weight: 700; }

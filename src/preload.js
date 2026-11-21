@@ -193,6 +193,7 @@ contextBridge.exposeInMainWorld('api', {
   },
   canFly: typeId => call('canfly', typeId),
   doctrine: { parseEft: t => call('doc:parseEft', t), evaluate: (d, hub) => call('doc:evaluate', d, hub) },
+  site: { names: () => call('site:names'), check: o => call('site:check', o), ships: () => call('site:ships') },
   fitcode: { encode: (eft, pilot) => call('fitcode:encode', eft, pilot), check: (text, fits) => call('fitcode:check', text, fits) },
   sde: {
     info: () => call('sde:info'),

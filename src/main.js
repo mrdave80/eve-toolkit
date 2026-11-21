@@ -1308,6 +1308,25 @@ handle('daily:news', async () => { await daily.fetchNews(true); return daily.sta
 // ================= Doctrines =================
 
 handle('fitlib:list', () => require('./fitlib').list());
+// Site Check: is a fit suitable for a combat site?
+handle('site:names', () => require('./sitecheck').names());
+handle('site:check', async o => {
+  o = o || {};
+  const sc = require('./sitecheck');
+  const site = sc.parseSite(String(o.site || ''));
+  const fit = await fitcheck.check(String(o.eft || ''), { audits: workspace.get().audits });
+  const charId = Number(o.charId) || null;
+  return { site, fit: { ship: fit.ship, name: fit.name, shipTypeId: fit.shipTypeId, eft: fit.eft, unknown: fit.unknown }, statsFor: charId && fit.engine.pilots[charId] ? charId : null,
+    pilots: fit.pilots.map(p => ({ id: p.id, name: p.name, canFly: p.canFly, minutes: p.minutes, hasStats: !!fit.engine.pilots[p.id] })), ...sc.evaluate(site, fit, charId) };
+});
+handle('site:ships', async () => {
+  const out = [];
+  for (const c of store.get().characters.filter(x => !x.needsReauth)) {
+    const r = await esi.get(`/characters/${c.id}/ship/`, c.id).catch(() => null);
+    if (r && r.ship_type_id) out.push({ id: c.id, name: c.name, shipTypeId: r.ship_type_id, ship: (sde.ready() && sde.type(r.ship_type_id) || {}).name || String(r.ship_type_id), shipName: r.ship_name || '' });
+  }
+  return out;
+});
 handle('fitlib:add', (eft, o) => require('./fitlib').add(eft, o || {}));
 handle('fitlib:importText', (text, folder) => require('./fitlib').importText(text, folder));
 handle('fitlib:importGame', () => require('./fitlib').importGame());

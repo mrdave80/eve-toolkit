@@ -976,6 +976,12 @@ if (api.update) { api.update.check = async () => ({ ok: true, data: { current: '
     { typeId: 17722, name: 'Vigilant', group: 'Navy Faction Cruiser', kills: 4, lastFlown: iso(now - 12 * D), loss: null, fit: null }] } });
   api.fitcode = { encode: async (eft, p) => ({ ok: true, data: { code: 'ETFIT1:q1ZKVrJSMlMy0jE0MDAwNTI1MTAyNlLSUSpWsjIy0lEqVrIyMDS2MDQyMTQ2tDC0NDE0MTA0MTUwNTEy', pilot: p } }), check: async () => ({ ok: true, data: { ok: 3, bad: [], rows: [] } }) };
   api.haul.hull = async () => ({ ok: true, data: { id: 12753, name: 'Impel', group: 'Deep Space Transport', holds: [{ key: 'cargo', name: 'Cargo hold', m3: 5800 }, { key: '912', name: 'Fleet Hangar Capacity', m3: 62500 }], full: true } });
+  const scLib = require('../../src/sitecheck');
+  const stratios = { ship: 'Stratios', shipTypeId: 33470, name: 'Greg', slots: { high: [{ name: 'Focused Medium Pulse Laser II', charge: 'Scorch M' }, { name: 'Focused Medium Pulse Laser II', charge: 'Scorch M' }, { name: 'Focused Medium Pulse Laser II', charge: 'Scorch M' }], med: [{ name: '10MN Afterburner II' }, { name: 'Omnidirectional Tracking Link II' }], low: [{ name: 'Centum C-Type Medium Armor Repairer' }, { name: 'True Sansha Multispectrum Energized Membrane' }], rig: [{ name: 'Medium Explosive Armor Reinforcer I' }, { name: 'Medium Trimark Armor Pump I' }], sub: [] },
+    drones: [{ name: 'Hammerhead II', qty: 5 }, { name: 'Garde I', qty: 5 }, { name: 'Warrior II', qty: 10 }],
+    engine: { allV: { dps: 412, weaponDps: 186, droneDps: 226, rep: { armor: 142, shield: 0, hull: 0, passive: 3 }, layers: { armor: 11800, shield: 2400, hull: 2900 }, hp: { armor: 11800, shield: 2400, hull: 2900 }, resists: { armor: [0.78, 0.71, 0.62, 0.74], shield: [0, 0.2, 0.4, 0.5], hull: [0.33, 0.33, 0.33, 0.33] }, cap: { stable: false, lastsSeconds: 205, stableAt: 0 } }, pilots: {} } };
+  api.site = { names: async () => ({ ok: true, data: scLib.names() }), ships: async () => ({ ok: true, data: [{ id: 2119000001, name: 'Richard Fitzwell', shipTypeId: 33470, ship: 'Stratios', shipName: 'Greg' }] }),
+    check: async o => { const site = scLib.parseSite(o.site); return { ok: true, data: { site, fit: { ship: 'Stratios', name: 'Greg', shipTypeId: 33470, eft: '[Stratios, Greg]' }, statsFor: null, pilots: [], ...scLib.evaluate(site, stratios, null) } }; } };
   if (api.phone) api.phone.digestNow = async () => ({ ok: true, data: true });
 }
 contextBridge.exposeInMainWorld('api', api);

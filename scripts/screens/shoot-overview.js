@@ -140,6 +140,7 @@ const SHOTS = [
   ['EE-alerts-muted', `go('dashboard')`, `(async()=>{await initAlerts(); await new Promise(r=>setTimeout(r,300)); document.getElementById('alert-btn').click();})()`],
   ['EF-tabs', `go('dashboard')`, `(async()=>{ togglePinTab(appTabs.active); newTab({view:'char',charId:2119000002,tab:'mining'}); renderSidebar(); renderTopbar(); render(); await new Promise(r=>setTimeout(r,400)); newTab({view:'tools',toolsTab:'t-belt'}); renderSidebar(); renderTopbar(); render(); await new Promise(r=>setTimeout(r,300)); newTab({view:'wormholes'}); renderSidebar(); renderTopbar(); render(); await new Promise(r=>setTimeout(r,300)); switchTab(appTabs.list[1].id); })()`],
   ['EY-playstyle', `closeModal(); go('dashboard')`, `openPlaystyle(true)`],
+  ['EZ-sitecheck', `closeModal(); siteState.site='Blood Den'; siteState.src='paste'; siteState.eft='[Stratios, Greg]'; state.toolsTab='t-sitecheck'; go('tools')`, `(async()=>{await new Promise(r=>setTimeout(r,500)); document.getElementById('sc-go').click();})()`],
   ['ER-explore', `state.toolsTab='t-explore'; go('tools')`],
   ['ES-likely-fits', `go('dashboard')`, `openPilotCard('Hostile')`, `(async()=>{await new Promise(r=>setTimeout(r,600)); document.querySelector('#pop-lfits')?.scrollIntoView();})()`],
   ['ET-fit-hit', `closeModal(); fitState.text='[Ishtar, Sentry Ishtar]'; fitState.data=null; state.toolsTab='t-fit'; go('tools')`, `(async()=>{document.getElementById('ft-go').click(); await new Promise(r=>setTimeout(r,800)); document.getElementById('ft-hit')?.scrollIntoView();})()`],

@@ -8,9 +8,9 @@ const PLAYSTYLES = [
   ['industry', 'Industry and building', 'Manufacturing, invention, blueprints', ['t-build', 't-wtb', 't-split', 't-bpc', 't-invent', 't-where', 't-reprocess', 't-haul'], ['industryAll']],
   ['trading', 'Trading and hauling', 'Orders, station trading, hauling, contracts', ['t-orders', 't-arbitrage', 't-trade', 't-station', 't-bargain', 't-lp', 't-courier', 't-haul'], []],
   ['pi', 'Planetary industry', 'Colonies, extractors and PI chains', [], ['planetsAll', 'piPlanner']],
-  ['pve', 'Ratting, missions and Abyss', 'Bounties, agents, Abyssal runs', ['t-pve', 't-hunt', 't-agents', 't-lp', 't-insure', 't-intel', 't-local', 't-explore'], ['liveMap']],
-  ['explore', 'Exploration', 'Relic and data sites, scanning', ['t-explore', 't-local', 't-intel', 't-whres'], ['wormholes', 'liveMap']],
-  ['wormholes', 'Wormhole life', 'Chains, rolling, residents', ['t-whres', 't-local', 't-intel', 't-combat', 't-explore', 't-mining'], ['wormholes']],
+  ['pve', 'Ratting, missions and Abyss', 'Bounties, agents, Abyssal runs', ['t-pve', 't-hunt', 't-agents', 't-lp', 't-insure', 't-intel', 't-local', 't-explore', 't-sitecheck'], ['liveMap']],
+  ['explore', 'Exploration', 'Relic and data sites, scanning', ['t-explore', 't-sitecheck', 't-local', 't-intel', 't-whres'], ['wormholes', 'liveMap']],
+  ['wormholes', 'Wormhole life', 'Chains, rolling, residents', ['t-whres', 't-local', 't-intel', 't-combat', 't-explore', 't-sitecheck', 't-mining'], ['wormholes']],
   ['pvp', 'PvP and hunting', 'Intel, Local, d-scan, wars, fits', ['t-hunt', 't-intel', 't-local', 't-combat', 't-shame', 't-wars', 't-muta', 't-jump', 't-universe', 't-whres'], ['liveMap']],
   ['corp', 'Running a corp or fleets', 'Directors, FCs, structures, doctrines', ['t-wars', 't-jump'], ['corp']],
   ['alts', 'Alts and skill farms', 'Injectors, character value', ['t-farm', 't-charval'], []]

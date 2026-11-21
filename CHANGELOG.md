@@ -1,5 +1,9 @@
 # Changelog
 
+## Next release
+
+- Site Check (Tools → Fitting, or **Check for a site** in the Fit Checker): type a combat site such as Blood Den, Guristas Forsaken Hub, Drone Horde or a 4/10 DED, pick a fit (pasted, from your Fit Library, or your fits for the hull a pilot is flying) and whose skills to use. It checks the tank against the damage that faction deals, your guns, ammo and drones against what they're weak to, capacitor against neuts, resist modules aimed at the wrong damage, their EWAR and any gate size limit, and gives a verdict.
+
 ## 1.14.0
 
 - Tabs: keep several pages open like a browser. Ctrl+click or middle-click opens a page in a new tab, ⚲ pins a tab so it stays and comes back when the app restarts. Ctrl+T, Ctrl+W, Ctrl+Tab and Ctrl+1–9 work as in a browser.
