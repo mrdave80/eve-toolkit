@@ -136,6 +136,8 @@ const SHOTS = [
   ['E9-train-next', `trainState.tab='next'; state.toolsTab='t-train'; go('tools')`, `(async()=>{await new Promise(r=>setTimeout(r,300)); document.getElementById('tr-sug').click(); await new Promise(r=>setTimeout(r,500)); document.querySelector('#tr-out tr.xrow td')?.click();})()`],
   ['EA-pinned', `localStorage.setItem('toolPins', JSON.stringify(['t-mining','t-station','t-fitlib','t-intel'])); localStorage.setItem('toolRecent', JSON.stringify(['t-train','t-split'])); state.toolsPinned=true; state.toolsTab='t-mining'; mineState.tab='sites'; go('tools')`],
   ['EB-update-check', `go('about')`, `(async()=>{await new Promise(r=>setTimeout(r,400)); document.querySelector('[data-updcheck]').click();})()`],
+  ['ED-pilot-alerts', `go('dashboard')`, `(async()=>{await initAlerts(); await new Promise(r=>setTimeout(r,300)); document.getElementById('alert-btn').click(); await new Promise(r=>setTimeout(r,300)); document.getElementById('ap-types').click();})()`],
+  ['EE-alerts-muted', `go('dashboard')`, `(async()=>{await initAlerts(); await new Promise(r=>setTimeout(r,300)); document.getElementById('alert-btn').click();})()`],
   ['E2-universe', `mapState.regionId=0; mapState.sel=null; mapState.view=null; go('liveMap')`, `(async()=>{await new Promise(r=>setTimeout(r,600)); mapState.sel=10000108; drawMap();})()`],
   ['E1-livemap-ice', `go('liveMap')`, `(()=>{mapState.sel=mapState.data&&mapState.data.systems[9].id; drawMap();})()`],
   ['57-whinfo', `go('wormholes')`, `whState.sel = { type: 'sys', id: 31000101 }; drawCanvas(); drawSide()`],

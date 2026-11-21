@@ -647,3 +647,8 @@ html[data-streamer] .mail-row .from, html[data-streamer] .mail-view { filter: bl
 .attn .ap-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
 #subtabs .tool-pin { opacity: .55; } #subtabs .tool-pin.on, #subtabs .tool-pin:hover { opacity: 1; color: var(--gold); }
 #subtabs { display: flex; }
+
+/* Per-pilot alert settings */
+.pa-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 6px 18px; }
+.pa-row { display: flex; align-items: center; gap: 10px; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+.pa-row select { max-width: 210px; }

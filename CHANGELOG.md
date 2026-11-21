@@ -1,5 +1,11 @@
 # Changelog
 
+## Next release
+
+- Alerts per pilot: set each pilot to all alerts, only while logged in to EVE, or no alerts (Settings → Notifications and behaviour, or **Alert types** under the bell, or **mute this pilot** on any alert). Alts you rarely play no longer pop up. Their alerts still go in the inbox, marked, and muted pilots are left out of daily goal reminders and Needs attention. Corp alerts such as structure attacks always come through.
+- Fixed: skill queue alerts (empty, paused, ending) ignored quiet hours, pilot muting and alert types. They now follow them like every other alert, under their own **Skill queues** type.
+- Fixed: muting a pilot only worked for alerts whose title started with the pilot's name.
+
 ## 1.13.0
 
 - Fixed: one-click update of the folder (win-x64 zip) version failed with "Invalid package …app.asar" while unpacking. Updating from 1.12.0 or earlier still needs a manual download this one time, because the old updater does the unpacking.

@@ -13,11 +13,12 @@ let cache = { at: 0, data: null };
 async function gather(o = {}) {
   if (!o.refresh && cache.data && Date.now() - cache.at < 3 * 60000) return cache.data;
   const d = store.get();
-  const pilots = (d.characters || []).filter(c => !c.needsReauth);
+  const pa = require('./pilotalerts');
+  const pilots = (d.characters || []).filter(c => !c.needsReauth && !pa.quiet(c.id));
   const items = [];
   const push = (level, kind, text, goTo, pilot) => items.push({ level, kind, text, go: goTo, pilotId: pilot ? pilot.id : null, pilot: pilot ? pilot.name : null });
   const now = Date.now();
-  for (const c of d.characters || []) if (c.needsReauth) push('red', 'login', `${c.name}'s login has expired. Re-authorise to keep tracking this pilot.`, { view: 'char', charId: c.id, tab: 'summary' }, c);
+  for (const c of d.characters || []) if (c.needsReauth && !pa.quiet(c.id)) push('red', 'login', `${c.name}'s login has expired. Re-authorise to keep tracking this pilot.`, { view: 'char', charId: c.id, tab: 'summary' }, c);
 
   await Promise.all(pilots.map(async c => {
     const scopes = c.scopes || [];

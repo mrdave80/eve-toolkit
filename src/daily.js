@@ -243,7 +243,7 @@ async function tick(notify) {
     const hoursToReset = (nextReset(now) - now) / 3600000;
     if (hoursToReset <= c.reminderHours && s.alerted.remind !== today) {
       s.alerted.remind = today;
-      const rows = pilotRows().filter(r => r.track);
+      const rows = pilotRows().filter(r => r.track && !require('./pilotalerts').quiet(r.id));
       const todo = c.reminder ? rows.filter(r => !r.doneToday) : [];
       const risk = c.monthly ? rows.filter(r => r.atRisk) : [];
       const login = activeLogin();

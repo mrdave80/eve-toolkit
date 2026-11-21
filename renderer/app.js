@@ -426,8 +426,8 @@ async function renderSettings() {
           <input type="time" id="s-qfrom" value="${(st.quiet && st.quiet.from) || '23:00'}" style="background:var(--bg-2);border:1px solid var(--line-2);color:var(--text);border-radius:6px;padding:5px 8px;color-scheme:dark"> to
           <input type="time" id="s-qto" value="${(st.quiet && st.quiet.to) || '07:00'}" style="background:var(--bg-2);border:1px solid var(--line-2);color:var(--text);border-radius:6px;padding:5px 8px;color-scheme:dark">
           <span class="dim">but still alert me about</span>${[['attack', 'being attacked'], ['intel', 'intel near my pilots'], ['structures', 'structure attacks']].map(([k, l]) => html`<label class="check" style="margin:0"><input type="checkbox" data-qallow="${k}" ${raw(((st.quiet && st.quiet.allow) || ['attack']).includes(k) ? 'checked' : '')}> ${l}</label>`)}</div>
-        ${state.characters.length ? html`<div class="dim" style="margin:12px 0 6px">Alerts for each pilot (untick a pilot to silence their skill, industry, PI, market and other pilot alerts):</div>
-          <div class="pi-chips" style="margin-bottom:12px">${state.characters.map(c => html`<label class="check" style="margin:0 12px 6px 0"><input type="checkbox" data-pmute="${c.id}" ${raw((st.mutedPilots || []).includes(c.id) ? '' : 'checked')}> ${c.name}</label>`)}</div>` : ''}
+        ${state.characters.length ? html`<div class="dim" style="margin:12px 0 6px">Alerts for each pilot. Alts you rarely play can be set to alert only while they're logged in to EVE, or not at all:</div>
+          ${pilotAlertRows(st)}` : ''}
         <div class="field"><label for="s-refresh">Background check interval (minutes)</label><input id="s-refresh" type="number" min="5" max="240" value="${st.refreshMinutes}" style="max-width:140px"></div>
       </div>`)}
       <button class="btn btn-primary" id="s-save" style="margin:4px 0 12px">Save settings</button>
@@ -505,7 +505,7 @@ async function renderSettings() {
       updateUrl: $('#s-upd').value,
       refreshMinutes: $('#s-refresh').value,
       quiet: { enabled: $('#s-qon').checked, from: $('#s-qfrom').value, to: $('#s-qto').value, allow: [...document.querySelectorAll('[data-qallow]')].filter(c => c.checked).map(c => c.dataset.qallow) },
-      mutedPilots: [...document.querySelectorAll('[data-pmute]')].filter(c => !c.checked).map(c => Number(c.dataset.pmute))
+      pilotAlerts: Object.fromEntries([...document.querySelectorAll('[data-palert]')].map(x => [x.dataset.palert, x.value]))
     });
     if (!r.ok) return toast(r.error, true);
     await api.piWatch.cfg({ leadHours: Number($('#s-piw-h').value), reminders: $('#s-piw-r').checked });
@@ -1072,6 +1072,16 @@ api.onOverviewUpdate(list => {
 });
 
 // ================= Boot =================
+
+const PILOT_ALERT_MODES = [['all', 'All alerts'], ['online', 'Only while logged in to EVE'], ['off', 'No alerts']];
+function pilotAlertMode(st, id) { const m = (st.pilotAlerts || {})[id]; return m || ((st.mutedPilots || []).includes(id) ? 'off' : 'all'); }
+/** One row per pilot with a select for its alerts (Settings and the Alert types window). */
+function pilotAlertRows(st) {
+  return html`<div class="pa-grid">${state.characters.map(c => { const m = pilotAlertMode(st, c.id); const canOnline = !c.needsReauth && !(c.missingScopes || []).includes('esi-location.read_online.v1');
+    return html`<div class="pa-row"><span>${charImg(c.id, 20)}${c.name}${c.needsReauth ? html` <span class="dim" style="font-size:11px">login expired</span>` : ''}</span>
+      <select data-palert="${c.id}" class="crumb-select">${PILOT_ALERT_MODES.map(([k, l]) => html`<option value="${k}" ${raw(m === k ? 'selected' : '')} ${raw(k === 'online' && !canOnline ? 'disabled' : '')}>${l}${k === 'online' && !canOnline ? ' (needs re-authorising)' : ''}</option>`)}</select></div>`; })}</div>
+    <div class="dim" style="font-size:12px;margin:6px 0 12px">A pilot set to no alerts is also left out of daily goal reminders and Needs attention. Their alerts still go in the inbox (the bell), marked, so nothing is lost. Corp alerts such as structure attacks always come through.</div>`;
+}
 
 /** "Check for updates" buttons: ask GitHub now and say what was found. */
 function updLastText(c) {

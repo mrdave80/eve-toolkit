@@ -34,8 +34,8 @@ function tick(notify) {
   const t = timers(); const now = Date.now(); let changed = false;
   for (const [id, x] of Object.entries(t)) {
     if (!(store.get().characters || []).some(c => String(c.id) === id)) { delete t[id]; changed = true; continue; }
-    if (x.clone && !x.cloneSent && Date.parse(x.clone) <= now) { x.cloneSent = true; changed = true; if (alertOn('cloneJump')) notify(x.name, 'Jump clone is ready.', 'timers'); }
-    if (x.fatigue && !x.fatigueSent && Date.parse(x.fatigue) <= now) { x.fatigueSent = true; changed = true; if (alertOn('fatigue')) notify(x.name, 'Jump fatigue has cleared.', 'timers'); }
+    if (x.clone && !x.cloneSent && Date.parse(x.clone) <= now) { x.cloneSent = true; changed = true; if (alertOn('cloneJump')) notify(x.name, 'Jump clone is ready.', 'timers', Number(id)); }
+    if (x.fatigue && !x.fatigueSent && Date.parse(x.fatigue) <= now) { x.fatigueSent = true; changed = true; if (alertOn('fatigue')) notify(x.name, 'Jump fatigue has cleared.', 'timers', Number(id)); }
   }
   if (changed) store.save('timers');
 }

@@ -40,6 +40,7 @@ const routewatch = require('./routewatch');
 const phone = require('./phone');
 const clipwatch = require('./clipwatch');
 const minesites = require('./minesites');
+const pilotalerts = require('./pilotalerts');
 const couriers = require('./couriers');
 const bridges = require('./bridges');
 const livemap = require('./livemap');
@@ -211,12 +212,7 @@ async function checkQueues(manual = false) {
       if (key && (manual || data.notified[c.id] !== key)) {
         data.notified[c.id] = key;
         store.save();
-        if (Notification.isSupported()) {
-          phone.forward('skills', o.name || c.name, body);
-          const n = new Notification({ title: o.name || c.name, body, icon: ICON });
-          n.on('click', showWindow);
-          n.show();
-        }
+        notify(o.name || c.name, body, 'skills', c.id);
       } else if (!key && data.notified[c.id]) {
         delete data.notified[c.id];
         store.save();
@@ -227,7 +223,7 @@ async function checkQueues(manual = false) {
       await timers.refreshPilot(c).catch(() => {});
     } catch { /* surfaced in the UI on next view */ }
   }
-  await timers.checkIncursions(results, notify, seen).catch(() => {});
+  await timers.checkIncursions(results.filter(o => o && !pilotalerts.quiet(o.id || o.characterId)), notify, seen).catch(() => {});
   if (win && !win.isDestroyed()) win.webContents.send('overview:update', results);
 }
 
@@ -239,30 +235,36 @@ function inQuietHours(q, now = new Date()) {
   return a === b ? false : a < b ? cur >= a && cur < b : cur >= a || cur < b;
 }
 // Alerts inbox: every alert is kept for two days so a missed Windows notification isn't lost.
-function logAlert(title, body, category, silenced) {
+function logAlert(title, body, category, silenced, pilotId = null) {
   const d = store.get();
   d.alertLog = (d.alertLog || []).filter(a => Date.now() - Date.parse(a.at) < 2 * 86400000);
-  const pilot = (d.characters || []).find(c => String(title).startsWith(c.name));
-  const e = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), at: new Date().toISOString(), title: String(title), body: String(body || ''), category, pilotId: pilot ? pilot.id : null, silenced: !!silenced, read: false };
+  const e = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), at: new Date().toISOString(), title: String(title), body: String(body || ''), category, pilotId: pilotId || null,
+    silenced: silenced ? (silenced === true ? 'quiet' : silenced) : false, read: false };
   d.alertLog.unshift(e); d.alertLog.length = Math.min(d.alertLog.length, 300);
   store.save('alertLog');
   sendWin('alert:new', e);
   return e;
 }
-function notify(title, body, category = 'general') {
+/** Raise an alert. pilot (id or name) says which pilot it's about; without it the pilot named at the start
+    of the title is used. Pilots set to no alerts, or to "only while logged in" and not logged in, still
+    get the alert in the inbox, marked, but no pop-up, phone or spoken alert. */
+function notify(title, body, category = 'general', pilot = null) {
   const st = store.get().settings;
   if (st.alertTypes && st.alertTypes[category] === false) return;
+  const pilotId = pilotalerts.idFor(pilot, title, body);
   const q = st.quiet;
   const quiet = inQuietHours(q) && !(q.allow || []).includes(category);
-  logAlert(title, body, category, quiet);
-  if (quiet) return;
-  const muted = (st.mutedPilots || []).map(id => (store.get().characters.find(c => c.id === id) || {}).name).filter(Boolean);
-  if (muted.some(n => String(title).startsWith(n))) return;
-  phone.forward(category, title, body);
-  if (!Notification.isSupported()) return;
-  const n = new Notification({ title, body, icon: ICON });
-  n.on('click', showWindow);
-  n.show();
+  const deliver = reason => {
+    logAlert(title, body, category, reason || (quiet ? 'quiet' : false), pilotId);
+    if (quiet || reason) return;
+    phone.forward(category, title, body);
+    if (!Notification.isSupported()) return;
+    const n = new Notification({ title, body, icon: ICON });
+    n.on('click', showWindow);
+    n.show();
+  };
+  if (!pilotId) return deliver(null);
+  pilotalerts.check(pilotId).then(r => deliver(r.show ? null : r.reason)).catch(() => deliver(null));
 }
 
 // Remember which events we've already announced (kept small).
@@ -281,13 +283,13 @@ async function checkIndustry(c, data) {
   const r = await extra.industryFull(c.id);
   const ready = r.jobs.filter(j => !j.corp && j.status === 'ready');
   const fresh = ready.filter(j => !seen(data, 'job:' + j.jobId));
-  if (fresh.length === 1) notify(c.name, `${fresh[0].activity} finished: ${fresh[0].product || fresh[0].blueprint} (${fresh[0].runs} run${fresh[0].runs > 1 ? 's' : ''})`, 'industry');
-  else if (fresh.length > 1) notify(c.name, `${fresh.length} industry jobs are ready to deliver.`, 'industry');
+  if (fresh.length === 1) notify(c.name, `${fresh[0].activity} finished: ${fresh[0].product || fresh[0].blueprint} (${fresh[0].runs} run${fresh[0].runs > 1 ? 's' : ''})`, 'industry', c.id);
+  else if (fresh.length > 1) notify(c.name, `${fresh.length} industry jobs are ready to deliver.`, 'industry', c.id);
   const free = r.slots.manufacturing.max - r.slots.manufacturing.used;
   if (ready.length === 0 && free === r.slots.manufacturing.max && r.slots.manufacturing.max > 1) {
     // all manufacturing slots idle: announce once per day
     const day = new Date().toISOString().slice(0, 10);
-    if (!seen(data, `idle:${c.id}:${day}`)) notify(c.name, `All ${free} manufacturing slots are idle.`, 'industry');
+    if (!seen(data, `idle:${c.id}:${day}`)) notify(c.name, `All ${free} manufacturing slots are idle.`, 'industry', c.id);
   }
 }
 
@@ -302,7 +304,7 @@ async function checkPlanets(c, data) {
       if (exp <= soon && !seen(data, `pi:${p.planetId}:${e.expiry}`)) {
         notify(c.name, exp <= Date.now()
           ? `Extractor on ${p.name} has stopped (${e.product}).`
-          : `Extractor on ${p.name} stops in under 2 hours (${e.product}).`, 'planets');
+          : `Extractor on ${p.name} stops in under 2 hours (${e.product}).`, 'planets', c.id);
         break;
       }
     }
@@ -326,11 +328,11 @@ function piWatchAlerts(c, data, p) {
   for (const [kind, msg] of issues) {
     const key = `piw:${p.planetId}:${kind}:${sim.lastUpdate}`;
     const ev = data.seenEvents || {};
-    if (!seen(data, key)) { notify(c.name, msg, 'planets'); continue; }
+    if (!seen(data, key)) { notify(c.name, msg, 'planets', c.id); continue; }
     if (!cfg.reminders) continue;
     for (const r of [1, 2]) {
       const prev = ev[r === 1 ? key : key + ':r1'];
-      if (prev && Date.now() - prev > 6 * 3600000 && !ev[key + ':r' + r]) { seen(data, key + ':r' + r); notify(c.name, msg + ' (reminder)', 'planets'); break; }
+      if (prev && Date.now() - prev > 6 * 3600000 && !ev[key + ':r' + r]) { seen(data, key + ':r' + r); notify(c.name, msg + ' (reminder)', 'planets', c.id); break; }
     }
   }
 }
@@ -370,7 +372,7 @@ async function checkExtraAlerts(c, data) {
     for (const [key, types] of Object.entries(ALERT_NOTIFS)) {
       if (!alertOn(data, key) || !types.includes(x.type)) continue;
       if (seen(data, 'notif:' + x.notification_id)) continue;
-      notify(c.name, x.type.replace(/([a-z])([A-Z])/g, '$1 $2'), 'corp');
+      notify(c.name, x.type.replace(/([a-z])([A-Z])/g, '$1 $2'), 'corp', c.id);
     }
   }
   // Contracts: new ones assigned to me, and my contracts completing
@@ -383,8 +385,8 @@ async function checkExtraAlerts(c, data) {
       for (const k of list) {
         cur[k.contract_id] = k.status;
         if (!prev) continue;
-        if (!(k.contract_id in prev) && k.assignee_id === c.id && k.status === 'outstanding') notify(c.name, `New ${k.type.replace(/_/g, ' ')} contract assigned to you${k.title ? ': ' + k.title : ''}`, 'market');
-        else if (prev[k.contract_id] && prev[k.contract_id] !== k.status && k.issuer_id === c.id && /finished|in_progress|rejected|failed/.test(k.status)) notify(c.name, `Contract ${k.title ? '"' + k.title + '" ' : ''}${k.status.replace(/_/g, ' ')}`, 'market');
+        if (!(k.contract_id in prev) && k.assignee_id === c.id && k.status === 'outstanding') notify(c.name, `New ${k.type.replace(/_/g, ' ')} contract assigned to you${k.title ? ': ' + k.title : ''}`, 'market', c.id);
+        else if (prev[k.contract_id] && prev[k.contract_id] !== k.status && k.issuer_id === c.id && /finished|in_progress|rejected|failed/.test(k.status)) notify(c.name, `Contract ${k.title ? '"' + k.title + '" ' : ''}${k.status.replace(/_/g, ' ')}`, 'market', c.id);
       }
       data.contractState[c.id] = cur;
       store.save();
@@ -405,7 +407,7 @@ async function checkExtraAlerts(c, data) {
           for (const id of gone) {
             const h = hist.find(x => String(x.order_id) === id);
             const state = h ? (h.volume_remain === 0 ? 'filled' : h.state) : 'closed';
-            notify(c.name, `Market order ${state}: ${names[prev[id].t] || 'item'}`, 'market');
+            notify(c.name, `Market order ${state}: ${names[prev[id].t] || 'item'}`, 'market', c.id);
           }
         }
         for (const [id, o] of Object.entries(cur)) if (prev[id] && o.v < prev[id].v && !seen(data, `partial:${id}:${o.v}`)) { /* partial fills tracked silently */ }
@@ -426,7 +428,7 @@ async function checkUndercuts() {
   const list = await tradetools.myOrders().catch(() => []);
   lastOrderList = list;
   const beaten = list.filter(o => o.check && o.check.beaten && !seen(data, `uc:${o.order_id}:${o.check.best}`));
-  if (beaten.length === 1) notify(beaten[0].charName, `${beaten[0].is_buy_order ? 'Outbid' : 'Undercut'} on ${beaten[0].typeName} by ${Math.round(beaten[0].check.by).toLocaleString('en-AU')} ISK`, 'market');
+  if (beaten.length === 1) notify(beaten[0].charName, `${beaten[0].is_buy_order ? 'Outbid' : 'Undercut'} on ${beaten[0].typeName} by ${Math.round(beaten[0].check.by).toLocaleString('en-AU')} ISK`, 'market', beaten[0].charName);
   else if (beaten.length > 1) notify('Market', `${beaten.length} of your orders were undercut or outbid.`, 'market');
 }
 setInterval(() => checkUndercuts().catch(() => {}), 5 * 60000);
@@ -535,6 +537,7 @@ handle('settings:set', s => {
       allow: Array.isArray(s.quiet.allow) ? s.quiet.allow.filter(x => ['intel', 'structures', 'attack'].includes(x)) : ['attack'] };
   }
   if (Array.isArray(s.mutedPilots)) next.mutedPilots = s.mutedPilots.map(Number).filter(Boolean).slice(0, 200);
+  if (s.pilotAlerts && typeof s.pilotAlerts === 'object') { next.pilotAlerts = {}; for (const [k, v] of Object.entries(s.pilotAlerts).slice(0, 200)) if (Number(k) && pilotalerts.MODES.includes(v)) next.pilotAlerts[Number(k)] = v; next.mutedPilots = []; }
   if (s.speech && typeof s.speech === 'object') {
     const sp = { ...(cur.speech || {}) };
     for (const k of ['enabled', 'intel', 'local', 'spike', 'abyss', 'route', 'attack']) if (typeof s.speech[k] === 'boolean') sp[k] = s.speech[k];
@@ -719,6 +722,8 @@ handle('home:attention', refresh => require('./attention').gather({ orders: last
 handle('alerts:list', () => store.get().alertLog || []);
 handle('alerts:read', () => { for (const a of store.get().alertLog || []) a.read = true; store.save('alertLog'); return true; });
 handle('alerts:clear', () => { store.get().alertLog = []; store.save('alertLog'); return true; });
+handle('alerts:pilots', () => pilotalerts.all());
+handle('alerts:pilotMode', (id, m) => pilotalerts.set(Number(id), String(m)));
 handle('alerts:types', patch => { const st = store.get().settings; st.alertTypes = { ...(st.alertTypes || {}), ...(patch || {}) }; store.save(); return st.alertTypes; });
 handle('mine:list', o => minesites.list(o || {}));
 handle('mine:paste', (text, o) => minesites.paste(text, o || {}));
@@ -895,7 +900,7 @@ handle('nav:pilotLocations', async () => {
 // ================= Intel =================
 
 minesites.setPositions(() => intel.positions(), (a, b, max) => intel._jumpsBetween(a, b, max));
-minesites.setNotifier((title, body, x) => { sendWin('mine:new', x); if (store.get().settings.notifications !== false) notify(title, body, 'intel'); });
+minesites.setNotifier((title, body, x) => { sendWin('mine:new', x); if (store.get().settings.notifications !== false) notify(title, body, 'intel', x && x.nearPilot ? x.nearPilot : 0); });
 intel.setListener((ch, data) => {
   if (win && !win.isDestroyed()) win.webContents.send(ch, data);
   overlay.send(ch, data);
@@ -903,12 +908,12 @@ intel.setListener((ch, data) => {
   if (ch === 'intel:report' && data.alert && canNotify) {
     const t = data.top;
     const threat = t ? ` · ${t.name}: ${(t.zoneScore || t).level} threat${t.flags && t.flags[0] ? ', ' + t.flags[0].label.toLowerCase() : ''}` : '';
-    notify(`Intel: ${data.closest.name} (${data.closest.near.jumps} jump${data.closest.near.jumps === 1 ? '' : 's'} from ${data.closest.near.pilot})${threat}`, `${data.who}: ${data.text}`.slice(0, 200), 'intel');
+    notify(`Intel: ${data.closest.name} (${data.closest.near.jumps} jump${data.closest.near.jumps === 1 ? '' : 's'} from ${data.closest.near.pilot})${threat}`, `${data.who}: ${data.text}`.slice(0, 200), 'intel', data.closest.near.pilot);
   }
-  if (ch === 'combat:attack') notify(`${data.who} is under attack`, `${data.attacker}${data.weapon ? ' with ' + data.weapon : ''}: ${data.amount} damage`, 'attack');
+  if (ch === 'combat:attack') notify(`${data.who} is under attack`, `${data.attacker}${data.weapon ? ' with ' + data.weapon : ''}: ${data.amount} damage`, 'attack', data.who);
   if (ch === 'intel:local' && data.alert && canNotify) {
     const f = data.pilot.flags && data.pilot.flags.length ? ` (${data.pilot.flags.slice(0, 2).map(x => x.label.toLowerCase()).join(', ')})` : '';
-    notify(`${data.level} threat in Local${data.system ? ' ' + data.system : ''}`, `${data.pilot.name}${f} is in Local with ${data.listener || 'your pilot'}.`, 'intel');
+    notify(`${data.level} threat in Local${data.system ? ' ' + data.system : ''}`, `${data.pilot.name}${f} is in Local with ${data.listener || 'your pilot'}.`, 'intel', data.listener || undefined);
   }
   if (ch === 'intel:spike' && canNotify) {
     const hs = data.zone === 'hs';
@@ -1188,7 +1193,7 @@ handle('doc:evaluate', (doctrine, hub) => doctrines.evaluate(doctrine, store.get
 wormhole.setListener((kind, data) => {
   if (win && !win.isDestroyed()) win.webContents.send('wh:event', { kind, data });
   if (kind === 'jump' && data.mapped && !data.gate && Notification.isSupported() && store.get().settings.notifications && !(win && win.isFocused())) {
-    notify('New connection mapped', `${data.charName}: ${data.fromName} → ${data.toName}`, 'wormhole');
+    notify('New connection mapped', `${data.charName}: ${data.fromName} → ${data.toName}`, 'wormhole', data.charName);
   }
 });
 handle('wh:maps', () => workspace.get().maps);
@@ -1434,7 +1439,7 @@ async function corpBackground() {
         for (const n of notes.filter(x => x.alert && Date.parse(x.timestamp) > startedAt - 3600000)) {
           if (!once('note:' + n.id)) continue;
           await discord.postWebhook('structures', { title: `⚠ ${n.typeLabel}`, fields: [{ name: 'System', value: n.system }, { name: 'Structure', value: n.structureType }, { name: 'Timer ends', value: n.timerEnd ? `<t:${Math.floor(Date.parse(n.timerEnd) / 1000)}:F>` : '' }], footer: `Seen by ${dir.name}` }).catch(() => {});
-          if (Notification.isSupported() && store.get().settings.notifications) notify(dir.name, `${n.typeLabel}${n.system ? ' in ' + n.system : ''}`, 'structures');
+          if (Notification.isSupported() && store.get().settings.notifications) notify(dir.name, `${n.typeLabel}${n.system ? ' in ' + n.system : ''}`, 'structures', 0);  // corp alert, not about the director pilot
         }
       } catch { /* missing scope or role */ }
       try {

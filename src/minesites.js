@@ -61,7 +61,7 @@ function record(systemId, sites, o = {}) {
     const near = nearestPilot(Number(systemId), c.maxJumps);
     if (!near && positions().length) continue;
     const name = (sde.ready() && sde.system(Number(systemId)) || {}).name || systemId;
-    notifier(f.kind === 'ice' ? `Ice: ${f.name}` : `Ore site: ${f.name}`, `${name}${near ? ` · ${near.jumps} jump${near.jumps === 1 ? '' : 's'} from ${near.pilot}` : ''}${f.by ? ` · seen by ${f.by}` : ''}`, { systemId: Number(systemId), site: f });
+    notifier(f.kind === 'ice' ? `Ice: ${f.name}` : `Ore site: ${f.name}`, `${name}${near ? ` · ${near.jumps} jump${near.jumps === 1 ? '' : 's'} from ${near.pilot}` : ''}${f.by ? ` · seen by ${f.by}` : ''}`, { systemId: Number(systemId), site: f, nearPilot: near ? near.pilot : null });
   }
   return { added: fresh.length, gone: o.fullScan ? sys.sites.filter(x => x.gone && x.goneAt === now).length : 0 };
 }

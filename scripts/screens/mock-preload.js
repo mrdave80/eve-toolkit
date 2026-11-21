@@ -82,7 +82,7 @@ const contracts = [
   { type: 'courier', title: 'Ore haul', status: 'in_progress', issuer_id: 2119000002, issuerName: 'Mike Hunt', acceptorName: 'Hugh Jayness', reward: 18000000, collateral: 600000000, date_expired: iso(now + 2 * D), startName: 'Amarr VIII (Oris)', endName: 'Jita IV - Moon 4', availability: 'personal' },
   { type: 'item_exchange', title: 'PLEX x 500', status: 'outstanding', issuer_id: 2119000001, issuerName: 'Richard Fitzwell', price: 2210000000, date_expired: iso(now + 13 * D), startName: 'Jita IV - Moon 4 - Caldari Navy Assembly Plant', availability: 'public' }
 ];
-const MOCK_SETTINGS = { onboardingDone: true, clientId: '3f1c0a9e2b7d4c51a8e6f0b2d9c4e7a1', callbackPort: 51515, notifications: true, minimizeToTray: true, refreshMinutes: 15, theme: process.env.MOCK_THEME || 'capsuleer' };
+const MOCK_SETTINGS = { pilotAlerts: { 2119000005: 'online', 2119000003: 'off' }, onboardingDone: true, clientId: '3f1c0a9e2b7d4c51a8e6f0b2d9c4e7a1', callbackPort: 51515, notifications: true, minimizeToTray: true, refreshMinutes: 15, theme: process.env.MOCK_THEME || 'capsuleer' };
 const api = {
   info: async () => ({ ok: true, data: { version: '1.11.0', os: 'Windows 11 Pro (10.0.26100)', electron: '38.8.6', userData: 'C:\\Users\\Capsuleer\\AppData\\Roaming\\EVE Toolkit', scopes: [] } }),
   getSettings: async () => ({ ok: true, data: { ...MOCK_SETTINGS } }),
@@ -876,7 +876,8 @@ api.diag = { report: async () => ({ ok: true, data: 'EVE Toolkit 1.9.0\nSystem: 
     ['structures', 'Moon chunk ready', 'K-6K16 VII - Moon 3 is ready to fracture', 26], ['industry', 'Jobs ready', 'Richard Fitzwell: 4 manufacturing jobs finished', 48], ['market', 'Outbid', 'Wayne Kerr: Hobgoblin II sell order in Jita undercut by 0.01 ISK', 75],
     ['intel', 'Ice: White Glaze Belt', 'Eygfe · 4 jumps from Mike Hunt · seen by Scout Alpha', 112], ['planets', 'Extractor stopped', 'Hugh Jayness: Barren planet in Amamake has stopped', 190], ['app', 'Update ready', 'Version 1.13.0 installs when you close the app', 600]]
     .map(([category, title, body, m], i) => ({ id: 'a' + i, category, title, body, at: ago(m), read: i > 2 }));
-  api.alerts = { list: async () => ({ ok: true, data: AL }), read: async () => ({ ok: true, data: true }), clear: async () => ({ ok: true, data: true }), types: async p => ({ ok: true, data: p }), onNew: () => {} };
+  AL.splice(2, 0, { id: 'ax', category: 'skills', title: 'Jack Mehoff', body: 'Skill queue is empty. Nothing is training.', at: ago(20), read: true, pilotId: 2119000005, silenced: 'offline' });
+  api.alerts = { pilots: async () => ({ ok: true, data: [] }), pilotMode: async (id, m) => ({ ok: true, data: { [id]: m } }), list: async () => ({ ok: true, data: AL }), read: async () => ({ ok: true, data: true }), clear: async () => ({ ok: true, data: true }), types: async p => ({ ok: true, data: p }), onNew: () => {} };
   api.home = { attention: async () => ({ ok: true, data: { at: ago(2), items: [
     { level: 'red', text: 'Jack Mehoff: login expired. Sign in again to keep his data up to date', go: { view: 'dashboard' } },
     { level: 'red', text: 'Wayne Kerr: skill queue is empty', go: { view: 'char', charId: 2119000004, tab: 'queue' } },
