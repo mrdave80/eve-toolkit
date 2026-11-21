@@ -196,16 +196,23 @@ function createTray() {
 
 // ---------- Background skill queue watch ----------
 
+let queuesRunning = false;
 async function checkQueues(manual = false) {
+  if (queuesRunning && !manual) return;
+  queuesRunning = true;
+  try { await checkQueuesRun(manual); } finally { queuesRunning = false; }
+}
+async function checkQueuesRun(manual) {
   const data = store.get();
   if (!data.settings.clientId || !data.characters.length) return;
   const results = [];
-  for (const c of data.characters) {
-    if (c.needsReauth) continue;
+  // Four pilots at a time: with 50+ pilots a one-by-one pass would take most of the refresh interval.
+  const todo = data.characters.filter(c => !c.needsReauth);
+  const one = async c => {
     try {
       const o = await esi.overview(c.id);
       results.push(o);
-      if (!data.settings.notifications) continue;
+      if (!data.settings.notifications) return;
       let key = null, body = null;
       const hoursLeft = o.queueEnd ? (Date.parse(o.queueEnd) - Date.now()) / 3.6e6 : 0;
       if (o.queueLength === 0) { key = 'empty'; body = 'Skill queue is empty. Nothing is training.'; }
@@ -219,12 +226,14 @@ async function checkQueues(manual = false) {
         delete data.notified[c.id];
         store.save();
       }
+      await timers.refreshPilot(c).catch(() => {});
+      if (pilotalerts.mode(c.id) === 'off') return; // alerts are off for this pilot: skip the extra ESI calls
       if (data.settings.notifyIndustry !== false) await checkIndustry(c, data);
       if (data.settings.notifyPlanets !== false) await checkPlanets(c, data);
       await checkExtraAlerts(c, data);
-      await timers.refreshPilot(c).catch(() => {});
     } catch { /* surfaced in the UI on next view */ }
-  }
+  };
+  await Promise.all(Array.from({ length: Math.min(4, todo.length) }, async () => { while (todo.length) await one(todo.shift()); }));
   await timers.checkIncursions(results.filter(o => o && !pilotalerts.quiet(o.id || o.characterId)), notify, seen).catch(() => {});
   if (win && !win.isDestroyed()) win.webContents.send('overview:update', results);
 }
@@ -485,7 +494,8 @@ function schedulePolling() {
 function publicCharacters() {
   return store.get().characters.map(c => ({
     id: c.id, name: c.name, needsReauth: !!c.needsReauth,
-    missingScopes: auth.SCOPES.filter(s => s !== 'publicData' && !(c.scopes || []).includes(s)),
+    missingScopes: auth.scopesFor([]).filter(s => s !== 'publicData' && !(c.scopes || []).includes(s)),
+    notShared: Object.keys(auth.SCOPE_GROUPS).filter(g => auth.SCOPE_GROUPS[g].some(s => !(c.scopes || []).includes(s))),
     corpScopes: auth.CORP_SCOPES.filter(s => (c.scopes || []).includes(s)).length,
     isDirector: auth.CORP_SCOPES.some(s => (c.scopes || []).includes(s)),
     canWaypoint: (c.scopes || []).includes('esi-ui.write_waypoint.v1'), canWrite: auth.WRITE_SCOPES.every(x => (c.scopes || []).includes(x)), canSendMail: (c.scopes || []).includes('esi-mail.send_mail.v1'), canSaveFits: (c.scopes || []).includes('esi-fittings.write_fittings.v1'), canRespond: (c.scopes || []).includes('esi-calendar.respond_calendar_events.v1'), canOpenWindow: (c.scopes || []).includes('esi-ui.open_window.v1')
@@ -538,6 +548,7 @@ handle('settings:set', s => {
     next.quiet = { enabled: !!s.quiet.enabled, from: t(s.quiet.from) || '23:00', to: t(s.quiet.to) || '07:00',
       allow: Array.isArray(s.quiet.allow) ? s.quiet.allow.filter(x => ['intel', 'structures', 'attack'].includes(x)) : ['attack'] };
   }
+  if (s.pilotGroups && typeof s.pilotGroups === 'object') { next.pilotGroups = {}; for (const [k, v] of Object.entries(s.pilotGroups).slice(0, 500)) { const g = String(v || '').trim().slice(0, 24); if (Number(k) && g) next.pilotGroups[Number(k)] = g; } }
   if (Array.isArray(s.mutedPilots)) next.mutedPilots = s.mutedPilots.map(Number).filter(Boolean).slice(0, 200);
   if (s.pilotAlerts && typeof s.pilotAlerts === 'object') { next.pilotAlerts = {}; for (const [k, v] of Object.entries(s.pilotAlerts).slice(0, 200)) if (Number(k) && pilotalerts.MODES.includes(v)) next.pilotAlerts[Number(k)] = v; next.mutedPilots = []; }
   if (s.speech && typeof s.speech === 'object') {
@@ -578,9 +589,9 @@ handle('settings:set', s => {
 });
 
 handle('characters:list', () => publicCharacters());
-handle('characters:add', async (corp = false) => {
+handle('characters:add', async (corp = false, groups) => {
   const s = store.get().settings;
-  const { tokens, info } = await auth.login({ clientId: s.clientId, port: s.callbackPort, corp: !!corp, ui: !!s.uiScopes, write: !!s.writeScopes });
+  const { tokens, info } = await auth.login({ clientId: s.clientId, port: s.callbackPort, corp: !!corp, ui: !!s.uiScopes, write: !!s.writeScopes, groups: Array.isArray(groups) ? groups.map(String).filter(g => auth.SCOPE_GROUPS[g]) : undefined });
   store.upsertCharacter(info.id, info.name, info.scopes, tokens.refresh_token);
   showWindow();
   return publicCharacters();
@@ -721,6 +732,17 @@ handle('market:prices', (ids, hub) => market.prices(ids, hub));
 handle('market:book', async (id, hub) => { const b = await market.book(id, hub); const { raw, ...rest } = b; return rest; });
 handle('market:history', (id, hub) => market.history(id, hub));
 handle('home:attention', refresh => require('./attention').gather({ orders: lastOrderList, directors: directors(), refresh: !!refresh }));
+// Daily phone digest (ntfy / Discord) at the time chosen in Settings → Phone alerts.
+async function phoneDigest(force) {
+  const att = await require('./attention').gather({ orders: lastOrderList, directors: directors(), refresh: true });
+  const pilots = store.get().characters.filter(c => !c.needsReauth && !pilotalerts.quiet(c.id));
+  let training = 0, wallet = 0;
+  for (const c of pilots) { try { const o = await esi.overview(c.id); if (o.queueLength && !o.paused) training++; wallet += o.wallet || 0; } catch {} }
+  const fmt = n => (n >= 1e9 ? (n / 1e9).toFixed(2) + 'b' : n >= 1e6 ? (n / 1e6).toFixed(1) + 'm' : String(Math.round(n)));
+  return phone.sendDigest(att, { pilots: pilots.length, training, wallet: wallet ? fmt(wallet) : null }, { force: !!force });
+}
+setInterval(() => { if (app.isReady() && phone.digestDue()) phoneDigest(false).catch(e => diag.warn('digest', e.message)); }, 60000);
+handle('phone:digestNow', () => phoneDigest(true));
 handle('alerts:list', () => store.get().alertLog || []);
 handle('alerts:read', () => { for (const a of store.get().alertLog || []) a.read = true; store.save('alertLog'); return true; });
 handle('alerts:clear', () => { store.get().alertLog = []; store.save('alertLog'); return true; });
@@ -775,6 +797,7 @@ handle('market:losses', async typeId => {
 handle('mine:find', o => require('./minefind').find(o || {}));
 handle('mine:minerals', () => require('./minefind').minerals());
 handle('haul:locations', async refresh => { const r = await require('./assetfinder').search({ refresh: !!refresh }); return r.groups.map(g => ({ key: g.key, pilot: g.pilot, location: g.location, system: g.system, security: g.security, value: g.value, volume: g.volume, items: g.itemCount })); });
+handle('haul:hull', q => require('./haulplan').hull(q));
 handle('haul:plan', async o => {
   o = o || {}; let items = [];
   if (o.text) {
@@ -805,6 +828,7 @@ handle('contracts:search', async o => {
   await require('./contractarchive').fillItems((p, id) => esi.get(p, id), o.refresh ? 60 : 15).catch(() => 0);
   return require('./contractarchive').search(o);
 });
+handle('ui:zoom', z => { const f = Math.max(0.6, Math.min(1.8, Number(z) || 1)); if (win && !win.isDestroyed()) win.webContents.setZoomFactor(f); return f; });
 handle('mine:list', o => minesites.list(o || {}));
 handle('mine:paste', (text, o) => minesites.paste(text, o || {}));
 handle('mine:cfg', p => minesites.setCfg(p || {}));
@@ -1041,6 +1065,15 @@ handle('intel:checkSpikes', async () => { await intel.checkSpikes(); return inte
 
 // ================= Pilot intel =================
 handle('pilot:profile', (q, opts) => pilotintel.profile(q, opts || {}));
+const explore = require('./explore');
+handle('explore:get', () => explore.summary());
+handle('explore:add', o => explore.addSite(o || {}, store.get().priceOverrides || {}));
+handle('explore:remove', id => explore.removeSite(String(id)));
+handle('explore:start', name => explore.startRun(name));
+handle('explore:stop', () => explore.stopRun());
+handle('explore:price', p => explore.setPrice(String(p)));
+handle('explore:clear', () => explore.clear());
+handle('pilot:likelyFits', id => require('./likelyfits').likely(Number(id)));
 handle('pilot:quickMany', pilots => pilotintel.quickMany(Array.isArray(pilots) ? pilots : [], (i, n) => { if (win && !win.isDestroyed()) win.webContents.send('pilot:progress', { i, n }); }));
 handle('pilot:watch', (id, name, tag, note) => {
   if (!Number.isInteger(Number(id))) throw new Error('Bad pilot id');
@@ -1283,6 +1316,8 @@ handle('fitlib:update', (id, p) => require('./fitlib').update(id, p));
 handle('fitlib:remove', id => require('./fitlib').remove(id));
 handle('fitlib:export', folder => require('./fitlib').exportAll(folder));
 handle('doc:parseEft', text => doctrines.parseEft(text));
+handle('fitcode:encode', (eft, pilot) => require('./fitcode').encode(String(eft || ''), String(pilot || '')));
+handle('fitcode:check', (text, fits) => require('./fitcode').check(String(text || ''), Array.isArray(fits) ? fits : []));
 handle('doc:evaluate', (doctrine, hub) => doctrines.evaluate(doctrine, store.get().characters.filter(c => !c.needsReauth).map(c => c.id), workspace.get().audits, hub));
 
 // ================= Wormhole mapper =================

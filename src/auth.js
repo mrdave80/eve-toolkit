@@ -42,6 +42,24 @@ const SCOPES = [
   'esi-fittings.read_fittings.v1'
 ];
 
+// Scope groups for the "what can EVE Toolkit see" picker when adding a pilot. Core is always asked for;
+// the rest are opt-in. Anything not in a group stays core.
+const SCOPE_GROUPS = {
+  mail: ['esi-mail.read_mail.v1', 'esi-calendar.read_calendar_events.v1'],
+  contacts: ['esi-characters.read_contacts.v1', 'esi-characters.read_standings.v1'],
+  market: ['esi-markets.read_character_orders.v1', 'esi-contracts.read_character_contracts.v1'],
+  fittings: ['esi-fittings.read_fittings.v1'],
+  social: ['esi-characters.read_medals.v1', 'esi-characters.read_titles.v1', 'esi-characters.read_fw_stats.v1', 'esi-characters.read_loyalty.v1', 'esi-characters.read_agents_research.v1'],
+  corpjobs: ['esi-industry.read_corporation_jobs.v1']
+};
+const OPTIONAL = new Set(Object.values(SCOPE_GROUPS).flat());
+/** Scopes for a login: core plus the chosen groups (all groups when none are given, as before). */
+function scopesFor(groups) {
+  if (!Array.isArray(groups)) return SCOPES;
+  const extra = new Set(groups.flatMap(g => SCOPE_GROUPS[g] || []));
+  return SCOPES.filter(sc => !OPTIONAL.has(sc) || extra.has(sc));
+}
+
 // Extra scopes requested only for "Add director / FC" logins.
 // Opt-in (Settings → In-game control): the user must also tick these on their CCP app registration, or login fails.
 const UI_SCOPES = ['esi-ui.write_waypoint.v1', 'esi-ui.open_window.v1'];
@@ -109,7 +127,7 @@ let pending = null;
  * Opens the browser for EVE login, waits for the localhost callback,
  * exchanges the code and returns { tokens, info }.
  */
-function login({ clientId, port, corp = false, ui = false, write = false }) {
+function login({ clientId, port, corp = false, ui = false, write = false, groups }) {
   if (!clientId) return Promise.reject(new Error('Set your EVE developer Client ID in Settings first.'));
   if (pending) pending.cancel('A new login was started.');
 
@@ -175,7 +193,7 @@ function login({ clientId, port, corp = false, ui = false, write = false }) {
         response_type: 'code',
         redirect_uri: redirectUri,
         client_id: clientId,
-        scope: [...SCOPES, ...(corp ? CORP_SCOPES : []), ...(ui ? UI_SCOPES : []), ...(write ? WRITE_SCOPES : [])].join(' '),
+        scope: [...scopesFor(groups), ...(corp ? CORP_SCOPES : []), ...(ui ? UI_SCOPES : []), ...(write ? WRITE_SCOPES : [])].join(' '),
         code_challenge: challenge,
         code_challenge_method: 'S256',
         state
@@ -189,4 +207,4 @@ function refresh({ clientId, refreshToken }) {
   return tokenRequest({ grant_type: 'refresh_token', refresh_token: refreshToken, client_id: clientId });
 }
 
-module.exports = { login, refresh, parseAccessToken, SCOPES, CORP_SCOPES, UI_SCOPES, WRITE_SCOPES, USER_AGENT };
+module.exports = { login, refresh, parseAccessToken, SCOPES, SCOPE_GROUPS, scopesFor, CORP_SCOPES, UI_SCOPES, WRITE_SCOPES, USER_AGENT };

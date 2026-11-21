@@ -671,9 +671,25 @@ function fleetDoctrineCheck(live) {
     <div class="grid grid-2" style="gap:8px;margin-bottom:8px">${stat('In doctrine', on.length, now.length ? Math.round(on.length / now.length * 100) + '% of the fleet' : '', on.length === now.length ? 'pos' : '')}${stat('Off doctrine', off.length, '', off.length ? 'gold' : '')}</div>
     ${Object.entries(count).map(([k, n]) => html`<div class="skill-row" style="font-size:12.5px"><span class="pos">✓ ${k}</span><span class="num">${n}</span></div>`)}
     ${off.map(p => html`<div class="skill-row" style="font-size:12.5px"><span>${p.name}</span><span class="gold">${p.ship}</span></div>`)}
-    <div class="dim" style="font-size:11.5px;margin-top:6px">CCP only shows the hull each pilot is in, not their fit.</div></div>`;
+    <div class="dim" style="font-size:11.5px;margin-top:6px">CCP only shows the hull each pilot is in, not their fit. For fits, ask the fleet to paste a fit code (Fit check → Share code for FC).</div>
+    <div style="margin-top:8px"><button class="btn btn-ghost" data-fitcodes="${doc.id}" style="font-size:12px;padding:3px 10px">Check fit codes${corpState.fitCodes && corpState.fitCodes.doc === doc.id ? ` (${corpState.fitCodes.ok}/${corpState.fitCodes.rows.length} on fit)` : ''}</button></div>
+    ${corpState.fitCodes && corpState.fitCodes.doc === doc.id ? fitCodeRows(corpState.fitCodes) : ''}</div>`;
 }
-
+function fitCodeRows(d) {
+  const lab = { ok: ['pos', '✓ on fit'], missing: ['neg', 'missing modules'], extra: ['gold', 'extra modules'], hull: ['gold', 'not a doctrine hull'] };
+  return html`<div style="margin-top:8px">${d.rows.map(r => html`<div class="fc-row"><div style="display:flex;gap:8px;align-items:center;font-size:12.5px">${icon(r.shipTypeId, 16)}<b>${r.pilot || 'Unnamed'}</b><span class="dim">${r.ship}${r.fit ? ` · vs ${r.fit}` : ''}</span><span style="flex:1"></span><span class="${lab[r.status][0]}">${lab[r.status][1]}</span></div>
+      ${r.missing.length ? html`<div style="font-size:12px"><span class="neg">Missing:</span> ${r.missing.map(m => `${m.qty > 1 ? m.qty + '× ' : ''}${m.name}`).join(', ')}</div>` : ''}
+      ${r.extra.length ? html`<div style="font-size:12px"><span class="gold">Instead:</span> ${r.extra.map(m => `${m.qty > 1 ? m.qty + '× ' : ''}${m.name}`).join(', ')}</div>` : ''}</div>`)}
+    ${d.bad.length ? html`<div class="dim" style="font-size:11.5px">${d.bad.length} code${d.bad.length === 1 ? '' : 's'} couldn't be read.</div>` : ''}</div>`;
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest && e.target.closest('[data-fitcodes]'); if (!b) return;
+  e.preventDefault();
+  const doc = ((corpState.ws && corpState.ws.doctrines) || []).find(d => d.id === b.dataset.fitcodes); if (!doc) return;
+  openModal('Check fit codes', html`<div class="muted" style="font-size:12.5px;margin-bottom:8px">Paste the fleet chat (or Discord) with everyone's fit codes. Anything that isn't a code is ignored, and a pilot's latest code counts.</div>
+    <textarea name="codes" rows="9" spellcheck="false" placeholder="ETFIT1:…">${corpState.fitCodes && corpState.fitCodes.doc === doc.id ? corpState.fitCodes.text : ''}</textarea>`, { submit: 'Check', wide: true,
+    onSubmit: async v => { const r = await api.fitcode.check(v.codes, doc.fits || []); if (!r.ok) { toast(r.error, true); return true; } if (!r.data.rows.length) { toast('No fit codes found in that text.', true); return true; } corpState.fitCodes = { ...r.data, doc: doc.id, text: v.codes }; drawFleet(); } });
+});
 function drawFleet(prefillOp) {
   const live = corpState.fleetLive;
   const fcs = state.characters.filter(c => c.isDirector && !c.needsReauth);

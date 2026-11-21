@@ -274,6 +274,8 @@ async function tHaul(refresh = false) {
       ${s.source === 'hangar' ? html`<div class="field"><label>Hangar</label><select id="hl-loc">${s.locs.slice(0, 200).map(l => html`<option value="${l.key}" ${raw(l.key === s.key ? 'selected' : '')}>${l.location} · ${l.pilot} · ${fmtCompact(l.value)} ISK, ${fmtNum(Math.round(l.volume))} m³</option>`)}</select></div><button class="btn btn-ghost" id="hl-refresh" style="padding:2px 9px;font-size:12px;margin-bottom:10px">⟳ Re-read assets</button>`
         : html`<textarea id="hl-text" rows="7" style="width:100%" class="mono-area" placeholder="Inventory, contract or cargo window: select all, copy, paste here">${s.text}</textarea>`}
       <div class="field"><label>Ship</label><select id="hl-ship">${HAUL_SHIPS.map(([v, l]) => html`<option value="${v}" ${raw(s.ship === v ? 'selected' : '')}>${l}</option>`)}</select></div>
+      <div class="field"><label>Or any ship (Upwell haulers, DSTs, Orca…)</label><input type="search" id="hl-hull" value="${s.hullName || ''}"></div>
+      ${s.hull ? html`<div class="field"><label>Hold on the ${s.hull.name}</label><select id="hl-hold">${s.hull.holds.map(h => html`<option value="${h.m3}" ${raw(Number(s.cargo) === h.m3 ? 'selected' : '')}>${h.name}: ${fmtNum(Math.round(h.m3))} m³</option>`)}</select><div class="dim" style="font-size:11.5px;margin-top:3px">Base sizes from the game data. Your hauler skills, cargo expanders and rigs add to these, so put your real number in below if you know it.</div></div>` : ''}
       <div class="field"><label>Cargo hold (m³)</label><input type="number" id="hl-cargo" value="${s.cargo}" min="1"></div>
       <div class="field"><label>Never carry more than (ISK a trip, optional)</label><input type="text" id="hl-max" value="${s.maxValue}" placeholder="e.g. 2b"></div>
       <div class="field"><label>Warn me above (ISK a trip)</label><input type="text" id="hl-warn" value="${s.warnValue}" placeholder="e.g. 1b"></div>
@@ -283,6 +285,8 @@ async function tHaul(refresh = false) {
   document.querySelectorAll('[data-hs]').forEach(b => b.onclick = () => { s.source = b.dataset.hs; tHaul(); });
   if ($('#hl-refresh')) $('#hl-refresh').onclick = () => tHaul(true);
   $('#hl-ship').onchange = e => { s.ship = e.target.value; if (e.target.value) $('#hl-cargo').value = e.target.value; };
+  attachSearch($('#hl-hull'), { category: 6, placeholder: 'e.g. Bustard, Orca, an Upwell hauler', onPick: async it => { const r = await api.haul.hull(it.id); if (!r.ok) return toast(r.error, true); s.hull = r.data; s.hullName = r.data.name; s.ship = ''; const big = r.data.holds.slice().sort((a, b) => b.m3 - a.m3)[0]; s.cargo = Math.round((r.data.holds[0].m3 || (big && big.m3) || 0)); tHaul(); } });
+  const hh = $('#hl-hold'); if (hh) hh.onchange = e => { s.cargo = Math.round(Number(e.target.value)); $('#hl-cargo').value = s.cargo; };
   $('#hl-go').onclick = () => runHaul();
 }
 async function runHaul() {
@@ -473,4 +477,61 @@ function drawTrainSug() {
         html`<div style="display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12.5px">${c.next.missing.map(m => html`<span>${m.name} ${ROMAN5[m.level]} <span class="dim">(has ${m.have ? ROMAN5[m.have] : 'none'})</span></span>`)}</div><button class="btn btn-ghost" style="padding:2px 9px;font-size:12px;margin-top:8px" data-trcert="${c.id}">Make a skill plan for this</button>`, 3))}</tbody></table></div>
     <div class="grid grid-3" style="align-items:start">${[...groups.entries()].map(([g, list]) => html`<div class="panel"><h3>${g}</h3>${list.map(c => html`<div class="skill-row" style="font-size:12.5px"><span>${c.name}</span><span>${c.level ? html`<span class="badge ${c.level === 5 ? 'green' : ''}">${ROMAN5[c.level]}</span>` : html`<span class="dim">—</span>`}</span></div>`)}</div>`)}</div>`);
   document.querySelectorAll('[data-trcert]').forEach(b => b.onclick = () => { const c = d.quick.find(x => String(x.id) === b.dataset.trcert); makePlan(d.charId, `${c.name} ${ROMAN5[c.next.level]}`, c.next.missing); });
+}
+
+// ================= Exploration loot =================
+
+const exState = { type: '', name: '', system: '' };
+async function tExplore() {
+  setContent(loadingView('Loading your exploration log…'));
+  const r = await api.explore.get();
+  if (!r.ok) return setContent(errorView(r));
+  drawExplore(r.data);
+}
+function drawExplore(d) {
+  const s = exState;
+  const typeOpts = [['', 'Guess from the site name'], ...d.types];
+  setContent(html`<div class="grid grid-4" style="margin-bottom:14px">
+      ${stat('ISK per hour', d.hours ? fmtCompact(d.perHour) : '—', d.hours ? `over ${fmtDuration(d.hours * 3600000, true)} of runs` : 'add a site to start')}
+      ${stat('ISK per site', d.sites ? fmtCompact(d.perSite) : '—', `${fmtNum(d.sites)} site${d.sites === 1 ? '' : 's'}`)}
+      ${stat('Total loot', fmtCompact(d.total) + ' ISK', d.price === 'sell' ? 'at Jita sell' : 'at Jita buy (what you get selling now)')}
+      ${stat('This run', d.open ? fmtCompact(d.open.isk) : '—', d.open ? `${d.open.sites} site${d.open.sites === 1 ? '' : 's'} · ${fmtCompact(d.open.perHour)}/h · ${fmtDuration(d.open.ms, true)}` : 'no run going')}</div>
+    <div class="grid grid-2" style="align-items:start">
+      <div class="panel"><h3>Add a site</h3>
+        <div class="dim" style="font-size:12.5px;margin-bottom:8px">After you finish a can (or the whole site), select the new loot in your cargo hold, Ctrl+C and paste it here.</div>
+        <textarea id="ex-text" rows="7" style="width:100%" class="mono-area" placeholder="Paste loot from your cargo hold" spellcheck="false"></textarea>
+        <div class="row" style="gap:8px;margin-top:8px;flex-wrap:wrap">
+          <div class="field" style="margin:0;flex:1;min-width:150px"><input type="text" id="ex-name" value="${s.name}" placeholder="Site name (optional)" spellcheck="false"></div>
+          <div class="field" style="margin:0;width:110px"><input type="text" id="ex-sys" value="${s.system}" placeholder="System" spellcheck="false"></div>
+          <select id="ex-type" class="crumb-select">${typeOpts.map(([k, l]) => html`<option value="${k}" ${raw(k === s.type ? 'selected' : '')}>${l}</option>`)}</select></div>
+        <div class="row" style="gap:8px;margin-top:10px"><button class="btn btn-primary" id="ex-add">Add site</button><span style="flex:1"></span>
+          ${d.open ? html`<button class="btn btn-ghost" id="ex-stop">End run</button>` : html`<button class="btn btn-ghost" id="ex-start">Start a run</button>`}</div>
+        <div id="ex-msg" class="dim" style="font-size:12px;margin-top:6px"></div></div>
+      <div class="panel"><h3>By site type</h3>${d.byType.length ? html`<table><thead><tr><th>Type</th><th class="right">Sites</th><th class="right">Per site</th><th class="right">Best</th><th class="right">Total</th></tr></thead><tbody>
+        ${d.byType.map(t => html`<tr><td>${t.label}</td><td class="right num">${t.sites}</td><td class="right num">${fmtCompact(t.perSite)}</td><td class="right num">${fmtCompact(t.best)}</td><td class="right num">${fmtCompact(t.isk)}</td></tr>`)}</tbody></table>` : html`<div class="muted" style="font-size:12.5px">Nothing yet.</div>`}
+        ${d.topItems.length ? html`<h3 class="mh" style="margin-top:12px">What's paying</h3>${d.topItems.slice(0, 8).map(i => html`<div class="skill-row" style="font-size:12.5px"><span>${icon(i.typeId, 16)}${i.name} <span class="dim">× ${fmtNum(i.qty)}</span></span><span class="num">${fmtCompact(i.isk)}</span></div>`)}` : ''}</div>
+    </div>
+    <div class="panel" style="margin-top:14px;padding:0">${d.recent.length ? html`<table><thead><tr><th>When</th><th>Site</th><th>Type</th><th>System</th><th class="right">Loot</th><th class="right">Value</th><th></th></tr></thead><tbody>
+      ${d.recent.map(x => xRow('ex' + x.id, html`<td class="dim nowrap">${timeAgo(new Date(x.at).toISOString())}</td><td>${x.name || '—'}</td><td>${(d.types.find(t => t[0] === x.type) || [0, x.type])[1]}</td><td>${x.system || ''}</td><td class="right num">${x.items.length} item${x.items.length === 1 ? '' : 's'}</td><td class="right num">${fmtCompact(x.value)}</td><td><button class="btn btn-ghost" data-exrm="${x.id}" style="padding:1px 7px;font-size:11px" title="Remove this site">✕</button></td>`,
+        html`<div style="columns:2;font-size:12px">${x.items.map(i => html`<div>${icon(i.typeId, 14)}${i.name} × ${fmtNum(i.qty)} <span class="dim">${fmtCompact(d.price === 'sell' ? i.sell : i.buy)}</span></div>`)}</div>`, 7))}</tbody></table>` : emptyBox('No sites yet. Hack a can, paste the loot above, and the ISK per site and per hour fill in.')}</div>
+    ${d.runs.filter(r => r.sites).length ? html`<div class="panel" style="margin-top:14px"><h3>Runs</h3><table><thead><tr><th>Started</th><th class="right">Sites</th><th class="right">Time</th><th class="right">Loot</th><th class="right">ISK / hour</th></tr></thead><tbody>
+      ${d.runs.filter(r => r.sites).slice(0, 15).map(r => html`<tr><td>${fmtDate(new Date(r.start).toISOString())}${r.open ? html` <span class="badge accent">going</span>` : ''}</td><td class="right num">${r.sites}</td><td class="right num">${fmtDuration(r.ms, true)}</td><td class="right num">${fmtCompact(r.isk)}</td><td class="right num">${fmtCompact(r.perHour)}</td></tr>`)}</tbody></table></div>` : ''}
+    <div class="row" style="gap:10px;margin-top:10px;font-size:12.5px"><span class="dim">Value loot at</span><select id="ex-price" class="crumb-select"><option value="buy" ${raw(d.price !== 'sell' ? 'selected' : '')}>Jita buy</option><option value="sell" ${raw(d.price === 'sell' ? 'selected' : '')}>Jita sell</option></select>
+      <span style="flex:1"></span>${d.sites ? html`<button class="btn btn-ghost" id="ex-clear" style="font-size:12px">Clear log</button>` : ''}</div>`);
+  const redraw = r => { if (!r.ok) return toast(r.error, true); drawExplore(r.data); };
+  $('#ex-add').onclick = async () => {
+    const text = $('#ex-text').value; s.name = $('#ex-name').value.trim(); s.system = $('#ex-sys').value.trim(); s.type = $('#ex-type').value;
+    if (!text.trim()) return toast('Paste the loot first.', true);
+    $('#ex-add').disabled = true;
+    const r = await api.explore.add({ text, type: s.type, name: s.name, system: s.system });
+    if (!r.ok) { $('#ex-add').disabled = false; return toast(r.error, true); }
+    s.name = '';
+    toast(`${fmtCompact(r.data.site[r.data.price === 'sell' ? 'sell' : 'buy'])} ISK added${r.data.unknown.length ? ` (couldn't read ${r.data.unknown.length} line${r.data.unknown.length === 1 ? '' : 's'})` : ''}`);
+    drawExplore(r.data);
+  };
+  const st = $('#ex-start'); if (st) st.onclick = async () => redraw(await api.explore.start());
+  const sp = $('#ex-stop'); if (sp) sp.onclick = async () => redraw(await api.explore.stop());
+  $('#ex-price').onchange = async e => redraw(await api.explore.price(e.target.value));
+  const cl = $('#ex-clear'); if (cl) cl.onclick = async () => { if (!cl.dataset.sure) { cl.dataset.sure = '1'; cl.textContent = 'Click again to clear every site'; return; } redraw(await api.explore.clear()); };
+  document.querySelectorAll('[data-exrm]').forEach(b => b.onclick = async e => { e.stopPropagation(); redraw(await api.explore.remove(b.dataset.exrm)); });
 }

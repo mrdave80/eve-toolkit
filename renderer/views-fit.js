@@ -85,6 +85,7 @@ function drawFit(box = $('#ft-out'), d = fitState.data) {
       ${d.unknown.length ? html`<div class="notice" style="margin-top:10px">Not recognised: ${d.unknown.join(', ')}</div>` : ''}
       ${sc.problems.length ? html`<div class="notice" style="margin-top:10px">Too many modules: ${sc.problems.map(p => `${p.over} over in ${p.slot === 'turrets' ? 'turret hardpoints' : p.slot === 'launchers' ? 'launcher hardpoints' : SLOT_LABEL[p.slot].toLowerCase()}`).join(', ')}.</div>` : ''}</div>
     <div id="ft-stats">${fitStatsPanel(d, box)}</div>
+    <div class="panel" id="ft-hit"></div>
     <div class="grid grid-2" style="align-items:start">
       <div class="panel"><h3>Fitting</h3>${['high', 'med', 'low', 'rig', 'sub'].map(slotRow)}
         ${d.drones.length ? html`<div class="dim" style="font-size:11.5px;text-transform:uppercase;letter-spacing:.08em;margin:6px 0 4px">Drones</div>${d.drones.map(m => html`<div style="padding:2px 0">${icon(m.id, 20)}${m.qty} × ${m.name}</div>`)}` : ''}
@@ -112,10 +113,60 @@ function drawFit(box = $('#ft-out'), d = fitState.data) {
   box.querySelectorAll('[data-fit-plan]').forEach(b => b.onclick = async () => { const p = d.pilots.find(x => String(x.id) === b.dataset.fitPlan); await api.copy(p.missing.map(m => `${m.name} ${m.level}`).join('\n')); toast('Skill list copied. Paste it into a skill plan in game, or into the Skill Planner here.'); });
   const sf = box.querySelector('#ft-statsfor'); if (sf) sf.onchange = e => { fitState.statsFor = e.target.value; drawFit(box, d); };
   const er = box.querySelector('#ft-engine-retry'); if (er) er.onclick = async () => { er.disabled = true; er.textContent = 'Downloading…'; const r = await api.fit.engineUpdate(); if (!r.ok) { toast(r.error, true); er.disabled = false; er.textContent = 'Try again'; return; } const c = await api.fit.check(d.eft); if (c.ok) { if (box.id === 'ft-out') fitState.data = c.data; drawFit(box, c.data); } };
+  drawHitCalc(box.querySelector('#ft-hit'), d);
   box.querySelector('#ft-pyfa').onclick = async () => { await api.copy(d.eft); toast('Fit copied. In Pyfa, import it from the clipboard.'); };
   box.querySelector('#ft-appraise').onclick = () => appraiseFitModal(d);
   box.querySelector('#ft-save').onclick = () => openSaveFitModal(d);
   box.querySelector('#ft-lib').onclick = async () => { const r = await api.fitlib.add(d.eft, { source: 'checker' }); if (!r.ok) return toast(r.error, true); toast(r.data.added ? 'Added to your fit library' : 'That fit is already in your library'); };
+}
+
+// ---------- Hit chance: transversal and missile application ----------
+
+const hitState = { mode: 'turret', tracking: 30, optimal: 20, falloff: 10, tSig: 125, dist: 15, trans: 300, exRad: 40, exVel: 150, drf: 0.5, tSpeed: 300, missSig: 125 };
+/** Turret hit chance: 0.5 ^ ((angular × 40,000 / (tracking × sig))² + (max(0, distance − optimal) / falloff)²). */
+function turretHit(o) {
+  const dist = Math.max(1, o.dist * 1000), ang = o.trans / dist;
+  const t = o.tracking > 0 && o.tSig > 0 ? (ang * 40000) / (o.tracking * o.tSig) : 0;
+  const r = o.falloff > 0 ? Math.max(0, dist - o.optimal * 1000) / (o.falloff * 1000) : (dist > o.optimal * 1000 ? 99 : 0);
+  return Math.pow(0.5, t * t + r * r);
+}
+/** Missile damage: min(1, S/E, (S/E × Ve/Vt)^drf). */
+function missileApp(o) {
+  if (!(o.exRad > 0)) return 1;
+  const se = o.missSig / o.exRad;
+  const v = o.tSpeed > 0 ? Math.pow(se * o.exVel / o.tSpeed, o.drf) : 1;
+  return Math.max(0, Math.min(1, se, v));
+}
+function drawHitCalc(el, d) {
+  if (!el) return;
+  const s = hitState, st = d && d.engine && d.engine.allV;
+  const num = (id, label, v, step, hint) => html`<div class="field" style="margin:0"><label>${label}</label><input type="number" data-hit="${id}" value="${v}" step="${step}" min="0">${hint ? html`<div class="dim" style="font-size:11px">${hint}</div>` : ''}</div>`;
+  const pct = x => Math.round(x * 1000) / 10 + '%';
+  const body = () => {
+    if (s.mode === 'turret') {
+      const hit = turretHit(s);
+      // Transversal that still gives 50% at this range and sig (ignoring range).
+      const t50 = s.tracking * s.tSig * Math.max(1, s.dist * 1000) / 40000;
+      const dists = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2].map(f => Math.max(1, Math.round((s.optimal + s.falloff) * f)));
+      return html`<div class="grid grid-3" style="margin:10px 0">${stat('Chance to hit', pct(hit), hit >= 0.5 ? 'good application' : hit >= 0.2 ? 'poor' : 'barely hitting', hit >= 0.5 ? 'pos' : hit < 0.2 ? 'neg' : 'gold')}${stat('Angular velocity', (s.trans / Math.max(1, s.dist * 1000)).toFixed(4) + ' rad/s')}${stat('Transversal for 50% (tracking only)', fmtNum(Math.round(t50)) + ' m/s', `at ${s.dist} km`)}</div>
+        <table><thead><tr><th>Range</th>${dists.map(x => html`<th class="right">${x} km</th>`)}</tr></thead><tbody>
+        ${[0, 100, 300, 600, 1000].map(tv => html`<tr><td class="dim">${tv} m/s transversal</td>${dists.map(x => { const h = turretHit({ ...s, dist: x, trans: tv }); return html`<td class="right num ${h >= 0.5 ? 'pos' : h < 0.2 ? 'neg' : ''}">${Math.round(h * 100)}%</td>`; })}</tr>`)}</tbody></table>
+        <div class="dim" style="font-size:11.5px;margin-top:6px">Turret tracking (the number on Show Info, such as 30 or 250), optimal and falloff are on the turret's Show Info (with your skills, in the fitting window). A hit chance also scales damage: glancing hits do less, wrecking hits more.</div>`;
+    }
+    const app = missileApp(s);
+    return html`<div class="grid grid-3" style="margin:10px 0">${stat('Damage applied', pct(app), app >= 0.9 ? 'full damage' : app >= 0.5 ? 'some lost' : 'most lost', app >= 0.9 ? 'pos' : app < 0.5 ? 'neg' : 'gold')}${stat('Signature limit', pct(Math.min(1, s.missSig / Math.max(1, s.exRad))), 'target sig ÷ explosion radius')}${stat('Speed limit', pct(Math.min(1, s.tSpeed > 0 ? Math.pow((s.missSig / Math.max(1, s.exRad)) * s.exVel / s.tSpeed, s.drf) : 1)), 'from explosion velocity')}</div>
+      <div class="dim" style="font-size:11.5px">Explosion radius, explosion velocity and damage reduction factor are on the missile's Show Info. Target painters raise sig; webs cut target speed.</div>`;
+  };
+  el.innerHTML = String(html`<div style="display:flex;align-items:center;gap:10px"><h3 style="margin:0;flex:1">Hit chance and application</h3>
+      <div class="seg"><button data-hitm="turret" class="${s.mode === 'turret' ? 'active' : ''}">Turrets</button><button data-hitm="missile" class="${s.mode === 'missile' ? 'active' : ''}">Missiles</button></div>
+      ${st && st.sig ? html`<button class="btn btn-ghost" id="hit-self" style="font-size:12px;padding:2px 9px" title="Use this fit's signature and speed as the target">This ship as target</button>` : ''}</div>
+    <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin-top:10px">
+      ${s.mode === 'turret' ? html`${num('tracking', 'Turret tracking', s.tracking, 0.1)}${num('optimal', 'Optimal (km)', s.optimal, 0.1)}${num('falloff', 'Falloff (km)', s.falloff, 0.1)}${num('tSig', 'Target sig (m)', s.tSig, 1)}${num('dist', 'Range (km)', s.dist, 0.5)}${num('trans', 'Transversal (m/s)', s.trans, 10)}`
+        : html`${num('exRad', 'Explosion radius (m)', s.exRad, 1)}${num('exVel', 'Explosion velocity (m/s)', s.exVel, 1)}${num('drf', 'Damage reduction factor', s.drf, 0.01)}${num('missSig', 'Target sig (m)', s.missSig, 1)}${num('tSpeed', 'Target speed (m/s)', s.tSpeed, 10)}`}</div>
+    <div id="hit-out">${body()}</div>`);
+  el.querySelectorAll('[data-hit]').forEach(i => i.oninput = () => { const v = Number(i.value); if (Number.isFinite(v)) { s[i.dataset.hit] = v; el.querySelector('#hit-out').innerHTML = String(body()); } });
+  el.querySelectorAll('[data-hitm]').forEach(b => b.onclick = () => { s.mode = b.dataset.hitm; drawHitCalc(el, d); });
+  const self = el.querySelector('#hit-self'); if (self) self.onclick = () => { s.tSig = s.missSig = Math.round(st.sig); if (st.speed) s.tSpeed = s.trans = Math.round(st.speed); drawHitCalc(el, d); toast(`Target set to this ${d.ship}: ${s.tSig} m sig, ${s.tSpeed} m/s`); };
 }
 
 async function appraiseFitModal(d) {

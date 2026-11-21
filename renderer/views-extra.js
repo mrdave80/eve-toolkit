@@ -183,9 +183,10 @@ function viewIndustry(d) {
 }
 
 function viewBlueprints(list) {
-  let kind = 'all';
+  let kind = 'all', shown = list;
   const draw = (q = '') => {
-    const rows = list.filter(b => (kind === 'all' || (kind === 'bpo' ? b.original : !b.original)) && (!q || b.name.toLowerCase().includes(q)));
+    const rows = list.filter(b => (kind === 'all' || (kind === 'bpo' ? b.original : !b.original)) && (!q || b.name.toLowerCase().includes(q) || String(b.location || '').toLowerCase().includes(q)));
+    shown = rows;
     const bpo = list.filter(b => b.original).length;
     const researched = list.filter(b => b.original && b.me === 10 && b.te === 20).length;
     content().querySelector('#bp-body').innerHTML = String(rows.length ? html`<table><thead><tr><th>Blueprint</th><th>Type</th><th class="right">ME</th><th class="right">TE</th><th class="right">Runs</th><th class="right">Qty</th><th class="right">Est. value</th><th>Location</th></tr></thead><tbody>
@@ -199,10 +200,24 @@ function viewBlueprints(list) {
   };
   setContent(html`<div class="grid grid-3" style="margin-bottom:16px" id="bp-stats"></div>
     <div class="toolbar"><input type="search" id="bp-q" placeholder="Search blueprints…"><div class="seg">
-      <button data-bk="all" class="active">All</button><button data-bk="bpo">Originals</button><button data-bk="bpc">Copies</button></div></div>
+      <button data-bk="all" class="active">All</button><button data-bk="bpo">Originals</button><button data-bk="bpc">Copies</button></div>
+      <span style="flex:1"></span><button class="btn btn-ghost" id="bp-csv" title="The blueprints shown, with values and a total: for courier collateral or insurance">Export for collateral</button></div>
     <div class="panel" style="padding:0"><div class="table-wrap" id="bp-body"></div></div>`);
   draw();
   $('#bp-q').oninput = e => draw(e.target.value.trim().toLowerCase());
+  $('#bp-q').placeholder = 'Search blueprints or a location…';
+  $('#bp-csv').onclick = async () => {
+    const rows = shown.slice().sort((a, b) => String(a.location).localeCompare(String(b.location)) || (b.value || 0) - (a.value || 0));
+    if (!rows.length) return toast('No blueprints to export', true);
+    const total = rows.reduce((n, b) => n + (b.value || 0) * (b.quantity || 1), 0), unpriced = rows.filter(b => !b.value).length;
+    const out = [['Blueprint', 'Type', 'ME', 'TE', 'Runs', 'Quantity', 'Value each (ISK)', 'Value (ISK)', 'Location'],
+      ...rows.map(b => [b.name, b.original ? 'Original' : 'Copy', b.me, b.te, b.original ? '' : b.runs, b.quantity || 1, b.value ? Math.round(b.value) : '', b.value ? Math.round(b.value * (b.quantity || 1)) : '', b.location || '']),
+      [], ['Total', '', '', '', '', rows.reduce((n, b) => n + (b.quantity || 1), 0), '', Math.round(total), unpriced ? `${unpriced} with no price` : '']];
+    const c = state.characters.find(x => x.id === state.charId);
+    const f = await api.saveCsv(`blueprints ${(c && c.name) || ''}`.trim(), out);
+    if (f && f.ok && f.data) toast(`Saved ${rows.length} blueprints, ${fmtCompact(total)} ISK${unpriced ? ` (${unpriced} unpriced)` : ''}`);
+    else if (f && !f.ok) toast(f.error, true);
+  };
   document.querySelectorAll('[data-bk]').forEach(b => b.onclick = () => {
     kind = b.dataset.bk;
     document.querySelectorAll('[data-bk]').forEach(x => x.classList.toggle('active', x === b));
@@ -608,9 +623,14 @@ function viewFittings(list) {
 
 // ================= All-pilot boards =================
 
+/** Run a loader for every pilot shown (the sidebar's group filter applies), six at a time, results in pilot order. */
 async function eachPilot(loader) {
-  const pilots = state.characters.filter(c => !c.needsReauth);
-  return Promise.all(pilots.map(async c => ({ c, r: await loader(c.id) })));
+  const pilots = (typeof shownPilots === 'function' ? shownPilots() : state.characters).filter(c => !c.needsReauth);
+  const out = new Array(pilots.length); let next = 0;
+  await Promise.all(Array.from({ length: Math.min(6, pilots.length) }, async () => {
+    while (next < pilots.length) { const i = next++; const c = pilots[i]; let r; try { r = await loader(c.id); } catch (e) { r = { ok: false, error: e.message }; } out[i] = { c, r }; }
+  }));
+  return out;
 }
 
 async function renderTrainingAll(stillCurrent) {

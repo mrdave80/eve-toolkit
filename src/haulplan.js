@@ -44,4 +44,20 @@ function plan(items, o = {}) {
   };
 }
 
-module.exports = { plan };
+/** A hull's holds from the game data: cargo plus any specialised hold (fleet hangar, ship hangar, ore, infrastructure…).
+ *  Base values: hauler skills and cargo expanders add to these in game. */
+function hull(q) {
+  const sde = require('./sde');
+  const id = Number(q) || sde.typeIdByName(String(q || ''));
+  const t = id && sde.type(id);
+  if (!t || t.categoryId !== 6) throw new Error('Pick a ship.');
+  const holds = [{ key: 'cargo', name: 'Cargo hold', m3: t.capacity || 0 }];
+  for (const a of sde.fullAttrs(id) || []) {
+    if (a.unit !== 'm3' || !(a.value > 0)) continue;
+    if (!/hold|bay|hangar/i.test(a.name) || /drone bay|fighter|frigate escape/i.test(a.name)) continue;
+    holds.push({ key: String(a.id), name: a.name, m3: a.value });
+  }
+  return { id, name: t.name, group: t.group, holds, full: !!sde.fullAttrs(id) };
+}
+
+module.exports = { hull, plan };

@@ -82,7 +82,7 @@ const contracts = [
   { type: 'courier', title: 'Ore haul', status: 'in_progress', issuer_id: 2119000002, issuerName: 'Mike Hunt', acceptorName: 'Hugh Jayness', reward: 18000000, collateral: 600000000, date_expired: iso(now + 2 * D), startName: 'Amarr VIII (Oris)', endName: 'Jita IV - Moon 4', availability: 'personal' },
   { type: 'item_exchange', title: 'PLEX x 500', status: 'outstanding', issuer_id: 2119000001, issuerName: 'Richard Fitzwell', price: 2210000000, date_expired: iso(now + 13 * D), startName: 'Jita IV - Moon 4 - Caldari Navy Assembly Plant', availability: 'public' }
 ];
-const MOCK_SETTINGS = { pilotAlerts: { 2119000005: 'online', 2119000003: 'off' }, onboardingDone: true, clientId: '3f1c0a9e2b7d4c51a8e6f0b2d9c4e7a1', callbackPort: 51515, notifications: true, minimizeToTray: true, refreshMinutes: 15, theme: process.env.MOCK_THEME || 'capsuleer' };
+const MOCK_SETTINGS = { pilotGroups: { 2119000001: 'Main', 2119000002: 'Main', 2119000003: 'Farm', 2119000004: 'Alt', 2119000005: 'Alt', 2119000006: 'Farm' }, pilotAlerts: { 2119000005: 'online', 2119000003: 'off' }, onboardingDone: true, clientId: '3f1c0a9e2b7d4c51a8e6f0b2d9c4e7a1', callbackPort: 51515, notifications: true, minimizeToTray: true, refreshMinutes: 15, theme: process.env.MOCK_THEME || 'capsuleer' };
 const api = {
   info: async () => ({ ok: true, data: { version: '1.11.0', os: 'Windows 11 Pro (10.0.26100)', electron: '38.8.6', userData: 'C:\\Users\\Capsuleer\\AppData\\Roaming\\EVE Toolkit', scopes: [] } }),
   getSettings: async () => ({ ok: true, data: { ...MOCK_SETTINGS } }),
@@ -956,6 +956,27 @@ if (api.update) { api.update.check = async () => ({ ok: true, data: { current: '
   if (api.market) api.market.losses = async () => ({ ok: true, data: { week: 142, weekCapped: false, perDay: 20.3, totalLost: 51234, months: ['2025-12', '2026-01', '2026-02', '2026-03', '2026-04', '2026-05', '2026-06', '2026-07', '2026-08', '2026-09', '2026-10', '2026-11'].map((month, i) => ({ month, lost: 380 + ((i * 53) % 210), isk: 2e9 })) } });
   api.walletCsv = async () => ({ ok: true, data: [['date']] });
   api.onCloseTab = () => {};
+  const exSites = [['Ruined Sansha Temple Site', 'relic', 'Hophib', 61e6, [['Intact Armor Plates', 25606, 3, 39e6], ['Melted Nanoribbons', 30259, 4, 14e6], ['Neurovisual Output Analyzer', 30252, 2, 8e6]]],
+    ['Central Guristas Survey Site', 'data', 'Hophib', 22e6, [['Datacore - Mechanical Engineering', 20424, 6, 2.4e6], ['Guristas Shatter Generator Blueprint', 31120, 1, 19e6]]],
+    ['Forgotten Perimeter Coronation Platform', 'relic', 'J104532', 184e6, [['Fused Nanomechanical Engines', 30251, 5, 120e6], ['Electromechanical Interface Nexus', 30248, 6, 64e6]]],
+    ['Unsecured Perimeter Information Center', 'data', 'J104532', 96e6, [['Cartesian Temporal Coordinator', 30270, 3, 52e6], ['Central System Controller', 30268, 2, 44e6]]],
+    ['Ruined Guristas Monument Site', 'relic', 'Rakapas', 33e6, [['Intact Armor Plates', 25606, 2, 26e6], ['Tripped Power Circuit', 25598, 9, 7e6]]]]
+    .map(([name, type, system, buy, items], i) => ({ id: 's' + i, run: 'r1', at: Date.now() - (i * 11 + 4) * 60000, type, name, system, buy, sell: buy * 1.25, value: buy, items: items.map(([n, t, q, b]) => ({ name: n, typeId: t, qty: q, buy: b, sell: b * 1.25 })) }));
+  const exSum = { price: 'buy', total: 396e6, sites: 5, hours: 1.05, perHour: 377e6, perSite: 79e6, open: { id: 'r1', start: Date.now() - 63 * 60000, open: true, sites: 5, isk: 396e6, ms: 63 * 60000, perHour: 377e6 },
+    runs: [{ id: 'r1', start: Date.now() - 63 * 60000, open: true, sites: 5, isk: 396e6, ms: 63 * 60000, perHour: 377e6 }, { id: 'r0', start: Date.now() - 3 * 86400000, open: false, sites: 9, isk: 412e6, ms: 2.2 * 3600000, perHour: 187e6 }],
+    byType: [{ type: 'relic', label: 'Relic', sites: 3, isk: 278e6, perSite: 92.7e6, best: 184e6 }, { type: 'data', label: 'Data', sites: 2, isk: 118e6, perSite: 59e6, best: 96e6 }],
+    recent: exSites, topItems: [['Fused Nanomechanical Engines', 30251, 5, 120e6], ['Intact Armor Plates', 25606, 5, 65e6], ['Electromechanical Interface Nexus', 30248, 6, 64e6], ['Cartesian Temporal Coordinator', 30270, 3, 52e6], ['Central System Controller', 30268, 2, 44e6]].map(([name, typeId, qty, isk]) => ({ name, typeId, qty, isk })),
+    types: [['relic', 'Relic'], ['data', 'Data'], ['ghost', 'Ghost site'], ['sleeper', 'Sleeper cache'], ['combat', 'Combat / DED'], ['other', 'Other']] };
+  const exR = async () => ({ ok: true, data: exSum });
+  api.explore = { get: exR, add: async () => ({ ok: true, data: { ...exSum, site: exSites[0], unknown: [] } }), remove: exR, start: exR, stop: exR, price: exR, clear: exR };
+  const slots = (h, m, l, d) => ({ high: h.map(([n, t, c]) => ({ name: n, typeId: t, n: c })), mid: m.map(([n, t, c]) => ({ name: n, typeId: t, n: c })), low: l.map(([n, t, c]) => ({ name: n, typeId: t, n: c })), rig: [], sub: [], drones: d.map(([n, t, c]) => ({ name: n, typeId: t, n: c })), fighters: [] });
+  api.pilot.likelyFits = async () => ({ ok: true, data: { id: 1, name: 'Hostile', totalKills: 30, hulls: [
+    { typeId: 11377, name: 'Sabre', group: 'Interdictor', kills: 14, lastFlown: iso(now - 5 * H), loss: { id: 1, time: iso(now - 9 * D), system: 'Tama' }, fit: { slots: slots([['Interdiction Sphere Launcher I', 22778, 1], ['200mm AutoCannon II', 2873, 5]], [['Warp Disruptor II', 3244, 1], ['5MN Microwarpdrive II', 35658, 1], ['Medium Shield Extender II', 3831, 2]], [['Damage Control II', 2048, 1], ['Nanofiber Internal Structure II', 2605, 2]], []), tags: [{ label: 'Point', tone: 'red' }, { label: 'Bubble', tone: 'red' }, { label: 'MWD', tone: '' }], weapon: 'Projectiles', point: 'long point', tank: 'Shield', eft: '[Sabre, x]' } },
+    { typeId: 11202, name: 'Huginn', group: 'Combat Recon Ship', kills: 9, lastFlown: iso(now - 2 * D), loss: { id: 2, time: iso(now - 30 * D), system: 'Kedama' }, fit: { slots: slots([['Rapid Light Missile Launcher II', 1877, 4]], [['Stasis Webifier II', 527, 2], ['Warp Scrambler II', 448, 1], ['50MN Microwarpdrive II', 12076, 1]], [['Ballistic Control System II', 22291, 2]], [['Warrior II', 2486, 5]]), tags: [{ label: 'Point', tone: 'red' }, { label: 'Web', tone: 'red' }, { label: 'MWD', tone: '' }], weapon: 'Missiles', point: 'scram', tank: 'Shield', eft: '[Huginn, x]' } },
+    { typeId: 17722, name: 'Vigilant', group: 'Navy Faction Cruiser', kills: 4, lastFlown: iso(now - 12 * D), loss: null, fit: null }] } });
+  api.fitcode = { encode: async (eft, p) => ({ ok: true, data: { code: 'ETFIT1:q1ZKVrJSMlMy0jE0MDAwNTI1MTAyNlLSUSpWsjIy0lEqVrIyMDS2MDQyMTQ2tDC0NDE0MTA0MTUwNTEy', pilot: p } }), check: async () => ({ ok: true, data: { ok: 3, bad: [], rows: [] } }) };
+  api.haul.hull = async () => ({ ok: true, data: { id: 12753, name: 'Impel', group: 'Deep Space Transport', holds: [{ key: 'cargo', name: 'Cargo hold', m3: 5800 }, { key: '912', name: 'Fleet Hangar Capacity', m3: 62500 }], full: true } });
+  if (api.phone) api.phone.digestNow = async () => ({ ok: true, data: true });
 }
 contextBridge.exposeInMainWorld('api', api);
 contextBridge.exposeInMainWorld('__mock', { sdeCheck: v => { globalThis.__sdeCheck = v; } });

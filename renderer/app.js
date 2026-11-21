@@ -119,11 +119,26 @@ const setContent = h => { content().innerHTML = String(h); };
 
 // ================= Sidebar =================
 
+// ---- Pilot groups (mains, alts, farms…): filter the sidebar, dashboard and set alerts per group ----
+const pilotGroupOf = id => ((state.settings || {}).pilotGroups || {})[id] || '';
+const pilotGroups = () => [...new Set(state.characters.map(c => pilotGroupOf(c.id)).filter(Boolean))].sort();
+const pilotFilter = () => { try { const f = localStorage.getItem('pilotFilter') || ''; return pilotGroups().includes(f) ? f : ''; } catch { return ''; } };
+/** Pilots shown on the sidebar and the dashboard: all, or just the chosen group. */
+const shownPilots = () => { const f = pilotFilter(); return f ? state.characters.filter(c => pilotGroupOf(c.id) === f) : state.characters; };
+function drawPilotChips() {
+  const el = $('#pgroup-chips'); if (!el) return;
+  const gs = pilotGroups();
+  if (!gs.length) { el.innerHTML = ''; return; }
+  const f = pilotFilter();
+  el.innerHTML = String(html`<div class="pgroup-chips">${[['', 'All'], ...gs.map(g => [g, g])].map(([k, l]) => html`<button class="pg-chip ${k === f ? 'on' : ''}" data-pgf="${k}">${l}<span class="dim"> ${k ? state.characters.filter(c => pilotGroupOf(c.id) === k).length : state.characters.length}</span></button>`)}</div>`);
+  el.querySelectorAll('[data-pgf]').forEach(b => b.onclick = () => { try { localStorage.setItem('pilotFilter', b.dataset.pgf); } catch {} renderSidebar(); if (['dashboard', 'trainingAll', 'industryAll', 'planetsAll'].includes(state.view)) render(); });
+}
+
 function renderSidebar() {
   document.querySelectorAll('.side-link').forEach(b => b.classList.toggle('active', b.dataset.view === state.view));
-
+  drawPilotChips();
   const list = $('#char-list');
-  list.innerHTML = state.characters.map(c => {
+  list.innerHTML = shownPilots().map(c => {
     const o = state.overviews.get(c.id);
     let sub = 'Loading…';
     let warn = c.needsReauth;
@@ -170,11 +185,11 @@ function renderTopbar() {
     const labelOf = k => { for (const [, items] of TOOLS_GROUPS) for (const [id, l] of items) if (id === k) return l; return k; };
     const showPinned = state.toolsPinned && (pins.includes(cur) || recent.includes(cur));
     tabs.innerHTML = (pins.length || recent.length ? `<button class="tab ${showPinned ? 'active' : ''}" data-tpinned="1" title="Pinned and recent tools">★</button>` : '') +
-      TOOLS_GROUPS.map(([name, items]) => `<button class="tab ${!showPinned && g[0] === name ? 'active' : ''}" data-ttab="${items[0][0]}" data-tgroup="${name}">${name}</button>`).join('');
+      (typeof shownToolGroups === 'function' ? shownToolGroups(cur) : TOOLS_GROUPS).map(([name, items]) => `<button class="tab ${!showPinned && g[0] === name ? 'active' : ''}" data-ttab="${items[0][0]}" data-tgroup="${name}">${name}</button>`).join('');
     const pinBtn = `<span style="flex:1"></span><button class="tab tool-pin ${pins.includes(cur) ? 'on' : ''}" data-tpin="${cur}" title="${pins.includes(cur) ? 'Unpin this tool' : 'Pin this tool to ★'}">${pins.includes(cur) ? '★' : '☆'}</button>`;
     sub.innerHTML = showPinned
       ? pins.map(k => `<button class="tab ${cur === k ? 'active' : ''}" data-ttab="${k}" data-tkeep="1">★ ${esc(labelOf(k))}</button>`).join('') + (recent.length ? `<span class="dim" style="align-self:center;font-size:11.5px;margin:0 6px 0 14px">Recent</span>` + recent.map(k => `<button class="tab ${cur === k ? 'active' : ''}" data-ttab="${k}" data-tkeep="1">${esc(labelOf(k))}</button>`).join('') : '') + pinBtn
-      : (g[1].length > 1 ? g[1].map(([k, label]) => `<button class="tab ${cur === k ? 'active' : ''}" data-ttab="${k}">${label}</button>`).join('') : '') + pinBtn;
+      : (() => { const items = g[1].filter(([k]) => typeof toolShown !== 'function' || toolShown(k) || k === cur); return items.length > 1 ? items.map(([k, label]) => `<button class="tab ${cur === k ? 'active' : ''}" data-ttab="${k}">${label}</button>`).join('') : ''; })() + pinBtn;
   } else if (state.view === 'corp') {
     const dirs = (corpState.directors || []);
     crumb.innerHTML = dirs.length > 1
@@ -251,19 +266,28 @@ async function renderDashboard(stillCurrent) {
       <button class="btn btn-primary" data-action="add">+ Add pilot</button></div>`);
     return;
   }
-  const cards = () => html`<div class="grid grid-cards">${state.characters.map(c => charCard(c))}</div>`;
+  const pilots = shownPilots();
+  const cards = () => html`<div class="grid grid-cards">${pilots.map(c => charCard(c))}</div>`;
   setContent(cards());
-  await Promise.all(state.characters.filter(c => !c.needsReauth).map(async c => {
-    const r = await api.overview(c.id);
-    if (r.ok) state.overviews.set(c.id, r.data);
-    if (stillCurrent()) { setContent(cards()); }
-    renderSidebar();
+  // Six at a time, repainting at most every 250 ms, so 50+ pilots don't redraw the page 50 times or flood ESI.
+  let dirty = false, timer = null;
+  const paint = () => { timer = null; if (!dirty) return; dirty = false; if (stillCurrent()) setContent(cards()); renderSidebar(); };
+  const queue = pilots.filter(c => !c.needsReauth && !state.overviews.has(c.id)).concat(pilots.filter(c => !c.needsReauth && state.overviews.has(c.id)));
+  await Promise.all(Array.from({ length: Math.min(6, queue.length) }, async () => {
+    while (queue.length) {
+      const c = queue.shift();
+      const r = await api.overview(c.id);
+      if (r.ok) state.overviews.set(c.id, r.data);
+      dirty = true; if (!timer) timer = setTimeout(paint, 250);
+      if (!stillCurrent()) return;
+    }
   }));
+  if (timer) { clearTimeout(timer); timer = null; } renderSidebar();
   if (stillCurrent()) {
-    const total = [...state.overviews.values()].reduce((a, o) => ({ sp: a.sp + (o.totalSp || 0), isk: a.isk + (o.wallet || 0) }), { sp: 0, isk: 0 });
+    const total = pilots.map(c => state.overviews.get(c.id)).filter(Boolean).reduce((a, o) => ({ sp: a.sp + (o.totalSp || 0), isk: a.isk + (o.wallet || 0) }), { sp: 0, isk: 0 });
     setContent(html`
       <div class="grid grid-3" style="margin-bottom:16px">
-        <div class="stat"><div class="label">Pilots</div><div class="value">${state.characters.length}</div></div>
+        <div class="stat"><div class="label">Pilots${pilotFilter() ? html` · ${pilotFilter()}` : ''}</div><div class="value">${pilots.length}</div>${pilotFilter() ? html`<div class="hint">of ${state.characters.length}</div>` : ''}</div>
         <div class="stat"><div class="label">Combined skill points</div><div class="value">${fmtNum(total.sp)}</div></div>
         <div class="stat" data-private><div class="label">Combined wallets</div><div class="value">${fmtCompact(total.isk)} ISK</div><div class="hint">${fmtIsk(total.isk)}</div></div>
       </div>
@@ -429,6 +453,8 @@ async function renderSettings() {
           <span class="dim">but still alert me about</span>${[['attack', 'being attacked'], ['intel', 'intel near my pilots'], ['structures', 'structure attacks']].map(([k, l]) => html`<label class="check" style="margin:0"><input type="checkbox" data-qallow="${k}" ${raw(((st.quiet && st.quiet.allow) || ['attack']).includes(k) ? 'checked' : '')}> ${l}</label>`)}</div>
         ${state.characters.length ? html`<div class="dim" style="margin:12px 0 6px">Alerts for each pilot. Alts you rarely play can be set to alert only while they're logged in to EVE, or not at all:</div>
           ${pilotAlertRows(st)}` : ''}
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:4px 0 14px"><button type="button" class="btn btn-ghost" id="s-playstyle">What you play…</button><span class="dim" style="font-size:12px">Shows only the tools for your activities.</span>
+          <span style="flex:1"></span><span class="dim" style="font-size:12px">Zoom</span><select id="s-zoom" class="crumb-select">${[0.8, 0.9, 1, 1.1, 1.25, 1.4, 1.6].map(z => html`<option value="${z}" ${raw(Math.abs(z - (typeof zoomLevel !== 'undefined' ? zoomLevel : 1)) < 0.03 ? 'selected' : '')}>${Math.round(z * 100)}%</option>`)}</select><span class="dim" style="font-size:11.5px">or Ctrl + / Ctrl −</span></div>
         <div class="field"><label for="s-refresh">Background check interval (minutes)</label><input id="s-refresh" type="number" min="5" max="240" value="${st.refreshMinutes}" style="max-width:140px"></div>
       </div>`)}
       <button class="btn btn-primary" id="s-save" style="margin:4px 0 12px">Save settings</button>
@@ -449,7 +475,8 @@ async function renderSettings() {
         ${state.characters.length ? html`<table><tbody>${state.characters.map(c => html`<tr>
           <td style="width:44px"><img src="${portrait(c.id, 32)}" width="32" height="32" style="border-radius:4px" alt=""></td>
           <td>${c.name} ${c.needsReauth ? raw('<span class="badge gold">Needs re-auth</span>') : ''}
-            ${c.missingScopes.length ? html`<div class="dim" style="font-size:12px">Missing scopes: ${c.missingScopes.join(', ')}</div>` : ''}</td>
+            ${c.missingScopes.length ? html`<div class="dim" style="font-size:12px">Missing scopes: ${c.missingScopes.join(', ')}</div>` : ''}
+            ${(c.notShared || []).length ? html`<div class="dim" style="font-size:12px">Not shared: ${c.notShared.map(g => (SCOPE_CHOICES.find(x => x[0] === g) || [g, g])[1]).join(', ')}. Sign in again to add.</div>` : ''}</td>
           <td class="right"><button class="btn btn-ghost" data-reauth="${c.id}">Re-authorise</button>
             <button class="btn btn-danger" data-remove="${c.id}">Remove</button></td></tr>`)}</tbody></table>`
           : html`<div class="muted">No pilots added.</div>`}
@@ -467,6 +494,7 @@ async function renderSettings() {
 
   document.querySelectorAll('[data-sfold]').forEach(d => d.addEventListener('toggle', () => { settingsOpen[d.dataset.sfold] = d.open; try { localStorage.setItem('settingsOpen', JSON.stringify(settingsOpen)); } catch {} }));
   fillUpdLast();
+  { const b = document.getElementById('s-playstyle'); if (b) b.onclick = () => openPlaystyle(false); const z = document.getElementById('s-zoom'); if (z) z.onchange = () => setZoom(Number(z.value)); }
   $('#s-openall').onclick = e => { e.preventDefault(); document.querySelectorAll('[data-sfold]').forEach(d => { d.open = true; }); };
   $('#s-closeall').onclick = e => { e.preventDefault(); document.querySelectorAll('[data-sfold]').forEach(d => { d.open = false; }); };
   $('#bk-make').onclick = () => openModal('Make a backup', html`${field('Password', html`<input type="password" name="pw" autocomplete="new-password">`, 'At least 8 characters. There is no way to recover a backup without it.')}${field('Password again', html`<input type="password" name="pw2" autocomplete="new-password">`)}`, {
@@ -506,7 +534,8 @@ async function renderSettings() {
       updateUrl: $('#s-upd').value,
       refreshMinutes: $('#s-refresh').value,
       quiet: { enabled: $('#s-qon').checked, from: $('#s-qfrom').value, to: $('#s-qto').value, allow: [...document.querySelectorAll('[data-qallow]')].filter(c => c.checked).map(c => c.dataset.qallow) },
-      pilotAlerts: Object.fromEntries([...document.querySelectorAll('[data-palert]')].map(x => [x.dataset.palert, x.value]))
+      pilotAlerts: Object.fromEntries([...document.querySelectorAll('[data-palert]')].map(x => [x.dataset.palert, x.value])),
+      pilotGroups: Object.fromEntries([...document.querySelectorAll('[data-pgroup]')].map(x => [x.dataset.pgroup, x.value.trim()]))
     });
     if (!r.ok) return toast(r.error, true);
     await api.piWatch.cfg({ leadHours: Number($('#s-piw-h').value), reminders: $('#s-piw-r').checked });
@@ -555,10 +584,36 @@ document.addEventListener('click', async e => {
   render();
 });
 
+const SCOPE_CHOICES = [
+  ['market', 'Market orders and contracts', 'Order undercut alerts, trade profit, contract boards and history', true],
+  ['fittings', 'Saved fittings', 'Importing your in-game fits into the fit library', true],
+  ['social', 'LP, research agents, medals and FW', 'LP stores, datacore points, faction warfare stats', true],
+  ['mail', 'Mail and calendar', 'The mail inbox, alerts for new mail, op invites', false],
+  ['contacts', 'Contacts and standings', 'Who is blue or red in Local and on intel', false],
+  ['corpjobs', 'Corp industry jobs', 'Corp jobs on the industry board (needs a corp role)', false]
+];
+function pickScopes(corp) {
+  return new Promise(resolve => {
+    let saved = null; try { saved = JSON.parse(localStorage.getItem('scopeGroups') || 'null'); } catch {}
+    const on = k => (saved ? saved.includes(k) : SCOPE_CHOICES.find(x => x[0] === k)[3]);
+    let done = false;
+    openModal(corp ? 'Add a director or FC' : 'Add a pilot', html`<div class="muted" style="font-size:12.5px;margin-bottom:10px">EVE Toolkit always reads skills, wallet, location, assets, industry, planets and notifications. Tick anything else you want it to see. You can add more later by signing the pilot in again.</div>
+      ${SCOPE_CHOICES.map(([k, l, d]) => html`<label class="check" style="align-items:flex-start;margin-bottom:8px"><input type="checkbox" data-scg="${k}" ${raw(on(k) ? 'checked' : '')}> <span><b>${l}</b><br><span class="dim" style="font-size:12px">${d}</span></span></label>`)}
+      <label class="check" style="align-items:flex-start;margin-top:4px"><input type="checkbox" id="scg-corp" ${raw(corp ? 'checked' : '')}> <span><b>Corp access (directors and FCs)</b><br><span class="dim" style="font-size:12px">Members, structures, moons, corp wallets and fleets. Needs the pilot to hold the roles.</span></span></label>
+      <div class="dim" style="font-size:11.5px;margin-top:8px">Everything stays on this PC. The full list of permissions is under About &amp; support → Privacy and permissions.</div>`,
+      { submit: 'Sign in with EVE', onSubmit: () => { const g = [...document.querySelectorAll('[data-scg]')].filter(c => c.checked).map(c => c.dataset.scg); try { localStorage.setItem('scopeGroups', JSON.stringify(g)); } catch {} done = true; resolve({ groups: g, corp: $('#scg-corp').checked }); } });
+    const m = document.getElementById('modal');
+    if (m) new MutationObserver((_, ob) => { if (!document.getElementById('modal')) { ob.disconnect(); if (!done) resolve(null); } }).observe(document.body, { childList: true });
+  });
+}
+
 async function addCharacter(corp = false) {
   if (!state.settings.clientId) { go('settings'); return toast('Set your Client ID first.', true); }
+  const pick = await pickScopes(corp);
+  if (!pick) return;
+  corp = pick.corp;
   toast(corp ? 'Complete the director login in your browser (includes corp permissions)…' : 'Complete the login in your browser…');
-  const r = await api.addCharacter(corp);
+  const r = await api.addCharacter(corp, pick.groups);
   corpState.directors = null;
   if (!r.ok) return toast(r.error, true);
   const before = new Set(state.characters.map(c => c.id));
@@ -1083,8 +1138,11 @@ function pilotAlertMode(st, id) { const m = (st.pilotAlerts || {})[id]; return m
 function pilotAlertRows(st) {
   return html`<div class="pa-grid">${state.characters.map(c => { const m = pilotAlertMode(st, c.id); const canOnline = !c.needsReauth && !(c.missingScopes || []).includes('esi-location.read_online.v1');
     return html`<div class="pa-row"><span>${charImg(c.id, 20)}${c.name}${c.needsReauth ? html` <span class="dim" style="font-size:11px">login expired</span>` : ''}</span>
+      <input type="text" data-pgroup="${c.id}" list="pg-list" value="${pilotGroupOf(c.id)}" placeholder="Group" class="pg-input" spellcheck="false" maxlength="24" title="Group, such as Main, Alt or Farm">
       <select data-palert="${c.id}" class="crumb-select">${PILOT_ALERT_MODES.map(([k, l]) => html`<option value="${k}" ${raw(m === k ? 'selected' : '')} ${raw(k === 'online' && !canOnline ? 'disabled' : '')}>${l}${k === 'online' && !canOnline ? ' (needs re-authorising)' : ''}</option>`)}</select></div>`; })}</div>
-    <div class="dim" style="font-size:12px;margin:6px 0 12px">A pilot set to no alerts is also left out of daily goal reminders and Needs attention. Their alerts still go in the inbox (the bell), marked, so nothing is lost. Corp alerts such as structure attacks always come through.</div>`;
+    <datalist id="pg-list">${[...new Set(['Main', 'Alt', 'Farm', 'Cyno', 'Hauler', 'Market', ...pilotGroups()])].map(g => html`<option value="${g}">`)}</datalist>
+    ${pilotGroups().length ? html`<div class="row" style="gap:8px;margin-top:8px;font-size:12.5px"><span class="dim">Set a whole group:</span><select id="pg-set-g" class="crumb-select">${pilotGroups().map(g => html`<option>${g}</option>`)}</select><select id="pg-set-m" class="crumb-select">${PILOT_ALERT_MODES.map(([k, l]) => html`<option value="${k}">${l}</option>`)}</select><button type="button" class="btn btn-ghost" id="pg-set" style="padding:2px 10px">Apply</button></div>` : ''}
+    <div class="dim" style="font-size:12px;margin:6px 0 12px">Groups (Main, Alt, Farm or your own) add filter buttons above the pilot list and the dashboard. A pilot set to no alerts is also left out of daily goal reminders and Needs attention. Their alerts still go in the inbox (the bell), marked, so nothing is lost. Corp alerts such as structure attacks always come through.</div>`;
 }
 
 /** "Check for updates" buttons: ask GitHub now and say what was found. */
@@ -1107,6 +1165,13 @@ async function checkUpdatesNow(btn) {
   } else if (c.ok) toast(`You're on the latest version (${c.current})`);
   else toast(`Couldn't check for updates: ${c.error || 'no answer from GitHub'}`, true);
 }
+document.addEventListener('click', e => {
+  const b = e.target.closest && e.target.closest('#pg-set'); if (!b) return;
+  const g = $('#pg-set-g').value, m = $('#pg-set-m').value;
+  let n = 0;
+  document.querySelectorAll('[data-palert]').forEach(sel => { const inp = document.querySelector(`[data-pgroup="${sel.dataset.palert}"]`); if (inp && inp.value.trim() === g) { const o = sel.querySelector(`option[value="${m}"]`); if (o && !o.disabled) { sel.value = m; n++; sel.dispatchEvent(new Event('change', { bubbles: true })); } } });
+  toast(n ? `Set ${n} pilot${n === 1 ? '' : 's'} in ${g}. Save to keep it.` : `No pilots in ${g} could take that setting.`);
+});
 document.addEventListener('click', e => { const b = e.target.closest && e.target.closest('[data-updcheck]'); if (b) { e.preventDefault(); checkUpdatesNow(b); } });
 async function fillUpdLast() { const r = await api.update.lastCheck(); if (r.ok) document.querySelectorAll('[data-updlast]').forEach(el => { el.textContent = updLastText(r.data); }); }
 
@@ -1185,6 +1250,7 @@ api.onUpdate(showUpdateBanner);
   state.characters = c.ok ? c.data : [];
   if (state.settings.themeAuto && state.settings.themeAuto.enabled) refreshTheme();
   if (typeof restoreTabs === 'function') restoreTabs();
+  if (typeof applyPlaystyle === 'function') { applyPlaystyle(); maybeAskPlaystyle(); }
   renderSidebar();
   renderTopbar();
   render();

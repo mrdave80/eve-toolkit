@@ -57,9 +57,48 @@ async function openPilotCard(q, refresh) {
       <div><h3 class="mh">Recent activity</h3>${recent.length ? recent.map(k => html`<div class="skill-row" style="font-size:12.5px"><span><span class="badge ${k.loss ? 'red' : 'green'}" style="min-width:34px;text-align:center">${k.loss ? 'loss' : 'kill'}</span> ${icon(k.loss ? k.ship : (k.victimShip || k.ship), 18)}${k.loss ? k.shipName : (k.victimShipName || k.shipName) || '?'} <span class="dim">${k.system ? html`in <a href="#" data-system="${k.system}">${k.system}</a>` : ''}</span></span>
           <span class="dim nowrap">${k.value ? fmtCompact(k.value) + ' · ' : ''}${timeAgo(k.time)}</span></div>`) : html`<div class="muted">Nothing recent.</div>`}</div>
     </div>
+    ${p.zkError ? '' : html`<h3 class="mh" style="margin-top:14px">Likely fits</h3><div id="pop-lfits"></div>`}
     ${p.zkError ? html`<div class="notice" style="margin:10px 0 0">zKillboard didn't answer (${p.zkError}), so this grade uses ESI data only.</div>` : ''}`);
+  loadLikelyFits(box.querySelector('#pop-lfits'), p.id);
   const cp = box.querySelector('#pop-pcopy'); if (cp) cp.onclick = async () => { await api.copy(p.name); toast('Name copied.'); };
 }
+
+// ---------- Fit share codes ----------
+
+/** Turn a fit into a code to paste in fleet chat, so the FC's doctrine check can read it. */
+function openFitShare(eft) {
+  const pilots = state.characters.filter(c => !c.needsReauth);
+  const pick = (pilots.find(c => c.id === state.charId) || pilots[0] || {}).name || '';
+  openModal('Share this fit with your FC', html`<div class="muted" style="font-size:12.5px;margin-bottom:10px">Paste the code in fleet chat or Discord. The FC pastes everyone's codes into Corporation → Fleet → Doctrine check and sees who's on the doctrine fit and what's missing.</div>
+    ${field('Flown by', pilots.length ? select('pilot', pilots.map(c => [c.name, c.name]), pick) : inputText('pilot', '', 'Your pilot name'))}
+    <div class="field"><label>Code</label><textarea id="fs-code" rows="3" readonly spellcheck="false"></textarea></div>`, { submit: 'Copy code', onSubmit: async () => { const v = $('#fs-code').value; if (!v) return true; await api.copy(v); toast('Code copied. Paste it in fleet chat.'); } });
+  const make = async () => { const p = document.querySelector('#modal [name=pilot]').value; const r = await api.fitcode.encode(eft, p); $('#fs-code').value = r.ok ? r.data.code : ''; if (!r.ok) toast(r.error, true); };
+  document.querySelector('#modal [name=pilot]').addEventListener('change', make); document.querySelector('#modal [name=pilot]').addEventListener('input', make);
+  make();
+}
+
+// ---------- Likely fits (Local threats and the pilot card) ----------
+
+/** "What they'll be in": hulls flown on kills, with the fit from their last loss in each. */
+function likelyFitsHtml(d) {
+  if (!d || !d.hulls || !d.hulls.length) return html`<div class="muted" style="font-size:12.5px">No ships on zKillboard to go on.</div>`;
+  return html`${d.hulls.map(h => { const f = h.fit; return html`<div class="lf-hull">
+      <div style="display:flex;align-items:center;gap:8px">${icon(h.typeId, 24)}<b>${h.name}</b><span class="dim" style="font-size:12px">${h.group || ''}</span><span style="flex:1"></span>
+        <span class="dim" style="font-size:12px">${h.kills ? `${h.kills} kill${h.kills === 1 ? '' : 's'}` : 'lost only'}${h.lastFlown ? ` · ${timeAgo(h.lastFlown)}` : ''}</span></div>
+      ${f ? html`<div style="margin:5px 0 3px;display:flex;gap:4px;flex-wrap:wrap">${f.weapon ? html`<span class="badge">${f.weapon}</span>` : ''}${f.tank ? html`<span class="badge">${f.tank} tank</span>` : ''}${f.tags.map(t => html`<span class="badge ${t.tone}">${t.label}${t.label === 'Point' && f.point ? ` (${f.point})` : ''}</span>`)}</div>
+        <div class="dim" style="font-size:11.5px">${['high', 'mid', 'low'].map(k => f.slots[k].map(m => `${m.n > 1 ? m.n + '× ' : ''}${m.name}`).join(', ')).filter(Boolean).join(' · ')}${f.slots.drones.length ? ` · drones: ${f.slots.drones.map(x => `${x.n}× ${x.name}`).join(', ')}` : ''}</div>
+        <div style="margin-top:4px;font-size:12px"><span class="dim">From their loss ${timeAgo(h.loss.time)}${h.loss.system ? ` in ${h.loss.system}` : ''}.</span> <a href="#" data-lf-eft="${encodeURIComponent(f.eft)}">Check this fit</a> · <a href="#" data-link="https://zkillboard.com/kill/${h.loss.id}/">Killmail ↗</a></div>`
+      : html`<div class="dim" style="font-size:12px;margin-top:3px">${h.loss ? "Couldn't read the killmail." : 'Never lost one, so no fit to show.'}</div>`}</div>`; })}
+    <div class="dim" style="font-size:11px;margin-top:6px">A guess from public killmails: pilots refit. Treat it as what to expect, not what's on grid.</div>`;
+}
+async function loadLikelyFits(el, id) {
+  if (!el) return;
+  el.innerHTML = String(html`<div class="dim" style="font-size:12px">Reading their killmails…</div>`);
+  const r = await api.pilot.likelyFits(id);
+  if (!el.isConnected) return;
+  el.innerHTML = String(r.ok ? likelyFitsHtml(r.data) : html`<div class="dim" style="font-size:12px">${r.error}</div>`);
+}
+document.addEventListener('click', e => { const a = e.target.closest && e.target.closest('[data-lf-eft]'); if (a) { e.preventDefault(); openFitCard(decodeURIComponent(a.dataset.lfEft)); } });
 
 // ---------- Item card ----------
 
@@ -236,6 +275,7 @@ function openSaveFitModal(d) {
 async function openFitCard(eft) {
   popShell('Fit check', 'pop-fit', { loading: 'Checking the fit against your pilots…' });
   popFootButton('Open in fit checker', () => { fitState.text = eft; fitState.data = null; fitState.pending = true; state.toolsTab = 't-fit'; go('tools'); }, true);
+  popFootButton('Share code for FC', () => openFitShare(eft));
   const r = await api.fit.check(eft);
   const box = popBox('pop-fit'); if (!box) return;
   if (!r.ok) { box.innerHTML = String(errorView(r)); return; }

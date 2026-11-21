@@ -80,11 +80,13 @@ async function drawPhonePanel() {
     <div class="dim" style="margin:4px 0 6px">Send these:</div>
     <div class="pi-chips">${Object.entries(c.categoryLabels).map(([k, l]) => html`<label class="check" style="margin:0 14px 6px 0"><input type="checkbox" data-ph-cat="${k}" ${raw(c.categories[k] ? 'checked' : '')}> ${l}</label>`)}</div>
     <label class="check" style="margin-top:6px"><input type="checkbox" id="ph-away" ${raw(c.onlyAway ? 'checked' : '')}> Only while EVE Toolkit isn't the active window</label>
+    <div class="row" style="gap:8px;margin-top:10px;align-items:center;flex-wrap:wrap"><label class="check" style="margin:0"><input type="checkbox" id="ph-dig" ${raw(c.digest ? 'checked' : '')}> <b>Daily digest</b> at</label><input type="time" id="ph-digat" value="${c.digestAt || '08:00'}" style="width:110px"><span class="dim" style="font-size:12px">One message a day with everything under Needs attention, pilots training and wallet total. Sent while EVE Toolkit is running (or the next time it starts that day).</span><button class="btn btn-ghost" id="ph-dignow" style="padding:2px 9px;font-size:12px">Send one now</button></div>
     <div class="toolbar" style="margin-top:10px"><button class="btn btn-primary" id="ph-save">Save phone alerts</button><button class="btn btn-ghost" id="ph-test">Send a test</button></div>
     <div class="dim" style="font-size:12px">Intel alerts follow the Windows notification setting in Intel Watch. Repeats are held back for 10 minutes, with at most 30 alerts an hour.</div>`);
-  const read = () => ({ enabled: $('#ph-on').checked, ntfy: $('#ph-ntfy').value, webhook: $('#ph-hook').value, onlyAway: $('#ph-away').checked,
+  const read = () => ({ enabled: $('#ph-on').checked, ntfy: $('#ph-ntfy').value, webhook: $('#ph-hook').value, onlyAway: $('#ph-away').checked, digest: $('#ph-dig').checked, digestAt: $('#ph-digat').value,
     categories: Object.fromEntries([...document.querySelectorAll('[data-ph-cat]')].map(x => [x.dataset.phCat, x.checked])) });
   $('#ph-gen').onclick = () => { const a = new Uint8Array(9); crypto.getRandomValues(a); $('#ph-ntfy').value = 'https://ntfy.sh/evetk-' + [...a].map(b => b.toString(36).padStart(2, '0')).join('').slice(0, 14); };
   $('#ph-save').onclick = async () => { const r2 = await api.phone.save(read()); toast(r2.ok ? 'Phone alerts saved' : r2.error, !r2.ok); };
+  $('#ph-dignow').onclick = async e => { const b = e.target; b.disabled = true; const s1 = await api.phone.save(read()); if (!s1.ok) { b.disabled = false; return toast(s1.error, true); } const r2 = await api.phone.digestNow(); b.disabled = false; toast(r2.ok ? 'Digest sent. Check your phone.' : r2.error, !r2.ok); };
   $('#ph-test').onclick = async () => { const r2 = await api.phone.test(read()); toast(r2.ok ? 'Test sent. Check your phone.' : r2.error, !r2.ok); };
 }

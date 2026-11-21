@@ -232,6 +232,14 @@ Wallet journals, transactions and contracts are kept locally once the app has se
 
 **Skills to Buy** lists the books your skill plans need. **Mutaplasmids** shows the best and worst roll for every stat and rates your roll. The fleet tracker checks who is in a doctrine hull.
 
+## Setup, pilot groups and permissions
+
+On first run EVE Toolkit asks what you play and hides the tools you don't use (Settings to change it; Ctrl + and Ctrl − zoom the window). Adding a pilot shows what the app will read, with mail, contacts and other extras as tick boxes. Pilots can be put in groups such as Main, Alt or Farm to filter the sidebar, dashboard and boards and to set alerts for a whole group.
+
+## Exploration, likely fits and fit codes
+
+**Exploration Loot** (Tools → Finance) gives ISK per site and per hour from the loot you paste. The pilot card and Local threats show the hulls a pilot flies and their last lost fit in each. **Share code for FC** turns a fit into a short code; the FC pastes the fleet chat into **Check fit codes** in the fleet tracker to see who is off-fit. The Fit Checker also works out turret hit chance and missile application, the Haul Planner takes any ship's holds from the game data, blueprints export with values for collateral, and phone alerts can send a daily digest.
+
 ## Corporation fuel and leaderboard
 
 **Corporation → Structures → Fuel** shows fuel blocks and magmatic gas in each structure's bay, the burn a day (from what's in the bay and when CCP says it runs out), how long it lasts, what's stored in hangars beside it, and how many days all your hangar reserves cover. **Corporation → Members → Leaderboard** ranks members by bounty and ESS tax paid to the corp (and what that means they earned), and by moon ore mined at corp drills.

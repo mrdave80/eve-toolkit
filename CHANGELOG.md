@@ -18,6 +18,17 @@
 - Fleet tracker: doctrine check of who's in a doctrine hull.
 - Market: ships show how many are destroyed each month on zKillboard.
 - Alerts per pilot: set each pilot to all alerts, only while logged in to EVE, or no alerts (Settings → Notifications and behaviour, or **Alert types** under the bell, or **mute this pilot** on any alert). Alts you rarely play no longer pop up. Their alerts still go in the inbox, marked, and muted pilots are left out of daily goal reminders and Needs attention. Corp alerts such as structure attacks always come through.
+- First-run setup asks what you play (mining, industry, trading, PI, PvE, exploration, wormholes, PvP, corp, alts) and hides the tool groups you don't use. Change it any time in Settings. Ctrl + / Ctrl − / Ctrl 0 (or Ctrl + mouse wheel) zooms the whole window, also in Settings.
+- Adding a pilot asks what EVE Toolkit may see: skills, wallet, location, assets, industry, planets and notifications always, with market and contracts, fittings, LP and agents, mail and calendar, contacts and standings, and corp jobs as tick boxes, and corp access for directors and FCs. Pilots added before keep everything they granted.
+- Pilot groups: put pilots in groups such as Main, Alt or Farm (Settings → Notifications and behaviour). Buttons above the pilot list filter the sidebar, the dashboard and the training, industry and planets boards, and **Set a whole group** changes alerts for every pilot in it.
+- 50+ pilots: the dashboard and boards load six pilots at a time and redraw at most four times a second, and the background check runs four pilots at once and skips the extra checks for pilots with alerts off. The pilot list no longer disappears on short screens.
+- Likely fits for reds: the pilot card and each threat in Local (**Show what they usually fly and how**) list the hulls a pilot flies on kills and, from their last loss in each, the fit: weapons, tank, point or scram, webs, neuts, cloak, cyno, bubble. One click opens the fit in the Fit Checker.
+- Exploration Loot (Tools → Finance): paste the loot after each relic or data site for ISK per site, per site type and per hour, runs, and which loot is paying. Valued at Jita buy or sell.
+- Fit share codes: **Share code for FC** on any fit makes a short code to paste in fleet chat. In the fleet tracker the FC pastes the chat into **Check fit codes** and sees who is on the doctrine fit, who is missing modules and what they fitted instead.
+- Haul Planner: pick any ship, including the Upwell haulers, DSTs and the Orca, for its cargo and specialised holds from the game data.
+- Fit Checker: hit chance and application. Turret hit chance from tracking, optimal, falloff, range, transversal and target signature, with a range by transversal table; missile damage applied from explosion radius and velocity. **This ship as target** uses the fit's own signature and speed.
+- Blueprints: **Export for collateral** saves the blueprints shown (search by name or location) with values and a total, for courier collateral or insurance.
+- Phone alerts: a daily digest at a time you pick, with everything under Needs attention, how many pilots are training and the wallet total, by ntfy or Discord. **Send one now** to try it.
 - Fixed: skill queue alerts (empty, paused, ending) ignored quiet hours, pilot muting and alert types. They now follow them like every other alert, under their own **Skill queues** type.
 - Fixed: muting a pilot only worked for alerts whose title started with the pilot's name.
 

@@ -9,7 +9,7 @@ const TOOLS_GROUPS = [
   ['Fitting', [['t-fit', 'Fit Checker'], ['t-fitlib', 'Fit Library'], ['t-muta', 'Mutaplasmids']]],
   ['Pilots', [['t-train', 'What to Train'], ['t-skillbuy', 'Skills to Buy'], ['t-compare', 'Compare Skills']]],
   ['Client', [['t-eveset', 'Copy EVE Settings']]],
-  ['Finance', [['t-networth', 'Net Worth'], ['t-income', 'Income'], ['t-pve', 'Ratting & Abyss'], ['t-farm', 'Skill Farm'], ['t-charval', 'Character Value'], ['t-insure', 'Insurance']]]
+  ['Finance', [['t-networth', 'Net Worth'], ['t-income', 'Income'], ['t-pve', 'Ratting & Abyss'], ['t-explore', 'Exploration Loot'], ['t-farm', 'Skill Farm'], ['t-charval', 'Character Value'], ['t-insure', 'Insurance']]]
 ];
 const toolsGroupOf = tab => TOOLS_GROUPS.find(g => g[1].some(t => t[0] === tab)) || TOOLS_GROUPS[0];
 const HUB_NAMES = ['Jita', 'Amarr', 'Dodixie', 'Rens', 'Hek'];
@@ -33,7 +33,7 @@ const iskCell = (v, cls = '') => html`<span class="num ${cls}">${v === null || v
 async function renderTools(stillCurrent) {
   const tab = state.toolsTab || 't-market';
   if (typeof noteToolUse === 'function') noteToolUse(tab);
-  const needsSde = ['t-muta', 't-skillbuy', 't-haul', 't-mineral', 't-where', 't-train', 't-fitlib', 't-mining', 't-split', 't-bpc', 't-station', 't-shame', 't-whres', 't-hunt', 't-courier', 't-market', 't-appraisal', 't-arbitrage', 't-build', 't-invent', 't-reprocess', 't-ores', 't-assets', 't-wtb', 't-agents', 't-sysintel', 't-route', 't-jump', 't-intel', 't-local'];
+  const needsSde = ['t-explore', 't-muta', 't-skillbuy', 't-haul', 't-mineral', 't-where', 't-train', 't-fitlib', 't-mining', 't-split', 't-bpc', 't-station', 't-shame', 't-whres', 't-hunt', 't-courier', 't-market', 't-appraisal', 't-arbitrage', 't-build', 't-invent', 't-reprocess', 't-ores', 't-assets', 't-wtb', 't-agents', 't-sysintel', 't-route', 't-jump', 't-intel', 't-local'];
   if (needsSde.includes(tab)) {
     const info = await api.sde.info();
     if (!info.ok || !info.data.ready) return setContent(needSdeView('This tool'));
@@ -45,7 +45,7 @@ async function renderTools(stillCurrent) {
     't-pilot': tPilot, 't-whres': () => tWhRes(), 't-shame': () => tShame(), 't-intel': () => (typeof tIntel === 'function' ? tIntel() : null), 't-local': () => (typeof tLocal === 'function' ? tLocal() : null), 't-combat': () => (typeof tCombat === 'function' ? tCombat() : null),
     't-fit': () => tFit(), 't-fitlib': () => tFitLib(stillCurrent),
     't-items': () => tItems(), 't-bargain': () => tBargains(), 't-charval': () => tCharValue(stillCurrent),
-    't-trade': () => tTrade(stillCurrent), 't-station': () => tStation(stillCurrent), 't-assets': () => tAssetFinder(), 't-wtb': () => tWhatToBuild(), 't-split': () => tJobSplit(stillCurrent), 't-bpc': () => tBpPrices(stillCurrent), 't-agents': () => tAgents(), 't-sysintel': () => tSysIntel(), 't-ores': () => tOres(), 't-mining': () => tMining(stillCurrent), 't-belt': () => tBelt(), 't-muta': () => tMuta(), 't-skillbuy': () => tSkillBuy(), 't-haul': () => tHaul(), 't-mineral': () => tMineral(), 't-wars': () => tWars(), 't-where': () => tWhere(), 't-eveset': () => tEveSettings(), 't-compare': () => tCompareSkills(), 't-train': () => tTrain(stillCurrent), 't-prices': () => tPriceWatch(), 't-moon': () => tMoon(),
+    't-trade': () => tTrade(stillCurrent), 't-station': () => tStation(stillCurrent), 't-assets': () => tAssetFinder(), 't-wtb': () => tWhatToBuild(), 't-split': () => tJobSplit(stillCurrent), 't-bpc': () => tBpPrices(stillCurrent), 't-agents': () => tAgents(), 't-sysintel': () => tSysIntel(), 't-ores': () => tOres(), 't-mining': () => tMining(stillCurrent), 't-belt': () => tBelt(), 't-explore': () => tExplore(), 't-muta': () => tMuta(), 't-skillbuy': () => tSkillBuy(), 't-haul': () => tHaul(), 't-mineral': () => tMineral(), 't-wars': () => tWars(), 't-where': () => tWhere(), 't-eveset': () => tEveSettings(), 't-compare': () => tCompareSkills(), 't-train': () => tTrain(stillCurrent), 't-prices': () => tPriceWatch(), 't-moon': () => tMoon(),
     't-farm': () => tFarm(stillCurrent), 't-insure': () => tInsure(stillCurrent),
     't-pve': () => tPve(), 't-networth': () => (typeof tNetworth === 'function' ? tNetworth(stillCurrent) : null), 't-income': () => (typeof tIncome === 'function' ? tIncome(stillCurrent) : null)
   };

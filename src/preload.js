@@ -11,7 +11,7 @@ contextBridge.exposeInMainWorld('api', {
   getSettings: () => call('settings:get'),
   setSettings: s => call('settings:set', s),
   listCharacters: () => call('characters:list'),
-  addCharacter: (corp = false) => call('characters:add', corp),
+  addCharacter: (corp = false, groups) => call('characters:add', corp, groups),
   removeCharacter: id => call('characters:remove', id),
   reorderCharacters: ids => call('characters:reorder', ids),
   status: () => call('esi:status'),
@@ -37,12 +37,13 @@ contextBridge.exposeInMainWorld('api', {
   alerts: { list: () => call('alerts:list'), read: () => call('alerts:read'), clear: () => call('alerts:clear'), types: p => call('alerts:types', p), pilots: () => call('alerts:pilots'), pilotMode: (id, m) => call('alerts:pilotMode', id, m), onNew: cb => ipcRenderer.on('alert:new', (_e, d) => cb(d)) },
   industryWhere: o => call('ind:where', o),
   wars: o => call('wars:list', o),
+  zoom: z => call('ui:zoom', z),
   onCloseTab: cb => ipcRenderer.on('tabs:closeCurrent', () => cb()),
   contractSearch: o => call('contracts:search', o),
   muta: o => call('muta:calc', o),
   skillsToBuy: () => call('skills:toBuy'),
   walletCsv: (id, kind) => call('wallet:csv', id, kind),
-  haul: { locations: r => call('haul:locations', r), plan: o => call('haul:plan', o) },
+  haul: { locations: r => call('haul:locations', r), plan: o => call('haul:plan', o), hull: q => call('haul:hull', q) },
   mineFind: o => call('mine:find', o), mineMinerals: () => call('mine:minerals'),
   survey: { add: t => call('survey:add', t), get: o => call('survey:get', o), clear: () => call('survey:clear'), undo: () => call('survey:undo'), onNew: cb => ipcRenderer.on('survey:new', (_e, d) => cb(d)) },
   mineTax: { build: o => call('mine:build', o), report: (id, o) => call('mine:tax', id, o), payee: (id, n) => call('mine:payee', id, n), paid: (id, a, n) => call('mine:paid', id, a, n), unpay: (id, p) => call('mine:unpay', id, p) },
@@ -129,6 +130,7 @@ contextBridge.exposeInMainWorld('api', {
     structures: () => call('ind:structures'), pilotSkills: id => call('ind:pilotSkills', id)
   },
   appraise: (text, hub) => call('appraise', text, hub),
+  explore: { get: () => call('explore:get'), add: o => call('explore:add', o), remove: id => call('explore:remove', id), start: n => call('explore:start', n), stop: () => call('explore:stop'), price: p => call('explore:price', p), clear: () => call('explore:clear') },
   appraiseKill: (link, hub) => call('appraise:killmail', link, hub),
   mine: { list: o => call('mine:list', o), paste: (t, o) => call('mine:paste', t, o), cfg: p => call('mine:cfg', p), remove: (s, k) => call('mine:remove', s, k), moons: () => call('mine:moons'),
     onNew: cb => ipcRenderer.on('mine:new', (_e, d) => cb(d)), onScan: cb => ipcRenderer.on('mine:scan', (_e, d) => cb(d)) },
@@ -170,9 +172,9 @@ contextBridge.exposeInMainWorld('api', {
   bridges: { list: () => call('bridges:list'), parse: t => call('bridges:parse', t), save: (l, m) => call('bridges:save', l, m) },
   couriers: { find: o => call('couriers:find', o), regions: () => call('couriers:regions') },
   clip: { onLocal: cb => ipcRenderer.on('clip:local', (_e, d) => cb(d)), onDscan: cb => ipcRenderer.on('clip:dscan', (_e, d) => cb(d)) },
-  phone: { get: () => call('phone:get'), save: c => call('phone:save', c), test: c => call('phone:test', c) },
+  phone: { get: () => call('phone:get'), save: c => call('phone:save', c), test: c => call('phone:test', c), digestNow: () => call('phone:digestNow') },
   pilot: {
-    profile: (q, o) => call('pilot:profile', q, o), vet: (q, d) => call('pilot:vet', q, d), quickMany: p => call('pilot:quickMany', p), watch: (id, name, tag, note) => call('pilot:watch', id, name, tag, note),
+    profile: (q, o) => call('pilot:profile', q, o), likelyFits: id => call('pilot:likelyFits', id), vet: (q, d) => call('pilot:vet', q, d), quickMany: p => call('pilot:quickMany', p), watch: (id, name, tag, note) => call('pilot:watch', id, name, tag, note),
     watchlist: () => call('pilot:watchlist'), recent: () => call('pilot:recent'), onProgress: cb => ipcRenderer.on('pilot:progress', (_e, d) => cb(d))
   },
   intel: {
@@ -191,6 +193,7 @@ contextBridge.exposeInMainWorld('api', {
   },
   canFly: typeId => call('canfly', typeId),
   doctrine: { parseEft: t => call('doc:parseEft', t), evaluate: (d, hub) => call('doc:evaluate', d, hub) },
+  fitcode: { encode: (eft, pilot) => call('fitcode:encode', eft, pilot), check: (text, fits) => call('fitcode:check', text, fits) },
   sde: {
     info: () => call('sde:info'),
     check: () => call('sde:check'),

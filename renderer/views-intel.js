@@ -147,10 +147,13 @@ async function localThreatDetail(ev) {
       ${p && p.reasons && p.reasons.length ? html`<div class="dim" style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;margin-top:8px">Why this grade</div>${p.reasons.slice(0, 4).map(x => html`<div style="font-size:12px">${x.pts > 0 ? '+' : ''}${x.pts} · ${x.text}</div>`)}` : ''}</div>
     <div>${p && p.topShips && p.topShips.length ? html`<div class="dim" style="font-size:11px;letter-spacing:.06em;text-transform:uppercase">Flies</div><div style="font-size:12.5px;margin-bottom:8px">${p.topShips.slice(0, 6).map(x => html`<span style="margin-right:10px">${icon(x.typeId, 14)}${x.name} <span class="dim">${x.kills}</span></span>`)}</div>` : ''}
       ${p && p.kills && p.kills.length ? html`<div class="dim" style="font-size:11px;letter-spacing:.06em;text-transform:uppercase">Recent kills</div><table><tbody>${p.kills.slice(0, 5).map(k => html`<tr><td class="dim nowrap" style="font-size:12px">${agoShort(k.time)}</td><td style="font-size:12px">${k.shipName || '?'} → ${k.victimShipName || '?'}</td><td style="font-size:12px">${k.system || ''}</td><td class="dim" style="font-size:12px">${k.solo ? 'solo' : k.attackers + ' pilots'}</td></tr>`)}</tbody></table>` : html`<div class="muted" style="font-size:12.5px">No recent kills on zKillboard.</div>`}
+      <div class="dim" style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;margin-top:10px">Likely fits</div><div data-lfits="${ev.pilot.id}"><a href="#" data-lf-load="${ev.pilot.id}" style="font-size:12.5px">Show what they usually fly and how</a></div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px"><button class="btn btn-ghost" style="padding:3px 9px;font-size:12px" data-pilot="${ev.pilot.id}">Full profile</button><a class="btn btn-ghost" style="padding:3px 9px;font-size:12px" href="#" data-link="https://zkillboard.com/character/${ev.pilot.id}/">zKill ↗</a>
         <button class="btn btn-ghost" style="padding:3px 9px;font-size:12px" data-it-tag="${ev.pilot.id}|${ev.pilot.name}">Tag as hostile</button></div></div></div>`;
 }
 document.addEventListener('click', async e => {
+  const lf = e.target.closest('[data-lf-load]');
+  if (lf) { e.preventDefault(); loadLikelyFits(lf.closest('[data-lfits]'), Number(lf.dataset.lfLoad)); return; }
   const o = e.target.closest('[data-si-open]');
   if (o) { e.preventDefault(); siState.q = o.dataset.siOpen; siState.data = null; state.toolsTab = 't-sysintel'; go('tools'); setTimeout(() => { const b = document.getElementById('si-go'); if (b) b.click(); }, 300); return; }
   const t = e.target.closest('[data-it-tag]');

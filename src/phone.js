@@ -18,7 +18,7 @@ const CATEGORIES = {
   attack: 'Under attack (from the combat log)',
   app: 'App updates'
 };
-const DEFAULTS = { enabled: false, ntfy: '', webhook: '', onlyAway: true, categories: { skills: true, industry: true, planets: true, intel: true, structures: true, ops: true, daily: true, prices: true } };
+const DEFAULTS = { enabled: false, ntfy: '', webhook: '', onlyAway: true, digest: false, digestAt: '08:00', digestLast: null, categories: { skills: true, industry: true, planets: true, intel: true, structures: true, ops: true, daily: true, prices: true } };
 const cfg = () => { const s = store.get().settings.phone || {}; return { ...DEFAULTS, ...s, categories: { ...DEFAULTS.categories, ...(s.categories || {}) } }; };
 
 const recent = new Map();
@@ -72,10 +72,39 @@ function save(c) {
   if (typeof c.onlyAway === 'boolean') next.onlyAway = c.onlyAway;
   if (typeof c.ntfy === 'string') next.ntfy = c.ntfy.trim();
   if (typeof c.webhook === 'string') next.webhook = c.webhook.trim();
+  if (typeof c.digest === 'boolean') next.digest = c.digest;
+  if (typeof c.digestAt === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(c.digestAt)) next.digestAt = c.digestAt;
   if (c.categories && typeof c.categories === 'object') next.categories = Object.fromEntries(Object.keys(CATEGORIES).map(k => [k, c.categories[k] === undefined ? !!cur.categories[k] : !!c.categories[k]]));
   validate(next);
   store.get().settings.phone = next; store.save();
   return next;
 }
 
-module.exports = { forward, test, save, cfg, CATEGORIES, setAwayCheck: fn => { isAway = fn; } };
+/** The once-a-day digest: what needs attention across every pilot, sent at the chosen local time. */
+const localDay = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+function digestDue(now = new Date()) {
+  const c = cfg();
+  if (!c.enabled || !c.digest || (!c.ntfy && !c.webhook)) return false;
+  const [h, m] = String(c.digestAt || '08:00').split(':').map(Number);
+  if (now.getHours() * 60 + now.getMinutes() < h * 60 + m) return false;
+  return c.digestLast !== localDay(now);
+}
+function digestText(att, extra = {}) {
+  const items = (att && att.items) || [];
+  const lines = items.slice(0, 15).map(i => `${i.level === 'red' ? '🔴' : i.level === 'gold' ? '🟡' : '🔵'} ${i.text}`);
+  if (items.length > 15) lines.push(`…and ${items.length - 15} more`);
+  const head = [extra.pilots ? `${extra.pilots} pilot${extra.pilots === 1 ? '' : 's'}` : null, extra.training !== undefined ? `${extra.training} training` : null, extra.wallet ? `${extra.wallet} ISK in wallets` : null].filter(Boolean).join(' · ');
+  return { title: items.length ? `EVE Toolkit: ${items.length} thing${items.length === 1 ? '' : 's'} need you` : 'EVE Toolkit: all good', body: [head, ...(lines.length ? lines : ['Nothing needs you today: queues are running and nothing is out of fuel.'])].filter(Boolean).join('\n') };
+}
+async function sendDigest(att, extra, { force = false } = {}) {
+  const c = cfg();
+  if (!force && !digestDue()) return false;
+  if (!c.ntfy && !c.webhook) throw new Error('Add an ntfy address or a Discord webhook first.');
+  const { title, body } = digestText(att, extra);
+  // Mark first, so a failing network doesn't send it every minute.
+  if (!force) { store.get().settings.phone = { ...c, digestLast: localDay() }; store.save(); }
+  await deliver(c, title, body, 'calendar');
+  return true;
+}
+
+module.exports = { digestDue, digestText, sendDigest, forward, test, save, cfg, CATEGORIES, setAwayCheck: fn => { isAway = fn; } };

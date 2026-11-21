@@ -58,6 +58,8 @@ async function openAlertTypes() {
       const r = await api.alerts.types(patch); if (!r.ok) { toast(r.error, true); return true; }
       if (state.settings) state.settings.alertTypes = r.data;
       for (const sel of document.querySelectorAll('[data-palert]')) { const r2 = await api.alerts.pilotMode(Number(sel.dataset.palert), sel.value); if (r2.ok && state.settings) state.settings.pilotAlerts = r2.data; }
+      const pg = Object.fromEntries([...document.querySelectorAll('[data-pgroup]')].map(x => [x.dataset.pgroup, x.value.trim()]));
+      if (Object.keys(pg).length) { const r3 = await api.setSettings({ pilotGroups: pg }); if (r3.ok && state.settings) { state.settings.pilotGroups = (r3.data || {}).pilotGroups || pg; renderSidebar(); } }
       toast('Alert settings saved');
     }
   });
