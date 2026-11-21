@@ -85,7 +85,34 @@ async function rawRequest(path, opts = {}) {
   }
 }
 
+// Reads that need an opt-in scope (picked when the pilot was added). A pilot that didn't share it gets a
+// local 403 instead of a call to ESI: those 403s would count against ESI's error limit for every pilot.
+const OPT_SCOPES = [
+  [/^\/characters\/\d+\/mail\//, 'esi-mail.read_mail.v1', 'mail'],
+  [/^\/characters\/\d+\/calendar\//, 'esi-calendar.read_calendar_events.v1', 'calendar'],
+  [/^\/characters\/\d+\/contacts\//, 'esi-characters.read_contacts.v1', 'contacts'],
+  [/^\/characters\/\d+\/standings\//, 'esi-characters.read_standings.v1', 'standings'],
+  [/^\/characters\/\d+\/orders\//, 'esi-markets.read_character_orders.v1', 'market orders'],
+  [/^\/characters\/\d+\/contracts\//, 'esi-contracts.read_character_contracts.v1', 'contracts'],
+  [/^\/characters\/\d+\/fittings\//, 'esi-fittings.read_fittings.v1', 'saved fittings'],
+  [/^\/characters\/\d+\/loyalty\//, 'esi-characters.read_loyalty.v1', 'loyalty points'],
+  [/^\/characters\/\d+\/agents_research\//, 'esi-characters.read_agents_research.v1', 'research agents'],
+  [/^\/characters\/\d+\/medals\//, 'esi-characters.read_medals.v1', 'medals'],
+  [/^\/characters\/\d+\/titles\//, 'esi-characters.read_titles.v1', 'titles'],
+  [/^\/characters\/\d+\/fw\/stats\//, 'esi-characters.read_fw_stats.v1', 'faction warfare stats']
+];
+function scopeGuard(path, charId, method) {
+  if (!charId || method !== 'GET') return;
+  const rule = OPT_SCOPES.find(([re]) => re.test(path)); if (!rule) return;
+  const ch = (store.get().characters || []).find(c => c.id === Number(charId));
+  if (!ch || !Array.isArray(ch.scopes) || ch.scopes.includes(rule[1])) return;
+  const e = new EsiError(`${ch.name} doesn't share ${rule[2]} with EVE Toolkit. Sign the pilot in again (Settings → Pilots → Re-authorise) and tick it to add it.`, 403, path);
+  e.notShared = rule[2];
+  throw e;
+}
+
 async function rawRequestOnce(path, { charId, method = 'GET', body, page } = {}) {
+  scopeGuard(path, charId, method);
   let url = ESI + path + (path.includes('?') ? '&' : '?') + 'datasource=tranquility';
   if (page) url += `&page=${page}`;
   const headers = {

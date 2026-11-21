@@ -264,7 +264,7 @@ async function runMineral() {
 
 // ================= Haul planner =================
 
-const HAUL_SHIPS = [['', 'Custom'], ['13000', 'Blockade runner (about 13,000 m³)'], ['45000', 'T1 hauler, fitted (about 45,000 m³)'], ['62500', 'Deep space transport (about 62,500 m³)'], ['155000', 'Bowhead (ship hangar)'], ['340000', 'Jump freighter (about 340,000 m³)'], ['1100000', 'Freighter (about 1,100,000 m³)']];
+const HAUL_SHIPS = [['', 'Custom, or the ship picked below'], ['13000', 'Blockade runner (about 13,000 m³)'], ['45000', 'T1 hauler, fitted (about 45,000 m³)'], ['62500', 'Deep space transport (about 62,500 m³)'], ['155000', 'Bowhead (ship hangar)'], ['340000', 'Jump freighter (about 340,000 m³)'], ['1100000', 'Freighter (about 1,100,000 m³)']];
 const haulState = { source: 'hangar', key: '', text: '', cargo: 45000, ship: '45000', maxValue: '', warnValue: '1b', locs: null };
 async function tHaul(refresh = false) {
   const s = haulState;
@@ -275,7 +275,7 @@ async function tHaul(refresh = false) {
         : html`<textarea id="hl-text" rows="7" style="width:100%" class="mono-area" placeholder="Inventory, contract or cargo window: select all, copy, paste here">${s.text}</textarea>`}
       <div class="field"><label>Ship</label><select id="hl-ship">${HAUL_SHIPS.map(([v, l]) => html`<option value="${v}" ${raw(s.ship === v ? 'selected' : '')}>${l}</option>`)}</select></div>
       <div class="field"><label>Or any ship (Upwell haulers, DSTs, Orca…)</label><input type="search" id="hl-hull" value="${s.hullName || ''}"></div>
-      ${s.hull ? html`<div class="field"><label>Hold on the ${s.hull.name}</label><select id="hl-hold">${s.hull.holds.map(h => html`<option value="${h.m3}" ${raw(Number(s.cargo) === h.m3 ? 'selected' : '')}>${h.name}: ${fmtNum(Math.round(h.m3))} m³</option>`)}</select><div class="dim" style="font-size:11.5px;margin-top:3px">Base sizes from the game data. Your hauler skills, cargo expanders and rigs add to these, so put your real number in below if you know it.</div></div>` : ''}
+      ${s.hull ? html`<div class="field"><label>Hold on the ${s.hull.name}</label><select id="hl-hold">${s.hull.holds.map(h => html`<option value="${h.m3}" ${raw(Number(s.cargo) === Math.round(h.m3) ? 'selected' : '')}>${h.name}: ${fmtNum(Math.round(h.m3))} m³</option>`)}</select><div class="dim" style="font-size:11.5px;margin-top:3px">Base sizes from the game data. Your hauler skills, cargo expanders and rigs add to these, so put your real number in below if you know it.</div></div>` : ''}
       <div class="field"><label>Cargo hold (m³)</label><input type="number" id="hl-cargo" value="${s.cargo}" min="1"></div>
       <div class="field"><label>Never carry more than (ISK a trip, optional)</label><input type="text" id="hl-max" value="${s.maxValue}" placeholder="e.g. 2b"></div>
       <div class="field"><label>Warn me above (ISK a trip)</label><input type="text" id="hl-warn" value="${s.warnValue}" placeholder="e.g. 1b"></div>
@@ -284,8 +284,8 @@ async function tHaul(refresh = false) {
     <div id="hl-out">${emptyBox('Pick a hangar or paste items, set your ship, and press Plan trips.')}</div></div>`);
   document.querySelectorAll('[data-hs]').forEach(b => b.onclick = () => { s.source = b.dataset.hs; tHaul(); });
   if ($('#hl-refresh')) $('#hl-refresh').onclick = () => tHaul(true);
-  $('#hl-ship').onchange = e => { s.ship = e.target.value; if (e.target.value) $('#hl-cargo').value = e.target.value; };
-  attachSearch($('#hl-hull'), { category: 6, placeholder: 'e.g. Bustard, Orca, an Upwell hauler', onPick: async it => { const r = await api.haul.hull(it.id); if (!r.ok) return toast(r.error, true); s.hull = r.data; s.hullName = r.data.name; s.ship = ''; const big = r.data.holds.slice().sort((a, b) => b.m3 - a.m3)[0]; s.cargo = Math.round((r.data.holds[0].m3 || (big && big.m3) || 0)); tHaul(); } });
+  $('#hl-ship').onchange = e => { s.ship = e.target.value; if (e.target.value) { if ($('#hl-text')) s.text = $('#hl-text').value; s.cargo = Number(e.target.value); s.hull = null; s.hullName = ''; tHaul(); } };
+  attachSearch($('#hl-hull'), { category: 6, placeholder: 'e.g. Bustard, Orca, an Upwell hauler', onPick: async it => { const r = await api.haul.hull(it.id); if (!r.ok) return toast(r.error, true); s.hull = r.data; s.hullName = r.data.name; s.ship = ''; const big = r.data.holds.slice().sort((a, b) => b.m3 - a.m3)[0]; s.cargo = Math.round((r.data.holds[0].m3 || (big && big.m3) || 0)); if ($('#hl-text')) s.text = $('#hl-text').value; tHaul(); } });
   const hh = $('#hl-hold'); if (hh) hh.onchange = e => { s.cargo = Math.round(Number(e.target.value)); $('#hl-cargo').value = s.cargo; };
   $('#hl-go').onclick = () => runHaul();
 }

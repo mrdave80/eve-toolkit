@@ -1,6 +1,6 @@
 # Changelog
 
-## Next release
+## 1.14.0
 
 - Tabs: keep several pages open like a browser. Ctrl+click or middle-click opens a page in a new tab, ⚲ pins a tab so it stays and comes back when the app restarts. Ctrl+T, Ctrl+W, Ctrl+Tab and Ctrl+1–9 work as in a browser.
 - Belt Tracker (Tools → Industry): paste the survey scanner every few minutes to see what's left, how fast it's going, and when the belt and each ore run out. The clipboard watch adds surveys by itself.
@@ -29,6 +29,8 @@
 - Fit Checker: hit chance and application. Turret hit chance from tracking, optimal, falloff, range, transversal and target signature, with a range by transversal table; missile damage applied from explosion radius and velocity. **This ship as target** uses the fit's own signature and speed.
 - Blueprints: **Export for collateral** saves the blueprints shown (search by name or location) with values and a total, for courier collateral or insurance.
 - Phone alerts: a daily digest at a time you pick, with everything under Needs attention, how many pilots are training and the wallet total, by ntfy or Discord. **Send one now** to try it.
+- A pilot that doesn't share something (mail, contracts, orders, contacts and so on) is skipped for it without asking CCP, so it can't eat into ESI's error limit, and the page says how to add it. **Re-authorise** opens the same choices, ticked as the pilot has them now.
+- Closing the "what do you play" question without choosing shows every tool and doesn't ask again.
 - Fixed: skill queue alerts (empty, paused, ending) ignored quiet hours, pilot muting and alert types. They now follow them like every other alert, under their own **Skill queues** type.
 - Fixed: muting a pilot only worked for alerts whose title started with the pilot's name.
 

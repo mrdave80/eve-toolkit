@@ -59,7 +59,8 @@ function maybeAskPlaystyle() {
   const p = playstyle();
   if (p && p.done) return;
   if (typeof state === 'undefined' || !state.settings || !state.settings.clientId) return;   // still setting the app up
-  setTimeout(() => { if (!document.getElementById('modal')) openPlaystyle(true); }, 1200);
+  // Ask once: closing it without choosing shows every tool, and it doesn't come back (Settings has it).
+  setTimeout(() => { if (document.getElementById('modal')) return; try { localStorage.setItem('playstyle', JSON.stringify({ styles: [], done: true })); } catch {} openPlaystyle(true); }, 1200);
 }
 
 // ---------- Zoom ----------

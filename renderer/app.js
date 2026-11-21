@@ -592,12 +592,14 @@ const SCOPE_CHOICES = [
   ['contacts', 'Contacts and standings', 'Who is blue or red in Local and on intel', false],
   ['corpjobs', 'Corp industry jobs', 'Corp jobs on the industry board (needs a corp role)', false]
 ];
-function pickScopes(corp) {
+function pickScopes(corp, pilot) {
   return new Promise(resolve => {
     let saved = null; try { saved = JSON.parse(localStorage.getItem('scopeGroups') || 'null'); } catch {}
-    const on = k => (saved ? saved.includes(k) : SCOPE_CHOICES.find(x => x[0] === k)[3]);
+    // Signing a pilot in again: start from what it shares now.
+    const on = k => (pilot ? !(pilot.notShared || []).includes(k) : saved ? saved.includes(k) : SCOPE_CHOICES.find(x => x[0] === k)[3]);
+    if (pilot && pilot.isDirector) corp = true;
     let done = false;
-    openModal(corp ? 'Add a director or FC' : 'Add a pilot', html`<div class="muted" style="font-size:12.5px;margin-bottom:10px">EVE Toolkit always reads skills, wallet, location, assets, industry, planets and notifications. Tick anything else you want it to see. You can add more later by signing the pilot in again.</div>
+    openModal(pilot ? `Sign in again: ${pilot.name}` : corp ? 'Add a director or FC' : 'Add a pilot', html`<div class="muted" style="font-size:12.5px;margin-bottom:10px">EVE Toolkit always reads skills, wallet, location, assets, industry, planets and notifications. Tick anything else you want it to see. You can add more later by signing the pilot in again.</div>
       ${SCOPE_CHOICES.map(([k, l, d]) => html`<label class="check" style="align-items:flex-start;margin-bottom:8px"><input type="checkbox" data-scg="${k}" ${raw(on(k) ? 'checked' : '')}> <span><b>${l}</b><br><span class="dim" style="font-size:12px">${d}</span></span></label>`)}
       <label class="check" style="align-items:flex-start;margin-top:4px"><input type="checkbox" id="scg-corp" ${raw(corp ? 'checked' : '')}> <span><b>Corp access (directors and FCs)</b><br><span class="dim" style="font-size:12px">Members, structures, moons, corp wallets and fleets. Needs the pilot to hold the roles.</span></span></label>
       <div class="dim" style="font-size:11.5px;margin-top:8px">Everything stays on this PC. The full list of permissions is under About &amp; support → Privacy and permissions.</div>`,
@@ -607,9 +609,9 @@ function pickScopes(corp) {
   });
 }
 
-async function addCharacter(corp = false) {
+async function addCharacter(corp = false, pilot = null) {
   if (!state.settings.clientId) { go('settings'); return toast('Set your Client ID first.', true); }
-  const pick = await pickScopes(corp);
+  const pick = await pickScopes(corp, pilot);
   if (!pick) return;
   corp = pick.corp;
   toast(corp ? 'Complete the director login in your browser (includes corp permissions)…' : 'Complete the login in your browser…');
@@ -1113,7 +1115,7 @@ document.addEventListener('click', e => {
   if (tabGo) { go('char', { tab: tabGo.dataset.tabGo }); return; }
   if (t.closest('[data-action="add"]') || t.closest('#add-char')) { addCharacter(); return; }
   const re = t.closest('[data-reauth]');
-  if (re) { addCharacter(); return; }
+  if (re) { addCharacter(false, state.characters.find(c => String(c.id) === String(re.dataset.reauth)) || null); return; }
   const rm = t.closest('[data-remove]');
   if (rm) { removeCharacter(Number(rm.dataset.remove)); return; }
 });

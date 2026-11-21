@@ -26,7 +26,7 @@ function decodeAll(text) {
   const out = [], bad = [];
   for (const m of String(text || '').matchAll(CODE_RE)) {
     try {
-      const j = JSON.parse(zlib.inflateRawSync(unb64u(m[1])).toString('utf8'));
+      const j = JSON.parse(zlib.inflateRawSync(unb64u(m[1]), { maxOutputLength: 65536 }).toString('utf8'));
       if (!j || !j.s || !Array.isArray(j.m)) throw new Error('bad');
       const ship = sde.ready() && sde.type(j.s);
       out.push({ pilot: j.p || '', shipTypeId: Number(j.s), ship: ship ? ship.name : String(j.s), name: j.n || '', items: j.m.map(([t, q]) => ({ typeId: Number(t), qty: Number(q) || 1 })) });

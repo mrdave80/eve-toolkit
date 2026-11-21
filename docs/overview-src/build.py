@@ -16,7 +16,7 @@ def jpg(name, width=1100):
     return 'img/' + name + '.jpg'
 
 LOGO = '<svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="13" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".35"/><path d="M16 3a13 13 0 0 1 12.6 9.8" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><circle cx="16" cy="16" r="4.2" fill="currentColor"/></svg>'
-VERSION = '1.13.0'
+VERSION = '1.14.0'
 
 pages = []
 def page(body, cls=''):
@@ -66,6 +66,30 @@ page(f"""
   <div><b>Portable</b><span>One Windows .exe or a Linux AppImage. No installer, account or server. Updates in one click.</span></div>
   <div><b>Free</b><span>All features are free to use. ISK or PLEX donations to Mr Frank are optional.</span></div>
 </div>""")
+
+# ---------- New in 1.14 ----------
+S = 'New in 1.14'
+feature(S, 'Set up for how you play', 'The first run asks what you do in EVE and hides the tools you don\u2019t use. Adding a pilot shows what the app will read, with mail, contacts and other extras as tick boxes.',
+  ['Mining, industry, trading, PI, PvE, exploration, wormholes, PvP, corp, alts', 'Everything else stays one Ctrl+K search away', 'Core data always; market, mail, contacts and corp access opt-in', 'Ctrl + and Ctrl \u2212 zoom the whole window'],
+  [('EY-playstyle', 'What do you play?'), ('EU-scope-picker', 'Choosing what a pilot shares')], 'two')
+feature(S, 'Tabs and pilot groups', 'Keep several pages open like a browser, and pin the ones you want back after a restart. Group pilots as mains, alts or farms to filter the pilot list, dashboard and boards.',
+  ['Ctrl+click or middle-click opens a page in a new tab', 'Set alerts for a whole group at once', 'Boards load six pilots at a time, so 50+ pilots stay quick', 'Alts with alerts off skip the extra background checks'],
+  [('EF-tabs', 'Tabs with a pinned tab'), ('EV-pilot-groups', 'The Main group selected')], 'two')
+feature(S, 'Likely fits and fit share codes', 'See the hulls a red flies and how they fitted their last loss in each. Pilots share their fit as a short code in fleet chat, and the FC sees who is off the doctrine fit.',
+  ['Weapons, tank, point or scram, webs, neuts, cloak, cyno', 'One click opens the fit in the Fit Checker', 'Missing modules and what was fitted instead', 'Ammo and cargo left out of the comparison'],
+  [('ES-likely-fits', 'Likely fits on the pilot card'), ('EW-fit-codes', 'Sharing a fit with the FC')], 'two')
+feature(S, 'Exploration loot and hit chance', 'Paste your loot after each site for ISK per site, per site type and per hour. The Fit Checker works out turret hit chance and missile application.',
+  ['Runs, best sites and the loot that pays', 'Relic or data guessed from the site name', 'Hit chance by range and transversal', 'Use the checked fit as the target'],
+  [('ER-explore', 'Exploration loot'), ('ET-fit-hit', 'Hit chance and application')], 'two')
+feature(S, 'Mining: belts, minerals and where to build', 'Paste the survey scanner to see when a belt runs out. Pick a mineral such as Zydrine for every ore that has it and where it spawns. Where to Build ranks nearby systems by cost index.',
+  ['Belt depletion time by ore, with the clipboard watch', 'Nearest systems for the ore, and where you mined it', 'Fewest m\u00b3 to mine or the cheapest compressed ore to buy', 'Build or sell, and blueprint payback'],
+  [('EH-belt', 'Belt tracker'), ('EJ-mineral', 'Where to mine Zydrine')], 'two')
+feature(S, 'Hauling, wars and wormhole kills', 'The Haul Planner packs a hangar into trips for any ship, Upwell haulers included. Wars shows the wars your corps are in. Kills anywhere in your wormhole chain raise an alert.',
+  ['Most ISK per m\u00b3 first, with a gank-value warning', 'Any hull\u2019s cargo and specialised holds from the game data', 'Hole collapses in the game log removed from the map, with undo', 'Probe scans from German, French and Russian clients'],
+  [('EL-haul', 'Haul planner'), ('EQ-chain-kills', 'Kills in your chain')], 'two')
+feature(S, 'History, skills to buy and mutaplasmids', 'Wallet and contract history are kept past CCP\u2019s 30 days and can be searched. Skills to Buy lists the books your plans need. Mutaplasmids rates your roll against every possible one.',
+  ['Search every contract by title, people, places and items', 'Wallet CSV export; blueprints export with values for collateral', 'Books you already own, and a Multibuy list', 'A daily phone digest of what needs you'],
+  [('EO-contract-history', 'Search all contract history'), ('EN-muta', 'Mutaplasmid ranges')], 'two')
 
 # ---------- New in 1.13 ----------
 S = 'New in 1.13'

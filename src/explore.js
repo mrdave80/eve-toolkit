@@ -53,6 +53,8 @@ async function addSite({ text, type, name, system, hub = 'Jita' } = {}, override
   if (!a.rows.length) throw new Error('Paste the loot from your cargo hold: select the items, Ctrl+C, then paste here.');
   const l = log();
   let run = openRun(l);
+  // A run with nothing added for two hours is over: close it where it stopped and start a new one.
+  if (run) { const last = l.sites.filter(x => x.run === run.id).reduce((m, x) => Math.max(m, x.at), run.start); if (Date.now() - last > 2 * 3600000) { run.end = last + 10 * 60000; run = null; } }
   if (!run) { startRun(); run = openRun(l); }
   const t = TYPES.includes(type) ? type : (guessType(name) || 'other');
   const site = {
@@ -75,8 +77,10 @@ function summary(now = Date.now()) {
   const runs = l.runs.map(r => {
     const sites = l.sites.filter(s => s.run === r.id);
     const isk = sites.reduce((n, s) => n + val(s), 0);
-    // Run start to its end (or now while open), at least 10 minutes so one quick site doesn't read as billions an hour.
-    const ms = Math.max(10 * 60000, (r.end || now) - r.start);
+    // Run start to its end. An open run counts up to now, but no more than 30 minutes past its last site, so a run
+    // left open overnight doesn't sink the ISK per hour. At least 10 minutes, so one quick site isn't billions an hour.
+    const lastAt = sites.reduce((m, s) => Math.max(m, s.at), r.start);
+    const ms = Math.max(10 * 60000, (r.end || Math.min(now, lastAt + 30 * 60000)) - r.start);
     return { ...r, open: !r.end, sites: sites.length, isk, ms, perHour: sites.length ? isk / (ms / 3600000) : 0, perSite: sites.length ? isk / sites.length : 0 };
   });
   const byType = TYPES.map(t => { const s = l.sites.filter(x => x.type === t); const isk = s.reduce((n, x) => n + val(x), 0); return { type: t, label: LABEL[t], sites: s.length, isk, perSite: s.length ? isk / s.length : 0, best: s.reduce((m, x) => Math.max(m, val(x)), 0) }; }).filter(x => x.sites);
