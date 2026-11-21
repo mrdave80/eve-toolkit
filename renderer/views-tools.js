@@ -6,7 +6,7 @@ const TOOLS_GROUPS = [
   ['Industry', [['t-build', 'Build Calculator'], ['t-wtb', 'What to Build'], ['t-split', 'Job Splitter'], ['t-bpc', 'Blueprint Prices'], ['t-invent', 'Invention'], ['t-reprocess', 'Reprocessing'], ['t-ores', 'Ore Values'], ['t-mining', 'Ice & Ore Sites'], ['t-belt', 'Belt Tracker'], ['t-mineral', 'Where to Mine'], ['t-where', 'Where to Build'], ['t-moon', 'Moon Scan'], ['t-assets', 'Asset Finder']]],
   ['Navigation', [['t-route', 'Route Planner'], ['t-courier', 'Courier Contracts'], ['t-haul', 'Haul Planner'], ['t-hunt', 'Hunting & Ratting'], ['t-agents', 'Agent Finder'], ['t-jump', 'Jump Planner'], ['t-universe', 'Universe']]],
   ['Intel', [['t-pilot', 'Pilot Intel'], ['t-sysintel', 'System Intel'], ['t-whres', 'Wormhole Residents'], ['t-shame', 'Wall of Shame'], ['t-intel', 'Intel Watch'], ['t-local', 'Local & D-scan'], ['t-combat', 'Combat Log'], ['t-wars', 'Wars']]],
-  ['Fitting', [['t-fit', 'Fit Checker'], ['t-fitlib', 'Fit Library', ['t-muta', 'Mutaplasmids']]],
+  ['Fitting', [['t-fit', 'Fit Checker'], ['t-fitlib', 'Fit Library'], ['t-muta', 'Mutaplasmids']]],
   ['Pilots', [['t-train', 'What to Train'], ['t-skillbuy', 'Skills to Buy'], ['t-compare', 'Compare Skills']]],
   ['Client', [['t-eveset', 'Copy EVE Settings']]],
   ['Finance', [['t-networth', 'Net Worth'], ['t-income', 'Income'], ['t-pve', 'Ratting & Abyss'], ['t-farm', 'Skill Farm'], ['t-charval', 'Character Value'], ['t-insure', 'Insurance']]]

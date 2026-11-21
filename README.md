@@ -208,6 +208,30 @@ CCP's ship masteries I–V for every pilot, with the time to each level and one 
 
 ★ pins a tool to the ★ tab in Tools, beside the ones you used last. Contracts and Notifications in the sidebar cover every pilot at once. Prices come from Fuzzwork's market aggregates, with CCP's market as a fallback (Settings → Prices). Turn on quiet updates (Settings → Notifications and behaviour) and new versions download in the background and install when you close the app.
 
+## Tabs
+
+Keep several pages open like a browser: Ctrl+click or middle-click opens a page in a new tab, and ⚲ pins a tab so it stays and comes back when the app restarts. Ctrl+T, Ctrl+W, Ctrl+Tab and Ctrl+1–9 work as you'd expect.
+
+## Mining: belt tracker, where to mine, build from your ore
+
+The **Belt Tracker** reads the survey scanner (pasted or copied in game) and tells you when the belt and each ore will run out. **Where to Mine** takes a mineral, such as Zydrine, and lists every ore that refines into it, best per m³ first, where it usually spawns, the nearest such system and where your pilots have mined it. On a pilot's Mining page, **Plan a build with it** works out the fewest m³ to mine (or the cheapest compressed ore to buy) for what your mining doesn't cover.
+
+## Industry: where to build, build or sell
+
+**Where to Build** ranks nearby systems by CCP's cost index with the job fee for an item. The Build Calculator's **Build or sell** compares building with selling the materials, flags components worth more sold than used, and shows how many runs a blueprint takes to pay for itself.
+
+## Wormholes, wars and hauling
+
+Kills anywhere in your chain raise an alert; a hole collapse in your game log removes it from the map (with undo); the overlay shows the chain around you; non-English probe scans are read. **Wars** lists the wars your corporations and alliances are in. The **Haul Planner** packs a hangar into trips, most ISK per m³ first, with a gank-value warning.
+
+## History that outlives CCP's 30 days
+
+Wallet journals, transactions and contracts are kept locally once the app has seen them. Export the wallet as CSV, look back up to a year in Income, and search every contract your pilots have had, including the items in them.
+
+## Skills to buy, mutaplasmids, fleet doctrine check
+
+**Skills to Buy** lists the books your skill plans need. **Mutaplasmids** shows the best and worst roll for every stat and rates your roll. The fleet tracker checks who is in a doctrine hull.
+
 ## Corporation fuel and leaderboard
 
 **Corporation → Structures → Fuel** shows fuel blocks and magmatic gas in each structure's bay, the burn a day (from what's in the bay and when CCP says it runs out), how long it lasts, what's stored in hangars beside it, and how many days all your hangar reserves cover. **Corporation → Members → Leaderboard** ranks members by bounty and ESS tax paid to the corp (and what that means they earned), and by moon ore mined at corp drills.

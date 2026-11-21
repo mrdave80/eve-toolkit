@@ -138,6 +138,16 @@ const SHOTS = [
   ['EB-update-check', `go('about')`, `(async()=>{await new Promise(r=>setTimeout(r,400)); document.querySelector('[data-updcheck]').click();})()`],
   ['ED-pilot-alerts', `go('dashboard')`, `(async()=>{await initAlerts(); await new Promise(r=>setTimeout(r,300)); document.getElementById('alert-btn').click(); await new Promise(r=>setTimeout(r,300)); document.getElementById('ap-types').click();})()`],
   ['EE-alerts-muted', `go('dashboard')`, `(async()=>{await initAlerts(); await new Promise(r=>setTimeout(r,300)); document.getElementById('alert-btn').click();})()`],
+  ['EF-tabs', `go('dashboard')`, `(async()=>{ togglePinTab(appTabs.active); newTab({view:'char',charId:2119000002,tab:'mining'}); renderSidebar(); renderTopbar(); render(); await new Promise(r=>setTimeout(r,400)); newTab({view:'tools',toolsTab:'t-belt'}); renderSidebar(); renderTopbar(); render(); await new Promise(r=>setTimeout(r,300)); newTab({view:'wormholes'}); renderSidebar(); renderTopbar(); render(); await new Promise(r=>setTimeout(r,300)); switchTab(appTabs.list[1].id); })()`],
+  ['EH-belt', `state.toolsTab='t-belt'; go('tools')`],
+  ['EI-where-build', `state.toolsTab='t-where'; go('tools')`],
+  ['EJ-mineral', `state.toolsTab='t-mineral'; go('tools')`],
+  ['EK-wars', `state.toolsTab='t-wars'; go('tools')`],
+  ['EL-haul', `haulState.source='hangar'; state.toolsTab='t-haul'; go('tools')`, `(async()=>{await new Promise(r=>setTimeout(r,500)); document.getElementById('hl-go').click(); await new Promise(r=>setTimeout(r,400)); document.querySelector('#hl-out tr.xrow td')?.click();})()`],
+  ['EM-skillbuy', `state.toolsTab='t-skillbuy'; go('tools')`],
+  ['EN-muta', `mutaState.module='10MN Afterburner II'; state.toolsTab='t-muta'; go('tools')`],
+  ['EO-contract-history', `allBoards.cf='history'; allBoards.contracts={list:[],errors:[]}; go('contractsAll')`],
+  ['EQ-chain-kills', `go('wormholes')`, `(async()=>{await new Promise(r=>setTimeout(r,600)); document.getElementById('wh-kills')?.scrollIntoView();})()`],
   ['E2-universe', `mapState.regionId=0; mapState.sel=null; mapState.view=null; go('liveMap')`, `(async()=>{await new Promise(r=>setTimeout(r,600)); mapState.sel=10000108; drawMap();})()`],
   ['E1-livemap-ice', `go('liveMap')`, `(()=>{mapState.sel=mapState.data&&mapState.data.systems[9].id; drawMap();})()`],
   ['57-whinfo', `go('wormholes')`, `whState.sel = { type: 'sys', id: 31000101 }; drawCanvas(); drawSide()`],
@@ -169,7 +179,7 @@ app.whenReady().then(async () => {
   const only = process.env.ONLY ? process.env.ONLY.split(',') : null;
   for (const [name, ...steps] of SHOTS) {
     if (only && !only.some(o => name.startsWith(o))) continue;
-    await js(`typeof closeModal === 'function' && closeModal(); typeof closeSearch === 'function' && closeSearch(); if (typeof alertState !== 'undefined' && alertState.open) { alertState.open = false; drawAlertPanel(); } document.getElementById('upd-banner')?.remove(); document.getElementById('tq-banner')?.remove(); document.documentElement.removeAttribute('data-streamer'); typeof endWalk === 'function' && endWalk(); if (typeof tqState !== 'undefined' && tqState.online === false) updateServerStatus(); if (typeof mapState !== 'undefined') { mapState.view = null; mapState.regionId = null; mapState.sel = null; }`);
+    await js(`typeof closeModal === 'function' && closeModal(); typeof closeSearch === 'function' && closeSearch(); if (typeof appTabs !== 'undefined') { try { localStorage.removeItem('appTabs'); } catch {} const t0 = { id: ++appTabs.seq, loc: null, pinned: false }; appTabs.list = [t0]; appTabs.active = t0.id; } if (typeof alertState !== 'undefined' && alertState.open) { alertState.open = false; drawAlertPanel(); } document.getElementById('upd-banner')?.remove(); document.getElementById('tq-banner')?.remove(); document.documentElement.removeAttribute('data-streamer'); typeof endWalk === 'function' && endWalk(); if (typeof tqState !== 'undefined' && tqState.online === false) updateServerStatus(); if (typeof mapState !== 'undefined') { mapState.view = null; mapState.regionId = null; mapState.sel = null; }`);
     for (const s of steps) { await js(s); await wait(900); }
     await snap(name);
   }

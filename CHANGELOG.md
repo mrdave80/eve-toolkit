@@ -2,6 +2,21 @@
 
 ## Next release
 
+- Tabs: keep several pages open like a browser. Ctrl+click or middle-click opens a page in a new tab, ⚲ pins a tab so it stays and comes back when the app restarts. Ctrl+T, Ctrl+W, Ctrl+Tab and Ctrl+1–9 work as in a browser.
+- Belt Tracker (Tools → Industry): paste the survey scanner every few minutes to see what's left, how fast it's going, and when the belt and each ore run out. The clipboard watch adds surveys by itself.
+- Where to Mine (Tools → Industry): pick a mineral such as Zydrine for every ore and ice that refines into it, best per m³ first, where it usually spawns, the nearest such system and where your pilots have mined it.
+- Where to Build (Tools → Industry): nearby systems ranked by CCP's cost index, with NPC stations and the job fee for an item.
+- Build calculator: build or sell (versus selling the materials, and component by component) and blueprint payback in runs and days.
+- Mining build planner: works out the true fewest m³ to mine, or the cheapest compressed ore to buy, and can leave out ore grades.
+- Wormholes: kills in your chain (zKillboard, every 5 minutes, with alerts); a hole collapse in the game log asks which connection and removes it and what's cut off, with undo; the overlay shows the chain around you; probe scans from German, French and Russian clients are read.
+- Wars (Tools → Intel): wars involving your corporations and alliances, whether they're on yet, and kills on each side.
+- Haul Planner (Tools → Navigation): packs a hangar or pasted list into trips for your ship, most ISK per m³ first, with a value warning and an optional per-trip cap.
+- Wallet history is kept past CCP's 30 days, with CSV export; Income and Ratting reach back up to a year.
+- Contracts → Search all history: every contract your pilots have had, kept past 30 days, searchable by title, people, places and items.
+- Skills to Buy (Tools → Pilots): skill books your plans need that aren't injected, with prices, books you already own, and a Multibuy list.
+- Mutaplasmids (Tools → Fitting): every mutaplasmid for a module with best and worst rolls, and how good your roll is. Needs a game data update.
+- Fleet tracker: doctrine check of who's in a doctrine hull.
+- Market: ships show how many are destroyed each month on zKillboard.
 - Alerts per pilot: set each pilot to all alerts, only while logged in to EVE, or no alerts (Settings → Notifications and behaviour, or **Alert types** under the bell, or **mute this pilot** on any alert). Alts you rarely play no longer pop up. Their alerts still go in the inbox, marked, and muted pilots are left out of daily goal reminders and Needs attention. Corp alerts such as structure attacks always come through.
 - Fixed: skill queue alerts (empty, paused, ending) ignored quiet hours, pilot muting and alert types. They now follow them like every other alert, under their own **Skill queues** type.
 - Fixed: muting a pilot only worked for alerts whose title started with the pilot's name.

@@ -909,6 +909,54 @@ api.diag = { report: async () => ({ ok: true, data: 'EVE Toolkit 1.9.0\nSystem: 
   };
 }
 if (api.update) { api.update.check = async () => ({ ok: true, data: { current: '1.12.0', ok: true, at: Date.now(), latest: '1.12.0', update: null } }); api.update.lastCheck = async () => ({ ok: true, data: { current: '1.12.0', ok: true, at: Date.now() - 3 * 3600e3, latest: '1.12.0', update: null } }); }
+// ---- mocks for the 21 Nov batch ----
+{
+  const iso2 = m => new Date(now - m * 60e3).toISOString();
+  api.wh = api.wh || {};
+  Object.assign(api.wh, { onChainKill: () => {}, onCollapse: () => {}, overlayChain: async () => ({ ok: true, data: null }),
+    chainKills: async () => ({ ok: true, data: { enabled: true, systems: 7, kills: [{ killId: 1, system: 'J152701', map: 'Home chain', ship: 'Stratios', shipTypeId: 33470, value: 412e6, attackers: 4, at: iso2(12) }, { killId: 2, system: 'J104809', map: 'Home chain', ship: 'Prospect', shipTypeId: 33697, value: 88e6, attackers: 1, at: iso2(55) }] } }) });
+  if (api.intel && !api.intel.onAttack) api.intel.onAttack = () => {};
+  const SV = { at: now - 12 * 60e3 };
+  api.survey = { add: async () => ({ ok: true, data: { rows: 14, scans: 3 } }), clear: async () => ({ ok: true, data: true }), undo: async () => ({ ok: true, data: 2 }), onNew: () => {},
+    get: async o => ({ ok: true, data: { scans: 3, since: SV.at, last: now - 60e3, minedM3: 41200, minedIsk: 58e6, minutesLeft: 47, nearMinutesLeft: 18,
+      rate: { m3: 3640, isk: 5.1e6, nearM3: 3100, source: 'scans', minutes: 11 },
+      total: { m3: 171000, isk: 242e6, rocks: 14, near: { m3: 56000, isk: 79e6, rocks: 5 } },
+      ores: [['Cobaltite', 6, 88000, 31000, 141e6, 1900, 46], ['Zeolites', 4, 52000, 25000, 71e6, 1200, 43], ['Sylvite', 3, 31000, 0, 30e6, 540, 57], ['Bitumens', 0, 0, 0, 0, null, 0]].map(([ore, rocks, m3, nearM3, isk, m3PerMin, minutesLeft]) => ({ ore, rocks, m3, nearM3, isk, m3PerMin, minutesLeft, gone: !rocks })),
+      history: [0, 3, 6, 9, 12].map(i => ({ at: SV.at + i * 3 * 60e3, m3: 212000 - i * 3400, isk: 0, nearM3: 0 })) } }) };
+  api.industryWhere = async () => ({ ok: true, data: { activity: 'manufacturing', product: { name: 'Hulk', runs: 1 }, rows: [['Aldranette', 0.6, 4, 0.0141, 3, 2.9e6], ['Ossumeur', 0.5, 6, 0.0159, 2, 3.1e6], ['Lirsautton', 0.7, 2, 0.0187, 1, 3.4e6], ['Dodixie', 0.9, 0, 0.0612, 6, 8.1e6], ['Botane', 0.9, 1, 0.0436, 4, 6.2e6]].map(([system, security, jumps, index, stations, jobCost]) => ({ system, security, jumps, index, stations, jobCost, region: 'Sinq Laison' })).sort((a, b) => a.index - b.index), here: [{ system: 'Dodixie', jumps: 0, index: 0.0612, jobCost: 8.1e6 }], checked: 112 } });
+  api.mineMinerals = async () => ({ ok: true, data: ['Tritanium', 'Pyerite', 'Mexallon', 'Isogen', 'Nocxium', 'Zydrine', 'Megacyte', 'Morphite'].map((name, i) => ({ id: 34 + i, name })) });
+  api.mineFind = async () => ({ ok: true, data: { mineral: { id: 39, name: 'Zydrine' }, yieldPct: 87.5, from: ['Mike Hunt'], ores: [
+    { base: 'Bistot', family: 'ore', variants: 4, best: { typeId: 1223, name: 'Bistot III-Grade', perM3: 6.84, others: [{ name: 'Pyerite' }, { name: 'Mexallon' }] }, usual: 'Nullsec belts (about −0.5 and below), wormholes', nearest: { system: 'EC-P8R', security: -0.52, jumps: 9, pilot: 'Mike Hunt' }, known: [] },
+    { base: 'Eifyrium', family: 'ore', variants: 4, best: { typeId: 74521, name: 'Eifyrium III-Grade', perM3: 5.2, others: [] }, usual: 'Rare border sites where highsec meets lowsec', nearest: { system: 'Aufay', security: 0.4, jumps: 3, pilot: 'Mike Hunt' }, known: [{ system: 'Aufay', date: '2026-11-12', pilot: 'Hugh Jayness' }] },
+    { base: 'Hezorime', family: 'ore', variants: 4, best: { typeId: 82163, name: 'Hezorime III-Grade', perM3: 3.9, others: [{ name: 'Tritanium' }, { name: 'Isogen' }] }, usual: 'Sovereign nullsec prospecting arrays', nearest: { system: 'EC-P8R', security: -0.52, jumps: 9, pilot: 'Mike Hunt' }, known: [] },
+    { base: 'Spodumain', family: 'ore', variants: 4, best: { typeId: 19, name: 'Spodumain III-Grade', perM3: 1.6, others: [{ name: 'Tritanium' }, { name: 'Isogen' }, { name: 'Nocxium' }, { name: 'Megacyte' }] }, usual: 'Pochven', nearest: { pochven: true }, known: [] },
+    { base: 'Rakovene', family: 'ore', variants: 4, best: { typeId: 52316, name: 'Rakovene III-Grade', perM3: 1.4, others: [{ name: 'Tritanium' }, { name: 'Isogen' }] }, usual: 'Pochven', nearest: { pochven: true }, known: [] }] } });
+  api.wars = async () => ({ ok: true, data: { checkedAt: iso2(8), entities: [{ id: 1, name: 'Hard Rock Excavations', pilots: ['Mike Hunt'] }, { id: 2, name: 'Loose Cannons Coalition', pilots: ['Richard Fitzwell'] }], wars: [
+    { id: 701, aggressor: 'Gank Co', defender: 'Hard Rock Excavations', allies: [], side: 'defender', entity: 'Hard Rock Excavations', pilots: ['Mike Hunt', 'Hugh Jayness'], declared: iso2(60 * 30), started: iso2(60 * 6), active: true, hot: true, startsIn: 0, mutual: false, openForAllies: true, kills: { aggressor: 4, defender: 1, aggressorIsk: 1.2e9, defenderIsk: 0.3e9 } },
+    { id: 702, aggressor: 'Loose Cannons Coalition', defender: 'Umbral Reach', allies: ['Shady Harbour Capital'], side: 'aggressor', entity: 'Loose Cannons Coalition', pilots: ['Richard Fitzwell'], declared: iso2(60 * 10), started: iso2(-60 * 14), active: true, hot: false, startsIn: 14 * 3600e3, mutual: false, openForAllies: false, kills: { aggressor: 0, defender: 0, aggressorIsk: 0, defenderIsk: 0 } },
+    { id: 690, aggressor: 'Night Shift Logistics', defender: 'Hard Rock Excavations', allies: [], side: 'defender', entity: 'Hard Rock Excavations', pilots: ['Mike Hunt'], declared: iso2(60 * 24 * 40), started: iso2(60 * 24 * 39), finished: iso2(60 * 24 * 20), active: false, hot: false, mutual: false, kills: { aggressor: 2, defender: 6, aggressorIsk: 0.2e9, defenderIsk: 0.9e9 } }] } });
+  api.haul = { locations: async () => ({ ok: true, data: [{ key: 'a', pilot: 'Wayne Kerr', location: 'Jita IV - Moon 4 - Caldari Navy Assembly Plant', value: 3.4e9, volume: 61200, items: 48 }] }),
+    plan: async () => ({ ok: true, data: { cargo: 13000, trips: [
+      { items: [['PLEX', 44992, 60, 0.6, 270e6], ['Large Skill Injector', 40520, 4, 0.04, 3.4e9], ['Hammerhead II', 2185, 40, 400, 26e6]].map(([name, typeId, qty, volume, value]) => ({ name, typeId, qty, volume, value })), volume: 400.6, value: 3.7e9, full: 0.03, warn: true },
+      { items: [['Nanite Repair Paste', 28668, 2000, 20000 * 0.01, 31e6], ['Tritanium', 34, 800000, 8000, 3.3e6]].map(([name, typeId, qty, volume, value]) => ({ name, typeId, qty, volume, value })), volume: 8200, value: 34e6, full: 0.63, warn: false },
+      { items: [['Tritanium', 34, 1290000, 12900, 5.3e6]].map(([name, typeId, qty, volume, value]) => ({ name, typeId, qty, volume, value })), volume: 12900, value: 5.3e6, full: 0.99, warn: false }],
+      total: { value: 3.74e9, volume: 21500 }, tooBig: [{ name: 'Orca', typeId: 28606, qty: 1 }], tooPricey: [], cumulative: [3.7e9, 3.73e9, 3.74e9] } }) };
+  api.skillsToBuy = async () => ({ ok: true, data: { total: 241e6, errors: [], rows: [
+    { skillId: 3329, name: 'Heavy Assault Cruisers', group: 'Spaceship Command', price: 32e6, pilots: [{ name: 'Mike Hunt', plans: ['Ishtar mastery I'] }], owned: [], toBuy: 1 },
+    { skillId: 22551, name: 'Exhumers', group: 'Spaceship Command', price: 89e6, pilots: [{ name: 'Hugh Jayness', plans: ['Hulk'] }], owned: [{ pilot: 'Wayne Kerr', location: 'Jita IV - Moon 4', qty: 1 }], toBuy: 0 },
+    { skillId: 3437, name: 'Drone Sharpshooting', group: 'Drones', price: 1.2e6, pilots: [{ name: 'Mike Hunt', plans: ['Ishtar mastery I'] }, { name: 'Jack Mehoff', plans: ['Drones'] }], owned: [], toBuy: 2 },
+    { skillId: 23566, name: 'Advanced Drone Avionics', group: 'Drones', price: 118e6, pilots: [{ name: 'Mike Hunt', plans: ['Ishtar mastery I'] }], owned: [], toBuy: 1 }] } });
+  api.muta = async () => ({ ok: true, data: { module: { name: '10MN Afterburner II', price: 1.1e6 }, mutas: [
+    { id: 47297, name: 'Unstable Propulsion Mutaplasmid', price: 21e6, quality: 0.71, rows: [['Velocity Bonus', '%', true, 135, 0.8, 1.2, 151], ['Capacitor Need', 'GJ', false, 30, 0.8, 1.35, 33], ['Powergrid Usage', 'MW', false, 50, 0.85, 1.5, 47], ['CPU usage', 'tf', false, 25, 0.8, 1.5, null]].map(([name, unit, highIsGood, base, lo, hi, rolled]) => { const min = base * lo, max = base * hi; const good = highIsGood ? max : min, bad = highIsGood ? min : max; return { id: name, name, unit, highIsGood, base, lo, hi, min, max, rolled, quality: rolled === null ? null : Math.max(0, Math.min(1, (rolled - bad) / (good - bad))) }; }) },
+    { id: 47299, name: 'Decayed Propulsion Mutaplasmid', price: 4e6, quality: null, rows: [['Velocity Bonus', '%', true, 135, 0.95, 1.1, null], ['Capacitor Need', 'GJ', false, 30, 0.9, 1.15, null]].map(([name, unit, highIsGood, base, lo, hi, rolled]) => ({ id: name, name, unit, highIsGood, base, lo, hi, min: base * lo, max: base * hi, rolled, quality: null })) }] } });
+  api.contractSearch = async () => ({ ok: true, data: { matched: 3, total: 214, oldest: iso2(60 * 24 * 96), pendingItems: 0, rows: [
+    { id: 1, type: 'item_exchange', status: 'finished', title: 'Hulk + fittings', issued: iso2(60 * 24 * 70), price: 410e6, reward: 0, issuer: 'Hugh Jayness', acceptor: 'Dee Zaster', start: 'Jita IV - Moon 4', pilots: ['Hugh Jayness'], items: [{ typeId: 22544, name: 'Hulk', qty: 1, included: true }, { typeId: 28576, name: 'Strip Miner II', qty: 3, included: true }], itemHits: [{ name: 'Hulk', qty: 1 }], itemsKnown: true },
+    { id: 2, type: 'item_exchange', status: 'finished', title: '', issued: iso2(60 * 24 * 41), price: 395e6, reward: 0, issuer: 'Mike Hunt', acceptor: 'Pat McGroin', start: 'Amarr VIII', pilots: ['Mike Hunt'], items: [{ typeId: 22544, name: 'Hulk', qty: 1, included: true }], itemHits: [{ name: 'Hulk', qty: 1 }], itemsKnown: true },
+    { id: 3, type: 'courier', status: 'outstanding', title: 'Hulk hull to Dodixie', issued: iso2(60 * 5), price: 0, reward: 12e6, issuer: 'Wayne Kerr', start: 'Jita IV - Moon 4', end: 'Dodixie IX', pilots: ['Wayne Kerr'], items: [], itemHits: [], itemsKnown: true }] } });
+  if (api.market) api.market.losses = async () => ({ ok: true, data: { week: 142, weekCapped: false, perDay: 20.3, totalLost: 51234, months: ['2025-12', '2026-01', '2026-02', '2026-03', '2026-04', '2026-05', '2026-06', '2026-07', '2026-08', '2026-09', '2026-10', '2026-11'].map((month, i) => ({ month, lost: 380 + ((i * 53) % 210), isk: 2e9 })) } });
+  api.walletCsv = async () => ({ ok: true, data: [['date']] });
+  api.onCloseTab = () => {};
+}
 contextBridge.exposeInMainWorld('api', api);
 contextBridge.exposeInMainWorld('__mock', { sdeCheck: v => { globalThis.__sdeCheck = v; } });
 

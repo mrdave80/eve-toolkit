@@ -214,6 +214,7 @@ function go(view, opts = {}) {
 
 async function render(force = false) {
   const token = ++state.renderToken;
+  if (typeof syncTab === 'function') syncTab();
   const stillCurrent = () => token === state.renderToken;
   content().scrollTop = 0;
   if (force) await api.clearCache();
@@ -1183,6 +1184,7 @@ api.onUpdate(showUpdateBanner);
   if (typeof initAlerts === 'function') initAlerts();
   state.characters = c.ok ? c.data : [];
   if (state.settings.themeAuto && state.settings.themeAuto.enabled) refreshTheme();
+  if (typeof restoreTabs === 'function') restoreTabs();
   renderSidebar();
   renderTopbar();
   render();

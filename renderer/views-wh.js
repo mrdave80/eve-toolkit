@@ -99,10 +99,10 @@ async function drawChainKills() {
       : html`<div class="muted" style="font-size:12.5px;margin-top:6px">${d.enabled ? `No kills in the ${d.systems} system${d.systems === 1 ? '' : 's'} of your recent maps. zKillboard is checked every 5 minutes.` : 'Turn on to be told when a ship dies anywhere on maps you\u2019ve used in the last two days.'}</div>`}`);
   $('#wh-killalert').onchange = async e => { await api.wh.chainKillsSet(e.target.checked); drawChainKills(); };
 }
-api.wh.onChainKill(() => { if (state.view === 'wormholes') drawChainKills(); });
+if (api.wh.onChainKill) api.wh.onChainKill(() => { if (state.view === 'wormholes') drawChainKills(); });
 
 // A wormhole collapsed (from the game log): ask which connection, remove it and what's cut off, with undo
-api.wh.onCollapse(async e => {
+if (api.wh.onCollapse) api.wh.onCollapse(async e => {
   if (!e || !e.mapId) return;
   if (!whState.maps.length) { const r = await api.wh.maps(); if (r.ok) whState.maps = r.data; }
   const m = whState.maps.find(x => x.id === e.mapId); if (!m) return;

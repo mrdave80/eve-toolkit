@@ -37,6 +37,7 @@ contextBridge.exposeInMainWorld('api', {
   alerts: { list: () => call('alerts:list'), read: () => call('alerts:read'), clear: () => call('alerts:clear'), types: p => call('alerts:types', p), pilots: () => call('alerts:pilots'), pilotMode: (id, m) => call('alerts:pilotMode', id, m), onNew: cb => ipcRenderer.on('alert:new', (_e, d) => cb(d)) },
   industryWhere: o => call('ind:where', o),
   wars: o => call('wars:list', o),
+  onCloseTab: cb => ipcRenderer.on('tabs:closeCurrent', () => cb()),
   contractSearch: o => call('contracts:search', o),
   muta: o => call('muta:calc', o),
   skillsToBuy: () => call('skills:toBuy'),

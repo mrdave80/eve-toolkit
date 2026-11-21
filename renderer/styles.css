@@ -652,3 +652,20 @@ html[data-streamer] .mail-row .from, html[data-streamer] .mail-view { filter: bl
 .pa-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 6px 18px; }
 .pa-row { display: flex; align-items: center; gap: 10px; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
 .pa-row select { max-width: 210px; }
+
+/* Browser-style tabs */
+#apptabs { display: flex; align-items: flex-end; gap: 2px; padding: 6px 10px 0; background: var(--bg-2); border-bottom: 1px solid var(--line); overflow-x: auto; scrollbar-width: none; min-height: 34px; }
+#apptabs::-webkit-scrollbar { display: none; }
+.apptab { display: flex; align-items: center; gap: 6px; max-width: 220px; min-width: 90px; padding: 5px 6px 5px 10px; border: 1px solid transparent; border-bottom: none; border-radius: 8px 8px 0 0; color: var(--muted); font-size: 12.5px; cursor: pointer; user-select: none; flex-shrink: 0; position: relative; }
+.apptab:hover { background: color-mix(in srgb, var(--panel) 60%, transparent); color: var(--text); }
+.apptab.active { background: var(--bg); border-color: var(--line); color: var(--text); margin-bottom: -1px; padding-bottom: 6px; }
+.apptab.active::before { content: ''; position: absolute; left: 8px; right: 8px; top: 0; height: 2px; border-radius: 2px; background: var(--accent); }
+.apptab.pinned { min-width: 0; }
+.apptab img { width: 16px; height: 16px; border-radius: 3px; flex-shrink: 0; }
+.apptab .at-title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.apptab button { background: none; border: none; color: var(--dim); cursor: pointer; padding: 0 3px; font-size: 13px; line-height: 1; border-radius: 4px; }
+.apptab button:hover { color: var(--text); background: var(--line); }
+.apptab .at-pin { font-size: 11px; opacity: 0; }
+.apptab:hover .at-pin, .apptab.pinned .at-pin { opacity: 1; }
+.apptab-new { background: none; border: none; color: var(--dim); font-size: 17px; padding: 2px 9px 4px; cursor: pointer; border-radius: 6px; flex-shrink: 0; }
+.apptab-new:hover { color: var(--text); background: var(--line); }

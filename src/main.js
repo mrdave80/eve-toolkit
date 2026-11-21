@@ -133,6 +133,8 @@ function createWindow() {
     }
   });
   win.setMenuBarVisibility(false);
+  // Ctrl+W closes the current tab, not the window (the hidden default menu would close the window)
+  win.webContents.on('before-input-event', (e, input) => { if (input.type === 'keyDown' && (input.control || input.meta) && !input.alt && !input.shift && String(input.key).toLowerCase() === 'w') { e.preventDefault(); win.webContents.send('tabs:closeCurrent'); } });
   win.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'));
   win.once('ready-to-show', () => { if (b.maximized) win.maximize(); win.show(); });
   let boundsTimer = null;

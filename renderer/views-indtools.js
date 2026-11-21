@@ -226,7 +226,7 @@ async function drawBelt() {
     <div class="panel"><div style="display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0">The belt over time</h3><span class="dim" style="font-size:12px">${d.scans} survey${d.scans === 1 ? '' : 's'} · last ${ago < 1 ? 'just now' : ago + ' min ago'}${d.minedM3 > 0 ? ` · ${fmtNum(Math.round(d.minedM3))} m³ mined since the first` : ''}</span></div>
       <div style="margin-top:8px">${sparkline(d.history.map(h => [h.at, h.m3]), 640, 60)}</div></div>`);
 }
-api.survey.onNew(d => { toast(`Mining survey added (${d.rows} rocks)`); if (state.view === 'tools' && state.toolsTab === 't-belt') drawBelt(); });
+if (api.survey && api.survey.onNew) api.survey.onNew(d => { toast(`Mining survey added (${d.rows} rocks)`); if (state.view === 'tools' && state.toolsTab === 't-belt') drawBelt(); });
 
 // ================= Where to mine a mineral =================
 
